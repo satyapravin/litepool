@@ -1,0 +1,10 @@
+setuptools
+wheel
+numpy
+dm-env
+gym>=0.26
+gymnasium>=0.26,!=0.27.0
+packaging
+tqdm
+protobuf<=4.20.0
+torch!=2.0.0,!=2.0.1
