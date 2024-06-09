@@ -1,5 +1,5 @@
-# litepool
-RL pool
+# LitePool
+An all encompassing lightweight port of C++ RL environment pool relying on CMake only.
 
 ## BUILD on Linux:
 1. Build all third Party and install
