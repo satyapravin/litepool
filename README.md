@@ -1,5 +1,6 @@
 # LitePool
-An all encompassing lightweight port of C++ RL environment pool relying on CMake only.
+An all encompassing bareboned lightweight port of C++ RL environment pool relying on CMake only.
+It allows users to create their own environments in C++ for use with popular RL Python libraries.
 
 ## BUILD on Linux:
 1. Build all third Party and install
