@@ -1,8 +1,37 @@
 find_package(GTest REQUIRED)
 find_package(pybind11 REQUIRED)
 add_executable(dicttest dict_test.cc)
+add_executable(action_buffer_queue_test action_buffer_queue_test.cc)
+add_executable(state_buffer_queue_test state_buffer_queue_test.cc)
+add_executable(state_buffer_test state_buffer_test.cc)
+add_executable(circular_buffer_test circular_buffer_test.cc)
 
-target_include_directories(dicttest PRIVATE /usr/local/include ${PROJECT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -fsanitize=address -fsanitize=undefined")
+set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fsanitize=address -fsanitize=undefined")
+
+find_package(Threads REQUIRED)
+
+target_include_directories(dicttest PRIVATE /usr/local/include ${PROJECT_SOURCE_DIR})
+target_include_directories(action_buffer_queue_test PRIVATE /usr/local/include ${PROJECT_SOURCE_DIR})
+target_include_directories(state_buffer_queue_test PRIVATE /usr/local/include ${PROJECT_SOURCE_DIR})
+target_include_directories(state_buffer_test PRIVATE /usr/local/include ${PROJECT_SOURCE_DIR})
+target_include_directories(circular_buffer_test PRIVATE /usr/local/include ${PROJECT_SOURCE_DIR})
+
+target_link_options(dicttest PRIVATE -static-libgcc)
+target_link_options(state_buffer_test PRIVATE -static-libgcc)
+target_link_options(state_buffer_queue_test PRIVATE -static-libgcc)
+target_link_options(action_buffer_queue_test PRIVATE -static-libgcc)
+target_link_options(circular_buffer_test PRIVATE -static-libgcc)
+
 target_link_libraries(dicttest PRIVATE GTest::GTest GTest::Main glog gflags gmock)
+target_link_libraries(action_buffer_queue_test PRIVATE GTest::GTest GTest::Main glog gflags gmock)
+target_link_libraries(state_buffer_queue_test PRIVATE Threads::Threads GTest::GTest GTest::Main glog gflags gmock /usr/lib/gcc/x86_64-linux-gnu/11/libstdc++.a m)
+target_link_libraries(state_buffer_test PRIVATE GTest::GTest GTest::Main glog gflags gmock)
+target_link_libraries(circular_buffer_test PRIVATE GTest::GTest GTest::Main glog gflags gmock)
+
 include(GoogleTest)
 gtest_discover_tests(dicttest)
+gtest_discover_tests(action_buffer_queue_test)
+gtest_discover_tests(state_buffer_queue_test)
+gtest_discover_tests(state_buffer_test)
+gtest_discover_tests(circular_buffer_test)

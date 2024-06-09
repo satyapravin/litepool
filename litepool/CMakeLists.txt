@@ -1,3 +1,3 @@
 add_subdirectory(core)
 add_subdirectory(dummy)
-#add_subdirectory(simulator)
+add_subdirectory(simulator)
