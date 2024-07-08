@@ -1,4 +1,4 @@
-add_subdirectory(abseil)
+add_subdirectory(abseil-cpp)
 add_subdirectory(boost_1_83_0)
 add_subdirectory(concurrentqueue)
 add_subdirectory(gflags)
