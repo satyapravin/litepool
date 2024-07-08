@@ -19,3 +19,6 @@
 [submodule "third_party/pugixml"]
 	path = third_party/pugixml
 	url = https://github.com/zeux/pugixml.git
+[submodule "third_party/threadpool"]
+	path = third_party/threadpool
+	url = https://github.com/progschj/ThreadPool.git
