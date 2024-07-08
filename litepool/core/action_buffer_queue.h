@@ -21,10 +21,14 @@
 #define MOODYCAMEL_DELETE_FUNCTION = delete
 #endif
 
+#define _POSIX_C_SOURCE 200809L
+#include <ctime>
 #include <atomic>
 #include <cassert>
 #include <utility>
 #include <vector>
+#include <cstdint>
+#include <cerrno>
 #include <concurrentqueue/moodycamel/lightweightsemaphore.h>
 #include "litepool/core/array.h"
 
