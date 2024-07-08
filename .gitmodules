@@ -22,3 +22,6 @@
 [submodule "third_party/threadpool"]
 	path = third_party/threadpool
 	url = https://github.com/progschj/ThreadPool.git
+[submodule "third_party/zlib"]
+	path = third_party/zlib
+	url = https://github.com/madler/zlib.git
