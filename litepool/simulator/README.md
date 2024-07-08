@@ -1,2 +1,0 @@
-# CppSimulator
-Simulator in C++
