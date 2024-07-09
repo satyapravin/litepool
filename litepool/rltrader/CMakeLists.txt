@@ -2,7 +2,17 @@ find_package(GTest REQUIRED)
 find_package(pybind11 REQUIRED)
 
 set(GFLAG_LIBRARY_NAME /usr/local/lib/libgflags.a)
-pybind11_add_module(rltrader_litepool rltrader_litepool.h rltrader_litepool.cc)
+pybind11_add_module(rltrader_litepool rltrader_litepool.h rltrader_litepool.cc
+                                      base_instrument.h
+                                      csv_reader.h csv_reader.cc
+                                      exchange.h exchange.cc
+                                      inverse_instrument.h inverse_instrument.cc
+                                      order.h position.h position.cc
+                                      strategy.cc doctest.h strategy.h
+                                      orderbook.h orderbook.cc
+                                      signal_builder.h signal_builder.cc
+                                      env_adaptor.h env_adaptor.cc)
+
 set_target_properties(rltrader_litepool PROPERTIES PREFIX "" SUFFIX ".so")
 include_directories(${PROJECT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 add_executable(rltradertest rltrader_litepool_test.cc)
