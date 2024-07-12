@@ -106,7 +106,7 @@ public:
 
     std::vector<double> add_book(Orderbook& lob);
 
-    long get_tick_count() { return processed_counter; }
+    long long get_tick_count() { return processed_counter; }
 
     price_signal_repository& get_price_signals(signal_type sigtype);
 
@@ -121,8 +121,6 @@ public:
     price_signal_repository& get_volatility_1_signals(signal_type sigtype);
 
     price_signal_repository& get_volatility_10_signals(signal_type sigtype);
-
-    double normalize(const double& raw_signal, const double& alpha, double& mean, double& ssr);
 
 private:
     void insert_norm_price_signals(std::vector<double>& signals);
@@ -184,7 +182,7 @@ private:
     double compute_vwap_ofi(int lag);
 
 private:
-    u_long processed_counter = 0;
+    long long processed_counter = 0;
     u_int minimum_required = 30;
     double norm_alpha = 2.0 / 1201;
     TemporalTable bid_prices;

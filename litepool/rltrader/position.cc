@@ -11,7 +11,6 @@ Position::Position(BaseInstrument& instr, const double& aBalance,
     , totalQuantity(initialQty)
     , totalFee(0)
     , numOfTrades(0)
-    , totalQuantity(0)
     , initialBalance(aBalance)
     , balance(aBalance){
 }

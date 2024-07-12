@@ -2,16 +2,7 @@
 #include <numeric>
 #include <cmath>
 #include <iostream>
-
-#define NORMALIZE(struct_name, to_struct, mean_name, ssr_name, property_name, alpha) \
-    do { \
-        mean_name->property_name *= (1.0 - alpha); \
-        mean_name->property_name += alpha * (struct_name.property_name - mean_name->property_name); \
-        auto sqdelta = struct_name.property_name - mean_name->property_name; \
-        ssr_name->property_name *= (1.0 - alpha); \
-        ssr_name->property_name += alpha * sqdelta * sqdelta; \
-        to_struct.property_name = sqdelta / std::pow(ssr_name->property_name + 1e-12, 0.5); \
-    } while(0)
+#include "normalizer.h"
 
 using namespace Simulator;
 
@@ -54,14 +45,6 @@ MarketSignalBuilder::MarketSignalBuilder(u_int bookhistory, u_int price_history)
 
 bool MarketSignalBuilder::is_data_ready() const {
     return processed_counter >= minimum_required;
-}
-
-double MarketSignalBuilder::normalize(const double& raw, const double& alpha, double& mean, double& ssr) {
-    mean *= 1.0 - alpha;
-    mean += alpha * raw;
-    ssr *= 1.0 - alpha;
-    ssr += alpha * (raw - mean) * (raw - mean);
-    return (raw - mean) / std::pow(ssr + 1e-7, 0.5);
 }
 
 price_signal_repository& MarketSignalBuilder::get_price_signals(signal_type sigtype) {

@@ -4,9 +4,8 @@
 
 namespace Simulator {
 	struct PositionInfo {
-        double totalQuantity = 0;
+        double netPosition = 0;
         double balance = 0;
-        long tradeCount = 0;
         double averagePrice = 0;
         double tradingPnL = 0;
         double inventoryPnL = 0;
