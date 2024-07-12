@@ -4,6 +4,7 @@
 
 namespace Simulator {
 	struct PositionInfo {
+        double totalQuantity = 0;
         double balance = 0;
         long tradeCount = 0;
         double averagePrice = 0;
@@ -14,18 +15,18 @@ namespace Simulator {
 
     class Position {
     private:
+        BaseInstrument& instrument;
         double averagePrice = 0.0;
-        double totalQuantity = 0.0;
+        double netQuantity = 0.0;
         double totalFee = 0.0;
         int numOfTrades = 0;
-        double totalNotional = 0.0;
+        double totalQuantity = 0.0;
         double initialBalance = 0.0;
         double balance = 0.0;
-        BaseInstrument& instrument;
+
 
     public:
-        Position(BaseInstrument& instr, const double& balance, 
-            const double& initialQty, const double& initialAvgprice);
+        Position(BaseInstrument& instr, const double& aBalance, const double& initialQty, const double& initialAvgprice);
         void reset(const double& initialQty, const double& initialAvgprice);
         void fetchInfo(PositionInfo& info, const double& bidPrice, const double& askPrice) const;
         void onFill(const Order& order, bool is_maker);

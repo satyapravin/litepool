@@ -15,14 +15,12 @@ Strategy::Strategy(BaseInstrument& instr, Exchange& exch, const double& balance,
 	 order_id(0), maxFactor(areaFactor), max_ticks(maxTicks) {
 
 	assert(max_ticks >= 5);
-	signal_ptr = std::make_unique<SignalBuilder>(20, 20);
 }
 
 void Strategy::reset(int time_index, const double& position_amount, const double& avg_price) {
 	this->exchange.reset(time_index);
 	this->position.reset(position_amount, avg_price);
 	this->order_id = 0;
-	signal_ptr.reset(std::make_unique<SignalBuilder>(20, 20).release());
 }
 
 bool Strategy::quote(int bid_tick_spread, int ask_tick_spread, 

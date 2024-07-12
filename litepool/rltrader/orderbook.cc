@@ -28,7 +28,7 @@ bool Orderbook::initialize() {
     return true;
 }
 
-Orderbook::Orderbook(std::map<std::string, double> lob){
+Orderbook::Orderbook(std::unordered_map<std::string, double> lob){
     for(int ii=0; ii < bid_price_labels.size(); ++ii) {
         if (lob.find(bid_price_labels[ii]) != lob.end()) {
             bid_prices.push_back(lob[Orderbook::bid_price_labels[ii]]);

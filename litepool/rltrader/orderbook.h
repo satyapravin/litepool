@@ -1,6 +1,6 @@
 #pragma once
 
-#include <map>
+#include <unordered_map>
 #include <vector>
 #include <string>
 #include <sstream>
@@ -16,7 +16,7 @@ private:
 public:
     static bool initialize();
     Orderbook() {}
-    Orderbook(std::map<std::string, double> lob);
+    Orderbook(std::unordered_map<std::string, double> lob);
 
     Orderbook(Orderbook&& other);
 

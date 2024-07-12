@@ -1,4 +1,4 @@
-#include "signal_builder.h"
+#include "market_signal_builder.h"
 #include <numeric>
 #include <cmath>
 #include <iostream>
@@ -15,7 +15,7 @@
 
 using namespace Simulator;
 
-SignalBuilder::SignalBuilder(u_int bookhistory, u_int price_history)
+MarketSignalBuilder::MarketSignalBuilder(u_int bookhistory, u_int price_history)
               :processed_counter(0),
                minimum_required(bookhistory*price_history),
                bid_prices(bookhistory, 20),
@@ -52,11 +52,11 @@ SignalBuilder::SignalBuilder(u_int bookhistory, u_int price_history)
 }
 
 
-bool SignalBuilder::is_data_ready() const {
+bool MarketSignalBuilder::is_data_ready() const {
     return processed_counter >= minimum_required;
 }
 
-double SignalBuilder::normalize(const double& raw, const double& alpha, double& mean, double& ssr) {
+double MarketSignalBuilder::normalize(const double& raw, const double& alpha, double& mean, double& ssr) {
     mean *= 1.0 - alpha;
     mean += alpha * raw;
     ssr *= 1.0 - alpha;
@@ -64,7 +64,7 @@ double SignalBuilder::normalize(const double& raw, const double& alpha, double& 
     return (raw - mean) / std::pow(ssr + 1e-7, 0.5);
 }
 
-price_signal_repository& SignalBuilder::get_price_signals(signal_type sigtype) {
+price_signal_repository& MarketSignalBuilder::get_price_signals(signal_type sigtype) {
     if (sigtype == signal_type::raw) {
         return raw_price_signals.get(0);
     } else if (sigtype == signal_type::norm) {
@@ -76,7 +76,7 @@ price_signal_repository& SignalBuilder::get_price_signals(signal_type sigtype) {
     }
 }
 
-spread_signal_repository& SignalBuilder::get_spread_signals(signal_type sigtype) {
+spread_signal_repository& MarketSignalBuilder::get_spread_signals(signal_type sigtype) {
     if (sigtype == signal_type::raw) {
         return *raw_spread_signals;
     } else if (sigtype == signal_type::norm) {
@@ -88,7 +88,7 @@ spread_signal_repository& SignalBuilder::get_spread_signals(signal_type sigtype)
     }
 }
 
-volume_signal_repository& SignalBuilder::get_volume_signals(signal_type sigtype) {
+volume_signal_repository& MarketSignalBuilder::get_volume_signals(signal_type sigtype) {
     if (sigtype == signal_type::raw) {
         return *raw_volume_signals;
     } else if (sigtype == signal_type::norm) {
@@ -99,7 +99,7 @@ volume_signal_repository& SignalBuilder::get_volume_signals(signal_type sigtype)
         return *raw_volume_signal_ssqr;
     }
 }
-price_signal_repository& SignalBuilder::get_velocity_1_signals(signal_type sigtype) {
+price_signal_repository& MarketSignalBuilder::get_velocity_1_signals(signal_type sigtype) {
     if (sigtype == signal_type::raw) {
         return *raw_price_signal_velocities_1;
     } else if (sigtype == signal_type::norm) {
@@ -111,7 +111,7 @@ price_signal_repository& SignalBuilder::get_velocity_1_signals(signal_type sigty
     }
 }
 
-price_signal_repository& SignalBuilder::get_velocity_10_signals(signal_type sigtype) {
+price_signal_repository& MarketSignalBuilder::get_velocity_10_signals(signal_type sigtype) {
 if (sigtype == signal_type::raw) {
         return *raw_price_signal_velocities_10;
     } else if (sigtype == signal_type::norm) {
@@ -123,7 +123,7 @@ if (sigtype == signal_type::raw) {
     }
 }
 
-price_signal_repository& SignalBuilder::get_volatility_1_signals(signal_type sigtype) {
+price_signal_repository& MarketSignalBuilder::get_volatility_1_signals(signal_type sigtype) {
     if (sigtype == signal_type::raw) {
         return *raw_price_signal_velocity_1_ssqr;
     } else if (sigtype == signal_type::norm) {
@@ -135,7 +135,7 @@ price_signal_repository& SignalBuilder::get_volatility_1_signals(signal_type sig
     }
 }
 
-price_signal_repository& SignalBuilder::get_volatility_10_signals(signal_type sigtype) {
+price_signal_repository& MarketSignalBuilder::get_volatility_10_signals(signal_type sigtype) {
     if (sigtype == signal_type::raw) {
         return *raw_price_signal_velocity_10_ssqr;
     } else if (sigtype == signal_type::norm) {
@@ -158,31 +158,31 @@ void insert_signals(std::vector<double>& signals, T& repo) {
     signals.insert(signals.end(), start, end);
 }
 
-void SignalBuilder::insert_norm_price_signals(std::vector<double>& signals) {
+void MarketSignalBuilder::insert_norm_price_signals(std::vector<double>& signals) {
     insert_signals(signals, *raw_price_normalized_signals);
 }
 
-void SignalBuilder::insert_norm_spread_signals(std::vector<double>& signals) {
+void MarketSignalBuilder::insert_norm_spread_signals(std::vector<double>& signals) {
     insert_signals(signals, *raw_spread_normalized_signals);
 }
 
-void SignalBuilder::insert_norm_volume_signals(std::vector<double>& signals) {
+void MarketSignalBuilder::insert_norm_volume_signals(std::vector<double>& signals) {
     insert_signals(signals, *raw_volume_normalized_signals);
 }
 
-void SignalBuilder::insert_norm_velocity_1_signals(std::vector<double>& signals) {
+void MarketSignalBuilder::insert_norm_velocity_1_signals(std::vector<double>& signals) {
     insert_signals(signals, *raw_price_velocity_1_normalized_signals);
 }
 
-void SignalBuilder::insert_norm_velocity_10_signals(std::vector<double>& signals) {
+void MarketSignalBuilder::insert_norm_velocity_10_signals(std::vector<double>& signals) {
     insert_signals(signals, *raw_price_velocity_10_normalized_signals);
 }
 
-void SignalBuilder::insert_norm_volatility_1_signals(std::vector<double>& signals) {
+void MarketSignalBuilder::insert_norm_volatility_1_signals(std::vector<double>& signals) {
     insert_signals(signals, *raw_price_vol_1_normalized_signals);
 }
 
-void SignalBuilder::insert_norm_volatility_10_signals(std::vector<double>& signals) {
+void MarketSignalBuilder::insert_norm_volatility_10_signals(std::vector<double>& signals) {
     insert_signals(signals, *raw_price_vol_10_normalized_signals);
 }
 
@@ -226,7 +226,7 @@ double micro_price(const double& bid_price, const double& ask_price,
     return (bid_price * ask_size + ask_price * bid_size) / (bid_size + ask_size);
 }
 
-std::vector<double> SignalBuilder::add_book(Orderbook& book) {
+std::vector<double> MarketSignalBuilder::add_book(Orderbook& book) {
     bid_prices.addRow(book.bid_prices);
     bid_sizes.addRow(book.bid_sizes);
     ask_prices.addRow(book.ask_prices);
@@ -249,7 +249,7 @@ std::vector<double> SignalBuilder::add_book(Orderbook& book) {
     return retval;
 }
 
-void SignalBuilder::compute_signals() {
+void MarketSignalBuilder::compute_signals() {
     auto current_bid_prices = bid_prices.get(0);
     auto current_ask_prices = ask_prices.get(0);
     auto current_bid_sizes = bid_sizes.get(0);
@@ -291,7 +291,7 @@ void SignalBuilder::compute_signals() {
     processed_counter++;
 }
 
-void SignalBuilder::normalize_signals() {
+void MarketSignalBuilder::normalize_signals() {
     normalize_price_signals();
     normalize_spread_signals();
     normalize_volume_signals();
@@ -299,7 +299,7 @@ void SignalBuilder::normalize_signals() {
     normalize_velocity_10_signals();
 }
 
-void SignalBuilder::normalize_volatility_1_signals() {
+void MarketSignalBuilder::normalize_volatility_1_signals() {
     auto& vol_1_sig = *raw_price_signal_velocity_1_ssqr;
     auto& to = *raw_price_vol_1_normalized_signals;
     NORMALIZE(vol_1_sig, to, raw_price_vol_1_mean, raw_price_vol_1_ssqr, mid_price_signal, norm_alpha);
@@ -340,7 +340,7 @@ void SignalBuilder::normalize_volatility_1_signals() {
     NORMALIZE(vol_1_sig, to, raw_price_vol_1_mean, raw_price_vol_1_ssqr, ask_fill_price_signal_4, norm_alpha);
 }
 
-void SignalBuilder::normalize_volatility_10_signals() {
+void MarketSignalBuilder::normalize_volatility_10_signals() {
     auto& vol_10_sig = *raw_price_signal_velocity_10_ssqr;
     auto& to = *raw_price_vol_10_normalized_signals;
     NORMALIZE(vol_10_sig, to, raw_price_vol_10_mean, raw_price_vol_10_ssqr, mid_price_signal, norm_alpha);
@@ -381,7 +381,7 @@ void SignalBuilder::normalize_volatility_10_signals() {
     NORMALIZE(vol_10_sig, to, raw_price_vol_10_mean, raw_price_vol_10_ssqr, ask_fill_price_signal_4, norm_alpha);
 }
 
-void SignalBuilder::normalize_velocity_1_signals() {
+void MarketSignalBuilder::normalize_velocity_1_signals() {
     auto& velocity_1_signal = *raw_price_signal_velocities_1;
     auto& to = *raw_price_velocity_1_normalized_signals;
     NORMALIZE(velocity_1_signal, to, raw_price_signal_velocity_1_mean, raw_price_signal_velocity_1_ssqr, mid_price_signal, norm_alpha);
@@ -423,7 +423,7 @@ void SignalBuilder::normalize_velocity_1_signals() {
 }
 
 
-void SignalBuilder::normalize_velocity_10_signals() {
+void MarketSignalBuilder::normalize_velocity_10_signals() {
     auto& velo_10_sig = *raw_price_signal_velocities_10;
     auto& to = *raw_price_velocity_10_normalized_signals;
     NORMALIZE(velo_10_sig, to, raw_price_signal_velocity_10_mean, raw_price_signal_velocity_10_ssqr, mid_price_signal, norm_alpha);
@@ -464,7 +464,7 @@ void SignalBuilder::normalize_velocity_10_signals() {
     NORMALIZE(velo_10_sig, to, raw_price_signal_velocity_10_mean, raw_price_signal_velocity_10_ssqr, ask_fill_price_signal_4, norm_alpha);
 }
 
-void SignalBuilder::normalize_volume_signals() {
+void MarketSignalBuilder::normalize_volume_signals() {
     auto& volume_signal = *raw_volume_signals;
     auto& to = *raw_volume_normalized_signals;
     NORMALIZE(volume_signal, to, raw_volume_signal_mean, raw_volume_signal_ssqr, volume_imbalance_signal_0, norm_alpha);
@@ -475,7 +475,7 @@ void SignalBuilder::normalize_volume_signals() {
 }
 
 
-void SignalBuilder::normalize_spread_signals() {
+void MarketSignalBuilder::normalize_spread_signals() {
     auto& spread_signal = *raw_spread_signals;
     auto& to = *raw_spread_normalized_signals;
     NORMALIZE(spread_signal, to, raw_spread_signal_mean, raw_spread_signal_ssqr, norm_vwap_bid_spread_signal_0, norm_alpha);
@@ -505,7 +505,7 @@ void SignalBuilder::normalize_spread_signals() {
     NORMALIZE(spread_signal, to, raw_spread_signal_mean, raw_spread_signal_ssqr, ask_fill_spread_signal_4, norm_alpha);
 }
 
-void SignalBuilder::normalize_price_signals() {
+void MarketSignalBuilder::normalize_price_signals() {
     auto& price_signal = raw_price_signals.get(0);
     auto& to = *raw_price_normalized_signals;
     NORMALIZE(price_signal, to, raw_price_signal_mean, raw_price_signal_ssqr, mid_price_signal, norm_alpha);
@@ -592,11 +592,11 @@ void diff(price_signal_repository& result, const price_signal_repository&current
     result.ask_fill_price_signal_4 = current.ask_fill_price_signal_4 - prev.ask_fill_price_signal_4;
 }
 
-void SignalBuilder::compute_volatility_signals() {
+void MarketSignalBuilder::compute_volatility_signals() {
 
 }
 
-void SignalBuilder::compute_velocity_signals() {
+void MarketSignalBuilder::compute_velocity_signals() {
     auto current = raw_price_signals.get(0);
     auto prev01 = raw_price_signals.get(1);
     auto prev10 = raw_price_signals.get(10);
@@ -607,7 +607,7 @@ void SignalBuilder::compute_velocity_signals() {
 }
 
 
-void SignalBuilder::compute_volume_signals(std::vector<double>& bid_sizes,
+void MarketSignalBuilder::compute_volume_signals(std::vector<double>& bid_sizes,
                                            std::vector<double>& ask_sizes,
                                            std::vector<double>& cum_bid_sizes,
                                            std::vector<double>& cum_ask_sizes) {
@@ -618,7 +618,7 @@ void SignalBuilder::compute_volume_signals(std::vector<double>& bid_sizes,
     raw_volume_signals->volume_imbalance_signal_4 = (cum_bid_sizes[4] - cum_ask_sizes[4]) / (cum_bid_sizes[4] + cum_ask_sizes[4]);
 }
 
-void SignalBuilder::compute_spread_signals(price_signal_repository& repo) {
+void MarketSignalBuilder::compute_spread_signals(price_signal_repository& repo) {
     raw_spread_signals->norm_vwap_bid_spread_signal_0 = repo.norm_vwap_bid_price_signal_0 - repo.mid_price_signal;
     raw_spread_signals->norm_vwap_bid_spread_signal_1 = repo.norm_vwap_bid_price_signal_1 - repo.mid_price_signal;
     raw_spread_signals->norm_vwap_bid_spread_signal_2 = repo.norm_vwap_bid_price_signal_2 - repo.mid_price_signal;
@@ -650,7 +650,7 @@ void SignalBuilder::compute_spread_signals(price_signal_repository& repo) {
     raw_spread_signals->ask_fill_spread_signal_4 = repo.ask_fill_price_signal_4 - repo.mid_price_signal;
 }
 
-void SignalBuilder::compute_price_signals(price_signal_repository& raw_price_repo,
+void MarketSignalBuilder::compute_price_signals(price_signal_repository& raw_price_repo,
                                           const std::vector<double>& current_bid_prices,
                                           const std::vector<double>& current_ask_prices,
                                           const std::vector<double>& current_bid_sizes,

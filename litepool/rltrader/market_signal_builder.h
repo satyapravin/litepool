@@ -96,11 +96,11 @@ namespace Simulator {
         double ask_fill_price_signal_4 = 0;
     } __attribute((packed));
 
-class SignalBuilder {
+class MarketSignalBuilder {
 public:
     enum signal_type { raw=0, mean=1, ssr=2, norm=3 };
 
-    SignalBuilder(u_int bookhistory=10, u_int price_history=10);
+    MarketSignalBuilder(u_int bookhistory=10, u_int price_history=10);
 
     bool is_data_ready() const;
 

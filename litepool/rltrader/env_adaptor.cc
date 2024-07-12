@@ -2,9 +2,10 @@
 
 using namespace Simulator;
 
-EnvAdaptor::EnvAdaptor(Strategy& strat, Exchange& exch)
+EnvAdaptor::EnvAdaptor(Strategy& strat, Exchange& exch, uint8_t book_history, uint8_t price_history)
            :strategy(strat),
-            exchange(exch) {
+            exchange(exch),
+            builder(book_history, price_history) {
 }
 
 
@@ -24,9 +25,15 @@ PositionInfo EnvAdaptor::fetchPositionData() const {
     return info;
 }
 
-std::vector<double> EnvAdaptor::getState() const { std::vector<double> retval; return retval; }
+std::vector<double> EnvAdaptor::getState()
+{
+    auto obs = this->exchange.getObs();
+    auto book = Orderbook(obs.data);
+    auto market_signals = builder.add_book(book);
+    return market_signals;
+}
 
-bool EnvAdaptor::hasFilled() const {
+bool EnvAdaptor::hasFilled() {
     auto actualTrades = strategy.numOfTrades();
     bool filled = numTrades <  actualTrades;
     numTrades = actualTrades;

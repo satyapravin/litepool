@@ -7,21 +7,21 @@ using namespace Simulator;
 Position::Position(BaseInstrument& instr, const double& aBalance,
     const double& initialQty, const double& initialAvgprice)
     :instrument(instr)
-    , initialBalance(aBalance)
-    , balance(aBalance)
-    , totalQuantity(initialQty)
     , averagePrice(initialAvgprice)
+    , totalQuantity(initialQty)
     , totalFee(0)
     , numOfTrades(0)
-    , totalNotional(0) {
+    , totalQuantity(0)
+    , initialBalance(aBalance)
+    , balance(aBalance){
 }
 
 void Position::reset(const double& initialQty, const double& initialPrice) {
     averagePrice = initialPrice;
-    totalQuantity = initialQty;
+    netQuantity = initialQty;
     totalFee = 0.0;
     numOfTrades = 0;
-    totalNotional = 0;
+    totalQuantity = 0;
     balance = initialBalance;
 }
 
@@ -31,6 +31,7 @@ void Position::fetchInfo(PositionInfo& info, const double& bidPrice, const doubl
     info.averagePrice = this->averagePrice;
     info.tradingPnL = this->balance - this->initialBalance;
     info.tradeCount = this->numOfTrades;
+    info.totalQuantity = this->totalQuantity;
     info.leverage = 0;
     
     if (this->averagePrice > instrument.getTickSize()) {
@@ -90,7 +91,7 @@ void Position::onFill(const Order& order, bool is_maker)
 
     totalFee += instrument.fees(order.amount, order.price, is_maker);
     numOfTrades++;
-    totalNotional += std::abs(qty);
+    totalQuantity += std::abs(qty);
     totalQuantity += qty;
     balance += pnl;
 }

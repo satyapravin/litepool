@@ -3,7 +3,6 @@
 #include <memory>
 #include "exchange.h"
 #include "position.h"
-#include "signal_builder.h"
 
 namespace Simulator {
 	class Strategy {
@@ -19,7 +18,7 @@ namespace Simulator {
 
 		void fetchInfo(PositionInfo& info, const double& bidPrice, const double& askPrice);
                 
-                long numOfTrades() const { return position.getNumberOfTrades(); }	
+		long numOfTrades() const { return position.getNumberOfTrades(); }
 	private:
 		BaseInstrument& instrument;
 		Exchange& exchange;
@@ -27,7 +26,6 @@ namespace Simulator {
 		int order_id;
 		double maxFactor;
 		int max_ticks;
-		std::unique_ptr<SignalBuilder> signal_ptr;
 		void sendGrid(const double& angle, const DataRow& obs, OrderSide side);
 	};
 }

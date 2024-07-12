@@ -10,7 +10,7 @@ pybind11_add_module(rltrader_litepool rltrader_litepool.h rltrader_litepool.cc
                                       order.h position.h position.cc
                                       strategy.cc doctest.h strategy.h
                                       orderbook.h orderbook.cc
-                                      signal_builder.h signal_builder.cc
+                                      market_signal_builder.h market_signal_builder.cc
                                       env_adaptor.h env_adaptor.cc)
 
 set_target_properties(rltrader_litepool PROPERTIES PREFIX "" SUFFIX ".so")
