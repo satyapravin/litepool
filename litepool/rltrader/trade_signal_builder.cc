@@ -89,8 +89,8 @@ std::vector<double> TradeSignalBuilder::add_trade(TradeInfo& info, double& bid_p
 
     std::vector<double> retval;
     insert_signals(retval, *norm_raw_signals);
-    insert_signals(retval, norm_velocity_10_signals);
-    insert_signals(retval, norm_volatility_10_signals);
+    insert_signals(retval, *norm_velocity_10_signals);
+    insert_signals(retval, *norm_volatility_10_signals);
     processed_counter++;
     return retval;
 }
