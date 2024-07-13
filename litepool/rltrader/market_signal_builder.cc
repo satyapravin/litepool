@@ -272,7 +272,7 @@ void MarketSignalBuilder::normalize_signals() {
 }
 
 void MarketSignalBuilder::normalize_volatility_1_signals() {
-    auto& vol_1_sig = *raw_price_signal_velocity_1_ssqr;
+    auto& vol_1_sig = *raw_price_vol_1_signal;
     auto& to = *raw_price_vol_1_normalized_signals;
     NORMALIZE(vol_1_sig, to, raw_price_vol_1_mean, raw_price_vol_1_ssqr, mid_price_signal, norm_alpha);
     NORMALIZE(vol_1_sig, to, raw_price_vol_1_mean, raw_price_vol_1_ssqr, vwap_bid_price_signal_0, norm_alpha);
@@ -313,7 +313,7 @@ void MarketSignalBuilder::normalize_volatility_1_signals() {
 }
 
 void MarketSignalBuilder::normalize_volatility_10_signals() {
-    auto& vol_10_sig = *raw_price_signal_velocity_10_ssqr;
+    auto& vol_10_sig = *raw_price_vol_10_signal;
     auto& to = *raw_price_vol_10_normalized_signals;
     NORMALIZE(vol_10_sig, to, raw_price_vol_10_mean, raw_price_vol_10_ssqr, mid_price_signal, norm_alpha);
     NORMALIZE(vol_10_sig, to, raw_price_vol_10_mean, raw_price_vol_10_ssqr, vwap_bid_price_signal_0, norm_alpha);
@@ -564,8 +564,59 @@ void diff(price_signal_repository& result, const price_signal_repository&current
     result.ask_fill_price_signal_4 = current.ask_fill_price_signal_4 - prev.ask_fill_price_signal_4;
 }
 
+void compute_vol_sig(price_signal_repository& vol1, price_signal_repository& ssr1) {
+    vol1.mid_price_signal = std::pow(ssr1.mid_price_signal, 0.5);
+    vol1.ask_fill_price_signal_0 = std::pow(ssr1.ask_fill_price_signal_0, 0.5);
+    vol1.ask_fill_price_signal_1 = std::pow(ssr1.ask_fill_price_signal_1, 0.5);
+    vol1.ask_fill_price_signal_2 = std::pow(ssr1.ask_fill_price_signal_2, 0.5);
+    vol1.ask_fill_price_signal_3 = std::pow(ssr1.ask_fill_price_signal_3, 0.5);
+    vol1.ask_fill_price_signal_4 = std::pow(ssr1.ask_fill_price_signal_4, 0.5);
+
+    vol1.bid_fill_price_signal_0 = std::pow(ssr1.bid_fill_price_signal_0, 0.5);
+    vol1.bid_fill_price_signal_1 = std::pow(ssr1.bid_fill_price_signal_1, 0.5);
+    vol1.bid_fill_price_signal_2 = std::pow(ssr1.bid_fill_price_signal_2, 0.5);
+    vol1.bid_fill_price_signal_3 = std::pow(ssr1.bid_fill_price_signal_3, 0.5);
+    vol1.bid_fill_price_signal_4 = std::pow(ssr1.bid_fill_price_signal_4, 0.5);
+
+    vol1.micro_price_signal_0 = std::pow(ssr1.micro_price_signal_0, 0.5);
+    vol1.micro_price_signal_1 = std::pow(ssr1.micro_price_signal_1, 0.5);
+    vol1.micro_price_signal_2 = std::pow(ssr1.micro_price_signal_2, 0.5);
+    vol1.micro_price_signal_3 = std::pow(ssr1.micro_price_signal_3, 0.5);
+    vol1.micro_price_signal_4 = std::pow(ssr1.micro_price_signal_4, 0.5);
+
+    vol1.norm_vwap_ask_price_signal_0 = std::pow(ssr1.norm_vwap_ask_price_signal_0, 0.5);
+    vol1.norm_vwap_ask_price_signal_1 = std::pow(ssr1.norm_vwap_ask_price_signal_1, 0.5);
+    vol1.norm_vwap_ask_price_signal_2 = std::pow(ssr1.norm_vwap_ask_price_signal_2, 0.5);
+    vol1.norm_vwap_ask_price_signal_3 = std::pow(ssr1.norm_vwap_ask_price_signal_3, 0.5);
+    vol1.norm_vwap_ask_price_signal_4 = std::pow(ssr1.norm_vwap_ask_price_signal_4, 0.5);
+
+    vol1.norm_vwap_bid_price_signal_0 = std::pow(ssr1.norm_vwap_bid_price_signal_0, 0.5);
+    vol1.norm_vwap_bid_price_signal_1 = std::pow(ssr1.norm_vwap_bid_price_signal_1, 0.5);
+    vol1.norm_vwap_bid_price_signal_2 = std::pow(ssr1.norm_vwap_bid_price_signal_2, 0.5);
+    vol1.norm_vwap_bid_price_signal_3 = std::pow(ssr1.norm_vwap_bid_price_signal_3, 0.5);
+    vol1.norm_vwap_bid_price_signal_4 = std::pow(ssr1.norm_vwap_bid_price_signal_4, 0.5);
+
+    vol1.vwap_ask_price_signal_0 = std::pow(ssr1.vwap_ask_price_signal_0, 0.5);
+    vol1.vwap_ask_price_signal_1 = std::pow(ssr1.vwap_ask_price_signal_1, 0.5);
+    vol1.vwap_ask_price_signal_2 = std::pow(ssr1.vwap_ask_price_signal_2, 0.5);
+    vol1.vwap_ask_price_signal_3 = std::pow(ssr1.vwap_ask_price_signal_3, 0.5);
+    vol1.vwap_ask_price_signal_4 = std::pow(ssr1.vwap_ask_price_signal_4, 0.5);
+
+    vol1.vwap_bid_price_signal_0 = std::pow(ssr1.vwap_bid_price_signal_0, 0.5);
+    vol1.vwap_bid_price_signal_1 = std::pow(ssr1.vwap_bid_price_signal_1, 0.5);
+    vol1.vwap_bid_price_signal_2 = std::pow(ssr1.vwap_bid_price_signal_2, 0.5);
+    vol1.vwap_bid_price_signal_3 = std::pow(ssr1.vwap_bid_price_signal_3, 0.5);
+    vol1.vwap_bid_price_signal_4 = std::pow(ssr1.vwap_bid_price_signal_4, 0.5);
+}
+
 void MarketSignalBuilder::compute_volatility_signals() {
-    // no ops
+    auto& vol1 = *raw_price_vol_1_signal;
+    auto& ssr1 = *raw_price_signal_velocity_1_ssqr;
+    compute_vol_sig(vol1, ssr1);
+    
+    auto& vol10 = *raw_price_vol_10_signal;
+    auto& ssr10 = *raw_price_signal_velocity_10_ssqr;
+    compute_vol_sig(vol10, ssr10);
 }
 
 void MarketSignalBuilder::compute_velocity_signals() {

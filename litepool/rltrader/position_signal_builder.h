@@ -50,7 +50,6 @@ namespace Simulator {
         std::unique_ptr<position_signal_repository> ssr_velocity_10_signals;
         std::unique_ptr<position_signal_repository> norm_velocity_10_signals;
 
-        std::unique_ptr<position_signal_repository> volatility_10_signals;
         std::unique_ptr<position_signal_repository> mean_volatility_10_signals;
         std::unique_ptr<position_signal_repository> ssr_volatility_10_signals;
         std::unique_ptr<position_signal_repository> norm_volatility_10_signals;

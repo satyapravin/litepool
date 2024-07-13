@@ -215,10 +215,13 @@ private:
     std::unique_ptr<price_signal_repository>  raw_price_signal_velocity_10_ssqr;
     std::unique_ptr<price_signal_repository>  raw_price_velocity_10_normalized_signals;
 
+
+    std::unique_ptr<price_signal_repository> raw_price_vol_1_signal;
     std::unique_ptr<price_signal_repository> raw_price_vol_1_mean;
     std::unique_ptr<price_signal_repository> raw_price_vol_1_ssqr;
     std::unique_ptr<price_signal_repository> raw_price_vol_1_normalized_signals;
 
+    std::unique_ptr<price_signal_repository> raw_price_vol_10_signal;
     std::unique_ptr<price_signal_repository> raw_price_vol_10_mean;
     std::unique_ptr<price_signal_repository> raw_price_vol_10_ssqr;
     std::unique_ptr<price_signal_repository> raw_price_vol_10_normalized_signals;

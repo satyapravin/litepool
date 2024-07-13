@@ -56,27 +56,37 @@ void TradeSignalBuilder::compute_velocity_signals() {
     vel10.buy_num_trade_ratio = current.buy_num_trade_ratio - prev10.buy_num_trade_ratio;
     vel10.sell_num_trade_ratio = current.sell_num_trade_ratio - prev10.sell_num_trade_ratio;
     auto& to = *norm_velocity_10_signals;
-    NORMALIZE(vel10, to, mean_raw_signals, ssr_raw_signals, average_trade_amount, alpha);
-    NORMALIZE(vel10, to, mean_raw_signals, ssr_raw_signals, buy_amount_ratio, alpha);
-    NORMALIZE(vel10, to, mean_raw_signals, ssr_raw_signals, sell_amount_ratio, alpha);
-    NORMALIZE(vel10, to, mean_raw_signals, ssr_raw_signals, number_of_trades, alpha);
-    NORMALIZE(vel10, to, mean_raw_signals, ssr_raw_signals, relative_buy_price, alpha);
-    NORMALIZE(vel10, to, mean_raw_signals, ssr_raw_signals, relative_sell_price, alpha);
-    NORMALIZE(vel10, to, mean_raw_signals, ssr_raw_signals, buy_num_trade_ratio, alpha);
-    NORMALIZE(vel10, to, mean_raw_signals, ssr_raw_signals, sell_num_trade_ratio, alpha);
+    NORMALIZE(vel10, to, mean_velocity_10_signals, ssr_velocity_10_signals, average_trade_amount, alpha);
+    NORMALIZE(vel10, to, mean_velocity_10_signals, ssr_velocity_10_signals, buy_amount_ratio, alpha);
+    NORMALIZE(vel10, to, mean_velocity_10_signals, ssr_velocity_10_signals, sell_amount_ratio, alpha);
+    NORMALIZE(vel10, to, mean_velocity_10_signals, ssr_velocity_10_signals, number_of_trades, alpha);
+    NORMALIZE(vel10, to, mean_velocity_10_signals, ssr_velocity_10_signals, relative_buy_price, alpha);
+    NORMALIZE(vel10, to, mean_velocity_10_signals, ssr_velocity_10_signals, relative_sell_price, alpha);
+    NORMALIZE(vel10, to, mean_velocity_10_signals, ssr_velocity_10_signals, buy_num_trade_ratio, alpha);
+    NORMALIZE(vel10, to, mean_velocity_10_signals, ssr_velocity_10_signals, sell_num_trade_ratio, alpha);
 }
 
 void TradeSignalBuilder::compute_volatility_signals() {
-    auto& repo = *ssr_velocity_10_signals;
+    auto& ssr = *ssr_velocity_10_signals;
+    trade_signal_repository repo;
+    repo.average_trade_amount = std::pow(ssr.average_trade_amount, 0.5);
+    repo.buy_amount_ratio = std::pow(ssr.buy_amount_ratio, 0.5);
+    repo.buy_num_trade_ratio = std::pow(ssr.buy_num_trade_ratio, 0.5);
+    repo.number_of_trades = std::pow(ssr.number_of_trades, 0.5);
+    repo.relative_buy_price = std::pow(ssr.relative_buy_price, 0.5);
+    repo.relative_sell_price = std::pow(ssr.relative_sell_price, 0.5);
+    repo.sell_amount_ratio = std::pow(ssr.sell_amount_ratio, 0.5);
+    repo.sell_num_trade_ratio = std::pow(ssr.sell_num_trade_ratio, 0.5);
+    
     auto& to = *norm_volatility_10_signals;
-    NORMALIZE(repo, to, mean_raw_signals, ssr_raw_signals, average_trade_amount, alpha);
-    NORMALIZE(repo, to, mean_raw_signals, ssr_raw_signals, buy_amount_ratio, alpha);
-    NORMALIZE(repo, to, mean_raw_signals, ssr_raw_signals, sell_amount_ratio, alpha);
-    NORMALIZE(repo, to, mean_raw_signals, ssr_raw_signals, number_of_trades, alpha);
-    NORMALIZE(repo, to, mean_raw_signals, ssr_raw_signals, relative_buy_price, alpha);
-    NORMALIZE(repo, to, mean_raw_signals, ssr_raw_signals, relative_sell_price, alpha);
-    NORMALIZE(repo, to, mean_raw_signals, ssr_raw_signals, buy_num_trade_ratio, alpha);
-    NORMALIZE(repo, to, mean_raw_signals, ssr_raw_signals, sell_num_trade_ratio, alpha);
+    NORMALIZE(repo, to, mean_volatility_10_signals, ssr_volatility_10_signals, average_trade_amount, alpha);
+    NORMALIZE(repo, to, mean_volatility_10_signals, ssr_volatility_10_signals, buy_amount_ratio, alpha);
+    NORMALIZE(repo, to, mean_volatility_10_signals, ssr_volatility_10_signals, sell_amount_ratio, alpha);
+    NORMALIZE(repo, to, mean_volatility_10_signals, ssr_volatility_10_signals, number_of_trades, alpha);
+    NORMALIZE(repo, to, mean_volatility_10_signals, ssr_volatility_10_signals, relative_buy_price, alpha);
+    NORMALIZE(repo, to, mean_volatility_10_signals, ssr_volatility_10_signals, relative_sell_price, alpha);
+    NORMALIZE(repo, to, mean_volatility_10_signals, ssr_volatility_10_signals, buy_num_trade_ratio, alpha);
+    NORMALIZE(repo, to, mean_volatility_10_signals, ssr_volatility_10_signals, sell_num_trade_ratio, alpha);
 }
 
 std::vector<double> TradeSignalBuilder::add_trade(TradeInfo& info, double& bid_price, double& ask_price) {
