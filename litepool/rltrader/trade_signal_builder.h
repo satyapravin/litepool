@@ -2,6 +2,7 @@
 #include <string>
 #include <memory>
 #include "circ_buffer.h"
+#include "position.h"
 #include "order.h"
 
 namespace Simulator {
@@ -22,7 +23,7 @@ namespace Simulator {
 
             TradeSignalBuilder();
 
-            std::vector<double> add_trade(double price, double amount, OrderSide side);
+            std::vector<double> add_trade(TradeInfo& info, double& bid_price, double& ask_price);
 
             trade_signal_repository& get_trade_signals(signal_type sigtype);
 
@@ -36,13 +37,14 @@ namespace Simulator {
 
             long long get_step_count() { return processed_counter; }
 
-            bool is_data_ready() const { return processed_counter > minimum_required; };
-
         private:
+            void compute_trade_signals(TradeInfo& info, double& bid_price, double& ask_price);
+            void compute_velocity_signals();
+            void compute_volatility_signals();
+
             long long processed_counter = 0;
             double steps_until_episode = 0;
             double steps_since_episode = 0;
-            uint16_t minimum_required = 10;
             double alpha = 2.0 / 9001;
             TemporalBuffer<trade_signal_repository> raw_signals;
             std::unique_ptr<trade_signal_repository> mean_raw_signals;
@@ -54,7 +56,6 @@ namespace Simulator {
             std::unique_ptr<trade_signal_repository> ssr_velocity_10_signals;
             std::unique_ptr<trade_signal_repository> norm_velocity_10_signals;
 
-            std::unique_ptr<trade_signal_repository> volatility_10_signals;
             std::unique_ptr<trade_signal_repository> mean_volatility_10_signals;
             std::unique_ptr<trade_signal_repository> ssr_volatility_10_signals;
             std::unique_ptr<trade_signal_repository> norm_volatility_10_signals;

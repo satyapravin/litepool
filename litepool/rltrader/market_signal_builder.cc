@@ -576,13 +576,13 @@ void diff(price_signal_repository& result, const price_signal_repository&current
 }
 
 void MarketSignalBuilder::compute_volatility_signals() {
-
+    // no ops
 }
 
 void MarketSignalBuilder::compute_velocity_signals() {
-    auto current = raw_price_signals.get(0);
-    auto prev01 = raw_price_signals.get(1);
-    auto prev10 = raw_price_signals.get(10);
+    auto& current = raw_price_signals.get(0);
+    auto& prev01 = raw_price_signals.get(1);
+    auto& prev10 = raw_price_signals.get(10);
     price_signal_repository& vel01 = *raw_price_signal_velocities_1;
     price_signal_repository& vel10 = *raw_price_signal_velocities_10;
     diff(vel01, current, prev01);

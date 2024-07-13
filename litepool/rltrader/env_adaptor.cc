@@ -7,7 +7,9 @@ EnvAdaptor::EnvAdaptor(Strategy& strat, Exchange& exch, uint8_t book_history, ui
             exchange(exch),
             book_history_lags(book_history),
             price_history_lags(price_history),
-            market_builder(std::make_unique<MarketSignalBuilder>(book_history, price_history)) {
+            market_builder(std::make_unique<MarketSignalBuilder>(book_history, price_history)),
+            position_builder(std::make_unique<PositionSignalBuilder>()),
+            trade_builder(std::unique_ptr<TradeSignalBuilder>()) {
 }
 
 
@@ -18,8 +20,12 @@ bool EnvAdaptor::quote(int bid_spread, int ask_spread, const double& buyVolumeAn
 void EnvAdaptor::reset(int time_index, const double& positionAmount, const double& averagePrice) {
     numTrades = 0;
     return this->strategy.reset(time_index, positionAmount, averagePrice);
-    auto ptr = std::make_unique<MarketSignalBuilder>(book_history_lags, price_history_lags);
-    market_builder = std::move(ptr);
+    auto market_ptr = std::make_unique<MarketSignalBuilder>(book_history_lags, price_history_lags);
+    market_builder = std::move(market_ptr);
+    auto position_ptr = std::make_unique<PositionSignalBuilder>();
+    position_builder = std::move(position_ptr);
+    auto trade_ptr = std::make_unique<TradeSignalBuilder>();
+    trade_builder = std::move(trade_builder);
 }
 
 std::vector<double> EnvAdaptor::getState()
@@ -27,17 +33,18 @@ std::vector<double> EnvAdaptor::getState()
     auto obs = this->exchange.getObs();
     auto book = Orderbook(obs.data);
     auto market_signals = market_builder->add_book(book);
-    PositionInfo info;
-    strategy.fetchInfo(info, obs.getBestBidPrice(), obs.getBestAskPrice());
+    PositionInfo position_info;
+    strategy.fetchInfo(position_info, obs.getBestBidPrice(), obs.getBestAskPrice());
+    position_builder->add_info(position_info);
+    TradeInfo trade_info = strategy.getPosition().getTradeInfo();
+    trade_builder->add_trade(trade_info);
     return market_signals;
 }
 
-bool EnvAdaptor::hasFilled(TradeInfo& info) {
+bool EnvAdaptor::hasFilled() {
     Position& pos = strategy.getPosition();
     auto actualTrades = pos.getNumberOfTrades();
     bool filled = numTrades <  actualTrades;
     numTrades = actualTrades;
-    auto& trade_info = pos.getTradeInfo();
-    info = trade_info;
     return filled;
 }
