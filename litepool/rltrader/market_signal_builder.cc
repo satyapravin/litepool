@@ -33,9 +33,11 @@ MarketSignalBuilder::MarketSignalBuilder(u_int bookhistory, u_int price_history)
                raw_price_signal_velocity_10_mean(std::make_unique<price_signal_repository>()),           // lonterm velocity mean
                raw_price_signal_velocity_10_ssqr(std::make_unique<price_signal_repository>()),           // longterm velocity ssqr
                raw_price_velocity_10_normalized_signals(std::make_unique<price_signal_repository>()),    // norm longterm velocity
+               raw_price_vol_1_signal(std::make_unique<price_signal_repository>()),                      // volatility signals
                raw_price_vol_1_mean(std::make_unique<price_signal_repository>()),                        // longterm vol mean
                raw_price_vol_1_ssqr(std::make_unique<price_signal_repository>()),                        // longterm vol ssqr
                raw_price_vol_1_normalized_signals(std::make_unique<price_signal_repository>()),          // norm vol
+               raw_price_vol_10_signal(std::make_unique<price_signal_repository>()),                     // volatility signals
                raw_price_vol_10_mean(std::make_unique<price_signal_repository>()),                       // longterm vol mean
                raw_price_vol_10_ssqr(std::make_unique<price_signal_repository>()),                       // longterm vol ssqr
                raw_price_vol_10_normalized_signals(std::make_unique<price_signal_repository>())          // norm longterm vol
@@ -613,7 +615,7 @@ void MarketSignalBuilder::compute_volatility_signals() {
     auto& vol1 = *raw_price_vol_1_signal;
     auto& ssr1 = *raw_price_signal_velocity_1_ssqr;
     compute_vol_sig(vol1, ssr1);
-    
+
     auto& vol10 = *raw_price_vol_10_signal;
     auto& ssr10 = *raw_price_signal_velocity_10_ssqr;
     compute_vol_sig(vol10, ssr10);
