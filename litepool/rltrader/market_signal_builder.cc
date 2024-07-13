@@ -2,7 +2,7 @@
 #include <numeric>
 #include <cmath>
 #include <iostream>
-#include "normalizer.h"
+#include "norm_macro.h"
 
 using namespace Simulator;
 

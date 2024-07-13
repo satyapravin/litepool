@@ -11,7 +11,6 @@ namespace Simulator {
         double net_position = 0;
         double relative_price = 0;
         double total_trade_amount = 0;
-        double pnl = 0;
         double drawdown = 0;
         double realized_pnl = 0;
         double inventory_pnl = 0;

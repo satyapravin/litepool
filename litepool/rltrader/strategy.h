@@ -18,7 +18,7 @@ namespace Simulator {
 
 		void fetchInfo(PositionInfo& info, const double& bidPrice, const double& askPrice);
                 
-		long numOfTrades() const { return position.getNumberOfTrades(); }
+		Position& getPosition() { return position; }
 	private:
 		BaseInstrument& instrument;
 		Exchange& exchange;

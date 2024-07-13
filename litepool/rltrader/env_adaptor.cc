@@ -32,9 +32,12 @@ std::vector<double> EnvAdaptor::getState()
     return market_signals;
 }
 
-bool EnvAdaptor::hasFilled() {
-    auto actualTrades = strategy.numOfTrades();
+bool EnvAdaptor::hasFilled(TradeInfo& info) {
+    Position& pos = strategy.getPosition();
+    auto actualTrades = pos.getNumberOfTrades();
     bool filled = numTrades <  actualTrades;
     numTrades = actualTrades;
+    auto& trade_info = pos.getTradeInfo();
+    info = trade_info;
     return filled;
 }

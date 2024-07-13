@@ -1,5 +1,5 @@
-#include <cassert>
 #include <cmath>
+#include <stdexcept>
 #include "position.h"
 
 using namespace Simulator;
@@ -22,6 +22,12 @@ void Position::reset(const double& initialQty, const double& initialPrice) {
     numOfTrades = 0;
     totalQuantity = 0;
     balance = initialBalance;
+    trade_info.buy_trades = 0;
+    trade_info.sell_trades = 0;
+    trade_info.buy_amount = 0;
+    trade_info.sell_amount = 0;
+    trade_info.average_buy_price = 0;
+    trade_info.average_sell_price = 0;
 }
 
 void Position::fetchInfo(PositionInfo& info, const double& bidPrice, const double& askPrice) const {
@@ -29,8 +35,8 @@ void Position::fetchInfo(PositionInfo& info, const double& bidPrice, const doubl
     info.inventoryPnL = this->inventoryPnL(0.5 * (bidPrice + askPrice));
     info.averagePrice = this->averagePrice;
     info.tradingPnL = this->balance - this->initialBalance;
-    info.tradeCount = this->numOfTrades;
-    info.totalQuantity = this->totalQuantity;
+    info.grossPosition = this->totalQuantity;
+    info.netPosition = this->netQuantity;
     info.leverage = 0;
     
     if (this->averagePrice > instrument.getTickSize()) {
@@ -44,7 +50,10 @@ double Position::inventoryPnL(const double& price) const {
 
 void Position::onFill(const Order& order, bool is_maker)
 {
-    assert(order.state == OrderState::FILLED);
+    if (order.state != OrderState::FILLED) {
+        throw new std::runtime_error("Order state not filled");
+    }
+
     double notional_qty = instrument.getQtyFromNotional(order.price, order.amount);
     double qty = order.amount;
     int totalQtySign = 1;
@@ -60,6 +69,15 @@ void Position::onFill(const Order& order, bool is_maker)
     if (order.side != OrderSide::BUY) {
         qty = -qty;
         notional_qty = -notional_qty;
+        trade_info.sell_amount += order.amount;
+        trade_info.average_sell_price = trade_info.average_sell_price * trade_info.sell_trades + order.price;
+        trade_info.sell_trades += 1;
+        trade_info.average_sell_price /= trade_info.sell_trades;
+    } else {
+        trade_info.buy_amount += order.amount;
+        trade_info.average_buy_price = trade_info.average_buy_price * trade_info.buy_trades + order.price;
+        trade_info.buy_trades += 1;
+        trade_info.average_buy_price /= trade_info.buy_trades;
     }
 
     double pnl = 0.0;
@@ -68,12 +86,12 @@ void Position::onFill(const Order& order, bool is_maker)
         averagePrice = order.price;
     }
     else if (std::signbit(totalQuantity) == std::signbit(qty)) {
-        assert(averagePrice > 0);
+        if (averagePrice <= 0) throw std::runtime_error("Average price <= 0");
         averagePrice = (std::abs(notional_qty) * order.price + std::abs(total_notional_qty) * averagePrice) /
             (std::abs(notional_qty) + std::abs(total_notional_qty));
     }
     else {
-        assert(averagePrice > 0);
+        if (averagePrice <= 0) throw std::runtime_error("Average price <= 0");
         if (std::abs(totalQuantity) == std::abs(qty)) {
             pnl = instrument.pnl(totalQuantity, averagePrice, order.price);
             averagePrice = 0;
@@ -91,6 +109,6 @@ void Position::onFill(const Order& order, bool is_maker)
     totalFee += instrument.fees(order.amount, order.price, is_maker);
     numOfTrades++;
     totalQuantity += std::abs(qty);
-    totalQuantity += qty;
+    netQuantity += qty;
     balance += pnl;
 }

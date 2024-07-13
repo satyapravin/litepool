@@ -246,7 +246,6 @@ TEST_CASE("testing the position") {
 		CHECK(info.balance == Approx(0.1));
 		CHECK(info.inventoryPnL == Approx(0.0));
 		CHECK(info.leverage == Approx(0.0));
-		CHECK(info.tradeCount == 0);
 		CHECK(info.tradingPnL == Approx(0.0));
 	}
 
@@ -266,7 +265,6 @@ TEST_CASE("testing the position") {
 		CHECK(info.balance == Approx(0.1));
 		CHECK(info.inventoryPnL == Approx(0.000147783));
 		CHECK(info.leverage == Approx(0.09900990099));
-		CHECK(info.tradeCount == 1);
 		CHECK(info.tradingPnL == Approx(0.0));
 	}
 
@@ -286,7 +284,6 @@ TEST_CASE("testing the position") {
 			CHECK(info.averagePrice == Approx(1000.0));
 			CHECK(info.balance == Approx(0.1));
 			CHECK(info.inventoryPnL == Approx(0.000147783 * ii));
-			CHECK(info.tradeCount == ii);
 			CHECK(info.tradingPnL == Approx(0.0));
 		}
 
@@ -305,7 +302,6 @@ TEST_CASE("testing the position") {
 		CHECK(info.balance == Approx(0.1 + 0.00022167487684729079));
 		CHECK(info.inventoryPnL == Approx(0.000147783 * 1.5));
 		CHECK(info.leverage == Approx(0.14818635955510023));
-		CHECK(info.tradeCount == 4);
 		CHECK(info.tradingPnL == Approx(0.00022167487684729079));
 	}
 
@@ -325,7 +321,6 @@ TEST_CASE("testing the position") {
 			CHECK(info.averagePrice == Approx(1000.0));
 			CHECK(info.balance == Approx(0.1));
 			CHECK(info.inventoryPnL == Approx(-0.000147783 * ii));
-			CHECK(info.tradeCount == ii);
 			CHECK(info.tradingPnL == Approx(0.0));
 		}
 
@@ -344,7 +339,6 @@ TEST_CASE("testing the position") {
 		CHECK(info.balance == Approx(0.1 - 0.000221675));
 		CHECK(info.inventoryPnL == Approx(-0.000147783 * 1.5));
 		CHECK(info.leverage == Approx(0.14738554024423889));
-		CHECK(info.tradeCount == 4);
 		CHECK(info.tradingPnL == Approx(-0.000221675));
 	}
 
@@ -365,7 +359,6 @@ TEST_CASE("testing the position") {
 			CHECK(info.balance == Approx(0.1));
 			CHECK(info.inventoryPnL == Approx(0.000147783));
 			CHECK(info.leverage == Approx(0.099009900990099));
-			CHECK(info.tradeCount == 1);
 			CHECK(info.tradingPnL == Approx(0.0));
 		}
 
@@ -384,7 +377,6 @@ TEST_CASE("testing the position") {
 		CHECK(info.balance == Approx(0.1 + 0.000147783));
 		CHECK(info.inventoryPnL == Approx(0));
 		CHECK(info.leverage == Approx(0));
-		CHECK(info.tradeCount == 2);
 		CHECK(info.tradingPnL == Approx(0.000147783));
 	}
 
@@ -405,7 +397,6 @@ TEST_CASE("testing the position") {
 			CHECK(info.balance == Approx(0.1));
 			CHECK(info.inventoryPnL == Approx(0));
 			CHECK(info.leverage == Approx(0.098039215));
-			CHECK(info.tradeCount == 1);
 			CHECK(info.tradingPnL == Approx(0.0));
 		}
 
@@ -424,7 +415,6 @@ TEST_CASE("testing the position") {
 		CHECK(info.balance == Approx(0.1 + 0.000147783));
 		CHECK(info.inventoryPnL == Approx(0));
 		CHECK(info.leverage == Approx(0));
-		CHECK(info.tradeCount == 2);
 		CHECK(info.tradingPnL == Approx(0.000147783));
 	}
 
@@ -445,7 +435,6 @@ TEST_CASE("testing the position") {
 			CHECK(info.balance == Approx(0.1));
 			CHECK(info.inventoryPnL == Approx(0));
 			CHECK(info.leverage == Approx(0.098039215));
-			CHECK(info.tradeCount == 1);
 			CHECK(info.tradingPnL == Approx(0.0));
 		}
 
@@ -464,7 +453,6 @@ TEST_CASE("testing the position") {
 		CHECK(info.balance == Approx(0.1 + 0.000147783));
 		CHECK(info.inventoryPnL == Approx(0.0001477832));
 		CHECK(info.leverage == Approx(0.0988637968));
-		CHECK(info.tradeCount == 2);
 		CHECK(info.tradingPnL == Approx(0.000147783));
 	}
 }

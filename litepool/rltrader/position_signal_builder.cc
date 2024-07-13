@@ -1,5 +1,5 @@
 #include "position_signal_builder.h"
-#include "normalizer.h"
+#include "norm_macro.h"
 
 using namespace Simulator;
 

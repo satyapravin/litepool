@@ -10,7 +10,7 @@ public:
     bool quote(int bid_spread, int ask_spread, const double& buyVolumeAngle, const double& sellVolumeAngle);
     void reset(int time_index, const double& positionAmount, const double& averagePrice);
     std::vector<double> getState();
-    bool hasFilled();
+    bool hasFilled(TradeInfo& info);
 private:
     Strategy& strategy;
     Exchange& exchange;
