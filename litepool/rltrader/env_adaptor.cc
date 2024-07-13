@@ -37,7 +37,9 @@ std::vector<double> EnvAdaptor::getState()
     strategy.fetchInfo(position_info, obs.getBestBidPrice(), obs.getBestAskPrice());
     position_builder->add_info(position_info);
     TradeInfo trade_info = strategy.getPosition().getTradeInfo();
-    trade_builder->add_trade(trade_info);
+    auto bid_price = obs.getBestBidPrice();
+    auto ask_price = obs.getBestAskPrice();
+    trade_builder->add_trade(trade_info, bid_price, ask_price);
     return market_signals;
 }
 
