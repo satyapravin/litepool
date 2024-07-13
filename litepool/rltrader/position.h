@@ -4,7 +4,6 @@
 
 namespace Simulator {
 	struct PositionInfo {
-        double grossPosition = 0;
         double netPosition = 0;
         double balance = 0;
         double averagePrice = 0;
@@ -29,7 +28,6 @@ namespace Simulator {
         double netQuantity = 0.0;
         double totalFee = 0.0;
         int numOfTrades = 0;
-        double totalQuantity = 0.0;
         double initialBalance = 0.0;
         double balance = 0.0;
         TradeInfo trade_info;

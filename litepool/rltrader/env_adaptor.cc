@@ -35,11 +35,15 @@ std::vector<double> EnvAdaptor::getState()
     auto market_signals = market_builder->add_book(book);
     PositionInfo position_info;
     strategy.fetchInfo(position_info, obs.getBestBidPrice(), obs.getBestAskPrice());
-    position_builder->add_info(position_info);
+    auto position_signals = position_builder->add_info(position_info);
     TradeInfo trade_info = strategy.getPosition().getTradeInfo();
     auto bid_price = obs.getBestBidPrice();
     auto ask_price = obs.getBestAskPrice();
-    trade_builder->add_trade(trade_info, bid_price, ask_price);
+    auto trade_signals = trade_builder->add_trade(trade_info, bid_price, ask_price);
+    std::vector<double> retval(market_signals.size() + position_signals.size() + trade_signals.size());
+    retval.insert(retval.end(), market_signals.begin(), market_signals.end());
+    retval.insert(retval.end(), position_signals.begin(), position_signals.end());
+    retval.insert(retval.end(), trade_signals.begin(), trade_signals.end());
     return market_signals;
 }
 

@@ -10,12 +10,13 @@ namespace Simulator {
     struct position_signal_repository {
         double net_position = 0;
         double relative_price = 0;
-        double total_trade_amount = 0;
-        double drawdown = 0;
+        double total_drawdown = 0;
+        double realized_pnl_drawdown = 0;
+        double inventory_pnl_drawdown = 0;
+        double total_pnl = 0;
         double realized_pnl = 0;
         double inventory_pnl = 0;
     };
-
     
     class PositionSignalBuilder {
     public:
@@ -23,7 +24,7 @@ namespace Simulator {
 
         PositionSignalBuilder();
 
-        std::vector<double> add_info(PositionInfo& info);
+        std::vector<double> add_info(PositionInfo& info, double& bid_price, double& ask_price);
 
         position_signal_repository& get_position_signals(signal_type sigtype);
 
@@ -31,19 +32,13 @@ namespace Simulator {
 
         position_signal_repository& get_volatility_signals(signal_type sigtype);
 
-        double get_steps_until_episode() { return steps_until_episode; }
-
-        double get_steps_since_episode() { return steps_since_episode; }
-
         long long get_step_count() { return processed_counter; }
 
-        bool is_data_ready() const { return processed_counter > minimum_required; };
-
     private:
+        void compute_signals(PositionInfo& info, double& bid_price, double& ask_price);
+        void compute_velocity();
+        void compute_volatility();
         long long processed_counter = 0;
-        double steps_until_episode = 0;
-        double steps_since_episode = 0;
-        uint16_t minimum_required = 10;
         double alpha = 2.0 / 9001;
         TemporalBuffer<position_signal_repository> raw_signals;
         std::unique_ptr<position_signal_repository> mean_raw_signals;

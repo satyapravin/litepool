@@ -31,20 +31,12 @@ namespace Simulator {
 
             trade_signal_repository& get_volatility_signals(signal_type sigtype);
 
-            double get_steps_until_episode() { return steps_until_episode; }
-
-            double get_steps_since_episode() { return steps_since_episode; }
-
-            long long get_step_count() { return processed_counter; }
-
         private:
             void compute_trade_signals(TradeInfo& info, double& bid_price, double& ask_price);
             void compute_velocity_signals();
             void compute_volatility_signals();
 
             long long processed_counter = 0;
-            double steps_until_episode = 0;
-            double steps_since_episode = 0;
             double alpha = 2.0 / 9001;
             TemporalBuffer<trade_signal_repository> raw_signals;
             std::unique_ptr<trade_signal_repository> mean_raw_signals;
