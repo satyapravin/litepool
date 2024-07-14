@@ -243,11 +243,18 @@ TEST_CASE("testing the position") {
 		CHECK(pos.getInitialBalance() == Approx(0.1));
 		PositionInfo info;
 		pos.fetchInfo(info, 1000, 1001);
+		TradeInfo& tradeInfo = pos.getTradeInfo();
 		CHECK(info.averagePrice == Approx(0.0));
 		CHECK(info.balance == Approx(0.1));
 		CHECK(info.inventoryPnL == Approx(0.0));
 		CHECK(info.leverage == Approx(0.0));
 		CHECK(info.tradingPnL == Approx(0.0));
+		CHECK(tradeInfo.buy_trades == Approx(0.0));
+        CHECK(tradeInfo.sell_trades = Approx(0.0));
+        CHECK((buy_amount = Approx(0.0));
+        CHECK((sell_amount = Approx(0.0));
+        CHECK((average_buy_price = Approx(0.0));
+        CHECK((average_sell_price = Approx(0.0));
 	}
 
 	SUBCASE("first buy order") {
