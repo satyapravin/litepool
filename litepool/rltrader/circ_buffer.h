@@ -8,7 +8,7 @@ namespace Simulator {
 template <typename T>
 class TemporalBuffer {
 public:
-    explicit TemporalBuffer(int lags) : size(lags + 1) {
+    explicit TemporalBuffer(u_int lags) : size(lags + 1) {
         for (int i = 0; i < size; ++i) {
             buffer.emplace_back(std::make_unique<T>());
         }
@@ -29,7 +29,7 @@ public:
     }
 
 private:
-    int size;
+    u_int size;
     std::deque<std::unique_ptr<T>> buffer;
 };
 }

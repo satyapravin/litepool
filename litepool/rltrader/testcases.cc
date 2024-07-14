@@ -13,6 +13,8 @@
 #include "orderbook.h"
 #include "market_signal_builder.h"
 #include "circ_buffer.h"
+#include "env_adaptor.h"
+#include <iostream>
 
 using namespace Simulator;
 using namespace doctest;
@@ -138,7 +140,47 @@ TEST_CASE("Testing TemporalBuffer with custom class TestData") {
     }
 }
 
-TEST_CASE("test of orderbook") {
+TEST_CASE("env adaptor test") {
+	CsvReader reader("data.csv");
+	Exchange exch(reader, 5);
+	InverseInstrument instr("BTC", 0.5, 10.0, 0, 0.0005);
+	Strategy strategy(instr, exch, 1, 0, 0, 30.0, 5);
+	EnvAdaptor adaptor = EnvAdaptor(strategy, exch, 20, 20, 5);
+	adaptor.reset(0, 0, 0);
+
+	int counter = 0;
+	while(!adaptor.is_data_ready()) {
+		if (!adaptor.next()) {
+			throw std::runtime_error("Data file not sufficient");
+		}
+	}
+
+	auto state = adaptor.getState();
+	CHECK(state.size() == 400);
+	adaptor.next();
+	state = adaptor.getState();
+	CHECK(state.size() == 1);
+	CHECK(state[0].size() == 516);
+	state = adaptor.getState();
+	CHECK(state.size() == 0);
+	adaptor.next();
+	state = adaptor.getState();
+	CHECK(state.size() == 1);
+	CHECK(state[0].size() == 516);
+	adaptor.quote(0, 0, 45, 45);
+
+	for (int ii=0; ii < 400; ++ii) {
+		adaptor.next();
+		state = adaptor.getState();
+	}
+
+	auto signals = state[0];
+	CHECK(std::all_of(signals.begin(), signals.end(), [](double val) {return std::isfinite(val);}));
+	CHECK(std::all_of(signals.begin(), signals.end(), [](double val) { return std::abs(val) > 0;}));
+	CHECK(std::all_of(signals.begin(), signals.end(), [](double val) { return std::abs(val) < 10;}));
+}
+
+TEST_CASE("test of orderbook and signals") {
 	double bid_price = 1000;
 	double ask_price = 1000;
 	std::unordered_map<std::string, double> lob;
@@ -164,7 +206,7 @@ TEST_CASE("test of orderbook") {
 	CHECK(book.bid_prices.size() == 20);
 	CHECK(book.ask_sizes.size() == 20);
 	CHECK(book.bid_sizes.size() == 20);
-	MarketSignalBuilder builder;
+	MarketSignalBuilder builder(10, 10, 20);
 	std::vector<std::chrono::duration<double>> durations;
 
 	int ii = 0;
@@ -250,11 +292,11 @@ TEST_CASE("testing the position") {
 		CHECK(info.leverage == Approx(0.0));
 		CHECK(info.tradingPnL == Approx(0.0));
 		CHECK(tradeInfo.buy_trades == Approx(0.0));
-        CHECK(tradeInfo.sell_trades = Approx(0.0));
-        CHECK((buy_amount = Approx(0.0));
-        CHECK((sell_amount = Approx(0.0));
-        CHECK((average_buy_price = Approx(0.0));
-        CHECK((average_sell_price = Approx(0.0));
+                CHECK(tradeInfo.sell_trades == Approx(0.0));
+        	CHECK(tradeInfo.buy_amount == Approx(0.0));
+                CHECK(tradeInfo.sell_amount == Approx(0.0));
+                CHECK(tradeInfo.average_buy_price == Approx(0.0));
+                CHECK(tradeInfo.average_sell_price == Approx(0.0));
 	}
 
 	SUBCASE("first buy order") {
@@ -274,6 +316,13 @@ TEST_CASE("testing the position") {
 		CHECK(info.inventoryPnL == Approx(0.000147783));
 		CHECK(info.leverage == Approx(0.09900990099));
 		CHECK(info.tradingPnL == Approx(0.0));
+		TradeInfo& tradeInfo = pos.getTradeInfo();
+		CHECK(tradeInfo.buy_trades == 1);
+        CHECK(tradeInfo.sell_trades == 0);
+        CHECK(tradeInfo.buy_amount == Approx(10.0));
+        CHECK(tradeInfo.sell_amount == Approx(0.0));
+        CHECK(tradeInfo.average_buy_price == Approx(1000.0));
+        CHECK(tradeInfo.average_sell_price == Approx(0.0));
 	}
 
 	SUBCASE("Three buys and a smaller sell order") {
@@ -293,6 +342,13 @@ TEST_CASE("testing the position") {
 			CHECK(info.balance == Approx(0.1));
 			CHECK(info.inventoryPnL == Approx(0.000147783 * ii));
 			CHECK(info.tradingPnL == Approx(0.0));
+			TradeInfo& tradeInfo = pos.getTradeInfo();
+			CHECK(tradeInfo.buy_trades == ii);
+			CHECK(tradeInfo.sell_trades == 0);
+			CHECK(tradeInfo.buy_amount == Approx(10.0 * ii));
+			CHECK(tradeInfo.sell_amount == Approx(0.0));
+			CHECK(tradeInfo.average_buy_price == Approx(1000.0));
+			CHECK(tradeInfo.average_sell_price == Approx(0.0));
 		}
 
 		Order order;
@@ -311,6 +367,13 @@ TEST_CASE("testing the position") {
 		CHECK(info.inventoryPnL == Approx(0.000147783 * 1.5));
 		CHECK(info.leverage == Approx(0.14818635955510023));
 		CHECK(info.tradingPnL == Approx(0.00022167487684729079));
+		TradeInfo& tradeInfo = pos.getTradeInfo();
+		CHECK(tradeInfo.sell_trades == 1);
+		CHECK(tradeInfo.buy_trades == 3);
+		CHECK(tradeInfo.buy_amount == Approx(30.0));
+		CHECK(tradeInfo.sell_amount == Approx(15.0));
+		CHECK(tradeInfo.average_buy_price == Approx(1000.0));
+		CHECK(tradeInfo.average_sell_price == Approx(1015));
 	}
 
 	SUBCASE("Three sells and a smaller buy order") {
@@ -330,6 +393,13 @@ TEST_CASE("testing the position") {
 			CHECK(info.balance == Approx(0.1));
 			CHECK(info.inventoryPnL == Approx(-0.000147783 * ii));
 			CHECK(info.tradingPnL == Approx(0.0));
+			TradeInfo& tradeInfo = pos.getTradeInfo();
+			CHECK(tradeInfo.sell_trades == ii);
+			CHECK(tradeInfo.buy_trades == 0);
+			CHECK(tradeInfo.buy_amount == Approx(0.0));
+			CHECK(tradeInfo.sell_amount == Approx(10.0*ii));
+			CHECK(tradeInfo.average_buy_price == Approx(0.0));
+			CHECK(tradeInfo.average_sell_price == Approx(1000));
 		}
 
 		Order order;
@@ -524,13 +594,14 @@ TEST_CASE("testing exchange") {
 }
 
 TEST_CASE("test of strategy") {
-	CsvReader reader("test.csv");
+	CsvReader reader("data.csv");
 	Exchange exch(reader, 5);
 	InverseInstrument instr("BTC", 0.5, 10.0, 0, 0.0005);
-	Strategy strategy(instr, exch, 1, 0, 0, 30.0, 5);
-	strategy.quote(0, 0, 30, 85);
+	Strategy strategy(instr, exch, 0.015, 0, 0, 30.0, 5);
+	strategy.quote(0, 0, 30, 45);
+	exch.next();
 	const auto& bids = exch.getBidOrders();
 	const auto& asks = exch.getAskOrders();
 	CHECK(bids.size() == 5);
-	CHECK(asks.size() == 1);
+	CHECK(asks.size() == 5);
 }

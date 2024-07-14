@@ -6,13 +6,13 @@
 
 using namespace Simulator;
 
-MarketSignalBuilder::MarketSignalBuilder(u_int bookhistory, u_int price_history)
+MarketSignalBuilder::MarketSignalBuilder(u_int bookhistory, u_int price_history, u_int depth)
               :processed_counter(0),
                minimum_required(bookhistory*price_history),
-               bid_prices(bookhistory, 20),
-               ask_prices(bookhistory, 20),
-               bid_sizes(bookhistory, 20),
-               ask_sizes(bookhistory, 20),
+               bid_prices(bookhistory, depth),
+               ask_prices(bookhistory, depth),
+               bid_sizes(bookhistory, depth),
+               ask_sizes(bookhistory, depth),
                raw_price_signals(price_history),                                                         // price
                raw_price_signal_mean(std::make_unique<price_signal_repository>()),                       // price mean
                raw_price_signal_ssqr(std::make_unique<price_signal_repository>()),                       // price ssqr

@@ -23,7 +23,7 @@ void Strategy::reset(int time_index, const double& position_amount, const double
 	this->order_id = 0;
 }
 
-bool Strategy::quote(int bid_tick_spread, int ask_tick_spread, 
+void Strategy::quote(int bid_tick_spread, int ask_tick_spread,
 	                 const double& buyVolumeAngle, const double& sellVolumeAngle) {
 	assert((buyVolumeAngle >= 2 && buyVolumeAngle <= 88));
 	assert((sellVolumeAngle >= 2 && sellVolumeAngle <= 88));
@@ -32,7 +32,6 @@ bool Strategy::quote(int bid_tick_spread, int ask_tick_spread,
 	ask_tick_spread = std::max(ask_tick_spread, 10);
 	this->sendGrid(buyVolumeAngle, obs, OrderSide::BUY);
 	this->sendGrid(sellVolumeAngle, obs, OrderSide::SELL);
-	return this->exchange.next();
 }
 
 void Strategy::sendGrid(const double& angle, const DataRow& obs, OrderSide side) {
@@ -47,7 +46,8 @@ void Strategy::sendGrid(const double& angle, const DataRow& obs, OrderSide side)
 	double totalVolume = 0;
 	std::string sideStr = side == OrderSide::BUY ? "bids[" : "asks[";
 
-	for (int ii = 0; ii < std::min(height, 5); ++ii) {
+	int placed_quotes = 0;
+	for (int ii = 0; ii < height; ++ii) {
 		if (ii == 0) {
 			area += 0.5 * (ii + 1) * tanAngle * (ii + 1) * initial_balance;
 		}
@@ -56,6 +56,7 @@ void Strategy::sendGrid(const double& angle, const DataRow& obs, OrderSide side)
 		}
 
 		totalVolume += area;
+
 		if (area > min_volume) {
 			double volume = std::round(area / min_volume) * min_volume;
 			if (ii < max_ticks) {
@@ -69,6 +70,9 @@ void Strategy::sendGrid(const double& angle, const DataRow& obs, OrderSide side)
 				this->exchange.quote(++order_id, side, price, volume);
 			}
 
+			++placed_quotes;
+
+			if (placed_quotes >= 5) break;
 			area -= volume;
 		}
 	}

@@ -13,7 +13,8 @@ public:
     }
 
     void addRow(std::vector<double>& row) {
-        if (row.size() != NUM_COLS) throw std::runtime_error("Invalid column size");
+        if (row.size() != NUM_COLS)
+            throw std::runtime_error("Invalid column size");
         currentRow = (currentRow + 1) % NUM_ROWS;
         std::copy(row.begin(), row.end(), buffer[currentRow].begin());
     }

@@ -15,7 +15,7 @@ namespace Simulator {
         double sell_amount_ratio = 0;
         double relative_buy_price = 0;
         double relative_sell_price = 0;
-    };
+    }__attribute((packed));
 
     class TradeSignalBuilder {
         public:

@@ -13,8 +13,8 @@ namespace Simulator {
 			
 		void reset(int time_index, const double& position_amount, const double& avg_price);
 
-		bool quote(int bid_tick_spread, int ask_tick_spread,
-			const double& buyVolumeAngle, const double& sellVolumeAngle);
+		void quote(int bid_tick_spread, int ask_tick_spread,
+			       const double& buyVolumeAngle, const double& sellVolumeAngle);
 
 		void fetchInfo(PositionInfo& info, const double& bidPrice, const double& askPrice);
                 

@@ -2,33 +2,49 @@
 
 using namespace Simulator;
 
-EnvAdaptor::EnvAdaptor(Strategy& strat, Exchange& exch, uint8_t book_history, uint8_t price_history)
+EnvAdaptor::EnvAdaptor(Strategy& strat, Exchange& exch, uint8_t book_history, uint8_t price_history, uint8_t depth)
            :strategy(strat),
             exchange(exch),
             book_history_lags(book_history),
             price_history_lags(price_history),
-            market_builder(std::make_unique<MarketSignalBuilder>(book_history, price_history)),
+            depth(depth),
+            market_builder(std::make_unique<MarketSignalBuilder>(book_history, price_history, depth)),
             position_builder(std::make_unique<PositionSignalBuilder>()),
             trade_builder(std::unique_ptr<TradeSignalBuilder>()) {
 }
 
+bool EnvAdaptor::next() {
+    if(this->exchange.next()) {
+        std::vector<double> next_state = computeState();
+        state.push_back(next_state);
+        return true;
+    }
 
-bool EnvAdaptor::quote(int bid_spread, int ask_spread, const double& buyVolumeAngle, const double& sellVolumeAngle) {
-    return this->strategy.quote(bid_spread, ask_spread, buyVolumeAngle, sellVolumeAngle);
+    return false;
+}
+
+std::vector<std::vector<double>> EnvAdaptor::getState() {
+    auto retval =  std::move(this->state);
+    this->state.clear();
+    return retval;
+}
+
+void EnvAdaptor::quote(int bid_spread, int ask_spread, const double& buyVolumeAngle, const double& sellVolumeAngle) {
+     this->strategy.quote(bid_spread, ask_spread, buyVolumeAngle, sellVolumeAngle);
 }
 
 void EnvAdaptor::reset(int time_index, const double& positionAmount, const double& averagePrice) {
     numTrades = 0;
-    return this->strategy.reset(time_index, positionAmount, averagePrice);
-    auto market_ptr = std::make_unique<MarketSignalBuilder>(book_history_lags, price_history_lags);
+    auto market_ptr = std::make_unique<MarketSignalBuilder>(book_history_lags, price_history_lags, depth);
     market_builder = std::move(market_ptr);
     auto position_ptr = std::make_unique<PositionSignalBuilder>();
     position_builder = std::move(position_ptr);
     auto trade_ptr = std::make_unique<TradeSignalBuilder>();
-    trade_builder = std::move(trade_builder);
+    trade_builder = std::move(trade_ptr);
+    return this->strategy.reset(time_index, positionAmount, averagePrice);
 }
 
-std::vector<double> EnvAdaptor::getState()
+std::vector<double> EnvAdaptor::computeState()
 {
     auto obs = this->exchange.getObs();
     auto bid_price = obs.getBestBidPrice();
@@ -44,7 +60,7 @@ std::vector<double> EnvAdaptor::getState()
     retval.insert(retval.end(), market_signals.begin(), market_signals.end());
     retval.insert(retval.end(), position_signals.begin(), position_signals.end());
     retval.insert(retval.end(), trade_signals.begin(), trade_signals.end());
-    return market_signals;
+    return retval;
 }
 
 bool EnvAdaptor::hasFilled() {

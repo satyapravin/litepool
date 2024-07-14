@@ -9,7 +9,7 @@ std::vector<std::string> Orderbook::ask_size_labels(0);
 bool Orderbook::init = Orderbook::initialize();
 
 bool Orderbook::initialize() {
-    for (int ii = 0; ii < 25; ++ii) {
+    for (int ii = 0; ii < 20; ++ii) {
         std::ostringstream bid_price_lbl;
         bid_price_lbl << "bids[" << ii << "].price";
         std::ostringstream ask_price_lbl;

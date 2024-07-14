@@ -16,7 +16,7 @@ namespace Simulator {
         double total_pnl = 0;
         double realized_pnl = 0;
         double inventory_pnl = 0;
-    };
+    } __attribute((packed));
     
     class PositionSignalBuilder {
     public:

@@ -11,6 +11,7 @@ PositionSignalBuilder::PositionSignalBuilder()
                       ,velocity_10_signals(std::make_unique<position_signal_repository>())
                       ,mean_velocity_10_signals(std::make_unique<position_signal_repository>())
                       ,ssr_velocity_10_signals(std::make_unique<position_signal_repository>())
+                      ,norm_velocity_10_signals(std::make_unique<position_signal_repository>())
                       ,mean_volatility_10_signals(std::make_unique<position_signal_repository>())
                       ,ssr_volatility_10_signals(std::make_unique<position_signal_repository>())
                       ,norm_volatility_10_signals(std::make_unique<position_signal_repository>()) {
