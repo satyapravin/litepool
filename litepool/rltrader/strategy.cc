@@ -47,7 +47,7 @@ void Strategy::sendGrid(const double& angle, const DataRow& obs, OrderSide side)
 	double totalVolume = 0;
 	std::string sideStr = side == OrderSide::BUY ? "bids[" : "asks[";
 
-	for (int ii = 0; ii < height; ++ii) {
+	for (int ii = 0; ii < std::min(height, 5); ++ii) {
 		if (ii == 0) {
 			area += 0.5 * (ii + 1) * tanAngle * (ii + 1) * initial_balance;
 		}

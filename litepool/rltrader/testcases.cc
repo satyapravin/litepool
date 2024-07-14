@@ -1,7 +1,7 @@
 ﻿#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 #include <algorithm>
-#include <map>
+#include <unordered_map>
 #include <string>
 #include <random>
 #include <chrono>
@@ -11,7 +11,7 @@
 #include "exchange.h"
 #include "strategy.h"
 #include "orderbook.h"
-#include "signal_builder.h"
+#include "market_signal_builder.h"
 #include "circ_buffer.h"
 
 using namespace Simulator;
@@ -141,7 +141,7 @@ TEST_CASE("Testing TemporalBuffer with custom class TestData") {
 TEST_CASE("test of orderbook") {
 	double bid_price = 1000;
 	double ask_price = 1000;
-	std::map<std::string, double> lob;
+	std::unordered_map<std::string, double> lob;
 	std::mt19937 rng;
 	std::random_device rd;
 	rng.seed(rd());
@@ -164,12 +164,12 @@ TEST_CASE("test of orderbook") {
 	CHECK(book.bid_prices.size() == 20);
 	CHECK(book.ask_sizes.size() == 20);
 	CHECK(book.bid_sizes.size() == 20);
-	SignalBuilder builder;
+	MarketSignalBuilder builder;
 	std::vector<std::chrono::duration<double>> durations;
 
 	int ii = 0;
 	for (ii=0; ii < 15000; ++ii) {
-		std::map<std::string, double> lob;
+		std::unordered_map<std::string, double> lob;
 		double mid_price = 0.5 * (bid_price + ask_price) + dist(rng) / 2000;
 		double bid_price = mid_price;
 		double ask_price = mid_price;
@@ -189,6 +189,7 @@ TEST_CASE("test of orderbook") {
 
 		Orderbook book(lob);
 		auto signals = builder.add_book(book);
+
 		if (builder.is_data_ready()) {
 			CHECK(std::all_of(signals.begin(), signals.end(), [](double val) {return std::isfinite(val);}));
 			CHECK(std::all_of(signals.begin(), signals.end(), [](double val) { return std::abs(val) > 0;}));
@@ -523,6 +524,6 @@ TEST_CASE("test of strategy") {
 	strategy.quote(0, 0, 30, 85);
 	const auto& bids = exch.getBidOrders();
 	const auto& asks = exch.getAskOrders();
-	CHECK(bids.size() == 7);
+	CHECK(bids.size() == 5);
 	CHECK(asks.size() == 1);
 }

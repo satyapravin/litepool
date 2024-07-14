@@ -31,14 +31,14 @@ void EnvAdaptor::reset(int time_index, const double& positionAmount, const doubl
 std::vector<double> EnvAdaptor::getState()
 {
     auto obs = this->exchange.getObs();
+    auto bid_price = obs.getBestBidPrice();
+    auto ask_price = obs.getBestAskPrice();
     auto book = Orderbook(obs.data);
     auto market_signals = market_builder->add_book(book);
     PositionInfo position_info;
     strategy.fetchInfo(position_info, obs.getBestBidPrice(), obs.getBestAskPrice());
-    auto position_signals = position_builder->add_info(position_info);
+    auto position_signals = position_builder->add_info(position_info, bid_price, ask_price);
     TradeInfo trade_info = strategy.getPosition().getTradeInfo();
-    auto bid_price = obs.getBestBidPrice();
-    auto ask_price = obs.getBestAskPrice();
     auto trade_signals = trade_builder->add_trade(trade_info, bid_price, ask_price);
     std::vector<double> retval(market_signals.size() + position_signals.size() + trade_signals.size());
     retval.insert(retval.end(), market_signals.begin(), market_signals.end());
