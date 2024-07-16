@@ -40,6 +40,8 @@ namespace Simulator {
         void compute_volatility();
         long long processed_counter = 0;
         double alpha = 2.0 / 9001;
+        double max_inventory_pnl = 0;
+        double max_trading_pnl = 0;
         TemporalBuffer<position_signal_repository> raw_signals;
         std::unique_ptr<position_signal_repository> mean_raw_signals;
         std::unique_ptr<position_signal_repository> ssr_raw_signals;

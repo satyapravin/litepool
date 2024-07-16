@@ -38,71 +38,67 @@ void Position::fetchInfo(PositionInfo& info, const double& bidPrice, const doubl
     info.leverage = 0;
     
     if (this->averagePrice > instrument.getTickSize()) {
-        info.leverage = std::abs(netQuantity) / (netQuantity > 0 ? bidPrice : askPrice) / balance;
+        info.leverage = std::abs(netQuantity) / (balance + info.inventoryPnL);
     }
 }
 
 double Position::inventoryPnL(const double& price) const {
-    return this->instrument.pnl(netQuantity, averagePrice, price);
+    return this->instrument.pnl(netQuantity * averagePrice, averagePrice, price);
 }
 
 void Position::onFill(const Order& order, bool is_maker)
 {
     if (order.state != OrderState::FILLED) {
-        throw new std::runtime_error("Order state not filled");
+        throw std::runtime_error("Order state not filled");
     }
 
-    double notional_qty = instrument.getQtyFromNotional(order.price, order.amount);
-    double qty = order.amount;
-    int totalQtySign = 1;
-
-    double total_notional_qty = 0.0;
-
-    if (netQuantity != 0) {
-        total_notional_qty = instrument.getQtyFromNotional(averagePrice, netQuantity);
-        if (netQuantity < 0)
-            totalQtySign = -1;
+    if (order.amount < 0) {
+        throw std::runtime_error("Invalid order amount");
     }
 
-    if (order.side != OrderSide::BUY) {
-        qty = -qty;
-        notional_qty = -notional_qty;
-        trade_info.sell_amount += order.amount;
-        trade_info.average_sell_price = trade_info.average_sell_price * trade_info.sell_trades + order.price;
-        trade_info.sell_trades += 1;
-        trade_info.average_sell_price /= trade_info.sell_trades;
-    } else {
+
+    double qty = instrument.getQtyFromNotional(order.price, order.amount);
+    double netNotional = netQuantity * averagePrice;
+    double orderNotional = order.amount;
+
+    if (order.side == OrderSide::BUY) {
         trade_info.buy_amount += order.amount;
-        trade_info.average_buy_price = trade_info.average_buy_price * trade_info.buy_trades + order.price;
-        trade_info.buy_trades += 1;
-        trade_info.average_buy_price /= trade_info.buy_trades;
+        trade_info.average_buy_price *= static_cast<double>(trade_info.buy_trades);
+        trade_info.buy_trades++;
+        trade_info.average_buy_price += order.price;
+        trade_info.average_buy_price /= static_cast<double>(trade_info.buy_trades);
+    } else {
+        qty *= -1.0;
+        orderNotional *= -1.0;
+        trade_info.sell_amount += order.amount;
+        trade_info.average_sell_price *= static_cast<double>(trade_info.sell_trades);
+        trade_info.sell_trades++;
+        trade_info.average_sell_price += order.price;
+        trade_info.average_sell_price /= static_cast<double>(trade_info.sell_trades);
     }
 
-    double pnl = 0.0;
+    double pnl = 0;
 
-    if (netQuantity == 0) {
+    if (std::abs(netNotional) < 1e-12) {
         averagePrice = order.price;
     }
-    else if (std::signbit(netQuantity) == std::signbit(qty)) {
-        if (averagePrice <= 0) throw std::runtime_error("Average price <= 0");
-        averagePrice = (std::abs(notional_qty) * order.price + std::abs(total_notional_qty) * averagePrice) /
-            (std::abs(notional_qty) + std::abs(total_notional_qty));
+    else if (std::signbit(netNotional) == std::signbit(orderNotional)) {
+        averagePrice = (std::abs(qty) * order.price + std::abs(netQuantity) * averagePrice) / std::abs(qty + netQuantity);
     }
     else {
-        if (averagePrice <= 0) throw std::runtime_error("Average price <= 0");
-        if (std::abs(netQuantity) == std::abs(qty)) {
-            pnl = instrument.pnl(netQuantity, averagePrice, order.price);
+        if (std::abs(std::abs(netNotional) - std::abs(orderNotional)) < 1e-12) {
+            pnl = instrument.pnl(-qty, averagePrice, order.price);
             averagePrice = 0;
         }
-        else if (std::abs(netQuantity) > std::abs(qty)) {
-            pnl = instrument.pnl(order.amount * totalQtySign, 
-                                 averagePrice, order.price);
+        else if (std::abs(netNotional) > std::abs(orderNotional)) {
+            pnl = instrument.pnl(-qty, averagePrice, order.price);
         }
         else {
             pnl = instrument.pnl(netQuantity, averagePrice, order.price);
             averagePrice = order.price;
         }
     }
+
 
     totalFee += instrument.fees(order.amount, order.price, is_maker);
     numOfTrades++;

@@ -23,13 +23,10 @@ void Strategy::reset(int time_index, const double& position_amount, const double
 	this->order_id = 0;
 }
 
-void Strategy::quote(int bid_tick_spread, int ask_tick_spread,
-	                 const double& buyVolumeAngle, const double& sellVolumeAngle) {
+void Strategy::quote(const double& buyVolumeAngle, const double& sellVolumeAngle) {
 	assert((buyVolumeAngle >= 2 && buyVolumeAngle <= 88));
 	assert((sellVolumeAngle >= 2 && sellVolumeAngle <= 88));
 	const auto& obs = this->exchange.getObs();
-	bid_tick_spread = std::max(bid_tick_spread, 10);
-	ask_tick_spread = std::max(ask_tick_spread, 10);
 	this->sendGrid(buyVolumeAngle, obs, OrderSide::BUY);
 	this->sendGrid(sellVolumeAngle, obs, OrderSide::SELL);
 }
@@ -76,6 +73,15 @@ void Strategy::sendGrid(const double& angle, const DataRow& obs, OrderSide side)
 			area -= volume;
 		}
 	}
+}
+
+bool Strategy::next() {
+	bool retval = exchange.next();
+	auto fills = exchange.getFills();
+	for(auto order: fills) {
+		position.onFill(order, true);
+	}
+	return retval;
 }
 
 void Strategy::fetchInfo(PositionInfo& info, const double& bidPrice, const double& askPrice) {

@@ -160,24 +160,27 @@ TEST_CASE("env adaptor test") {
 	adaptor.next();
 	state = adaptor.getState();
 	CHECK(state.size() == 1);
-	CHECK(state[0].size() == 516);
+	CHECK(state[0].size() == 258);
 	state = adaptor.getState();
 	CHECK(state.size() == 0);
 	adaptor.next();
 	state = adaptor.getState();
 	CHECK(state.size() == 1);
-	CHECK(state[0].size() == 516);
-	adaptor.quote(0, 0, 45, 45);
+	CHECK(state[0].size() == 258);
+	adaptor.quote(45, 45);
 
-	for (int ii=0; ii < 400; ++ii) {
+	for (int ii=0; ii < 1500; ++ii) {
 		adaptor.next();
 		state = adaptor.getState();
+		adaptor.quote(87, 87);
 	}
 
+	adaptor.next();
+	state = adaptor.getState();
 	auto signals = state[0];
 	CHECK(std::all_of(signals.begin(), signals.end(), [](double val) {return std::isfinite(val);}));
-	CHECK(std::all_of(signals.begin(), signals.end(), [](double val) { return std::abs(val) > 0;}));
 	CHECK(std::all_of(signals.begin(), signals.end(), [](double val) { return std::abs(val) < 10;}));
+	CHECK(std::all_of(signals.begin(), signals.end(), [](double val) { return std::abs(val) > 0;}));
 }
 
 TEST_CASE("test of orderbook and signals") {
@@ -314,7 +317,7 @@ TEST_CASE("testing the position") {
 		CHECK(info.averagePrice == Approx(1000.0));
 		CHECK(info.balance == Approx(0.1));
 		CHECK(info.inventoryPnL == Approx(0.000147783));
-		CHECK(info.leverage == Approx(0.09900990099));
+		CHECK(info.leverage == Approx(0.0998524));
 		CHECK(info.tradingPnL == Approx(0.0));
 		TradeInfo& tradeInfo = pos.getTradeInfo();
 		CHECK(tradeInfo.buy_trades == 1);
@@ -363,10 +366,10 @@ TEST_CASE("testing the position") {
 		PositionInfo info;
 		pos.fetchInfo(info, 1010, 1020);
 		CHECK(info.averagePrice == Approx(1000.0));
-		CHECK(info.balance == Approx(0.1 + 0.00022167487684729079));
+		CHECK(info.balance == Approx(0.10000021839889345));
 		CHECK(info.inventoryPnL == Approx(0.000147783 * 1.5));
-		CHECK(info.leverage == Approx(0.14818635955510023));
-		CHECK(info.tradingPnL == Approx(0.00022167487684729079));
+		CHECK(info.leverage == Approx(0.15187477346623476));
+		CHECK(info.tradingPnL == Approx(2.1839889344232866e-07));
 		TradeInfo& tradeInfo = pos.getTradeInfo();
 		CHECK(tradeInfo.sell_trades == 1);
 		CHECK(tradeInfo.buy_trades == 3);
@@ -414,10 +417,10 @@ TEST_CASE("testing the position") {
 		PositionInfo info;
 		pos.fetchInfo(info, 1010, 1020);
 		CHECK(info.averagePrice == Approx(1000.0));
-		CHECK(info.balance == Approx(0.1 - 0.000221675));
+		CHECK(info.balance == Approx(0.099999781601106563));
 		CHECK(info.inventoryPnL == Approx(-0.000147783 * 1.5));
-		CHECK(info.leverage == Approx(0.14738554024423889));
-		CHECK(info.tradingPnL == Approx(-0.000221675));
+		CHECK(info.leverage == Approx(0.15256026759275718));
+		CHECK(info.tradingPnL == Approx(-2.1839889344232866e-07));
 	}
 
 	SUBCASE("Equal buy and sell order") {
@@ -436,7 +439,7 @@ TEST_CASE("testing the position") {
 			CHECK(info.averagePrice == Approx(1000.0));
 			CHECK(info.balance == Approx(0.1));
 			CHECK(info.inventoryPnL == Approx(0.000147783));
-			CHECK(info.leverage == Approx(0.099009900990099));
+			CHECK(info.leverage == Approx(0.099852434825381212));
 			CHECK(info.tradingPnL == Approx(0.0));
 		}
 
@@ -452,10 +455,10 @@ TEST_CASE("testing the position") {
 		PositionInfo info;
 		pos.fetchInfo(info, 1010, 1020);
 		CHECK(info.averagePrice == Approx(0.0));
-		CHECK(info.balance == Approx(0.1 + 0.000147783));
+		CHECK(info.balance == Approx(0.10000014559926231));
 		CHECK(info.inventoryPnL == Approx(0));
 		CHECK(info.leverage == Approx(0));
-		CHECK(info.tradingPnL == Approx(0.000147783));
+		CHECK(info.tradingPnL == Approx(1.455992622995117e-07));
 	}
 
 	SUBCASE("Equal sell and buy order") {
@@ -474,7 +477,7 @@ TEST_CASE("testing the position") {
 			CHECK(info.averagePrice == Approx(1015.0));
 			CHECK(info.balance == Approx(0.1));
 			CHECK(info.inventoryPnL == Approx(0));
-			CHECK(info.leverage == Approx(0.098039215));
+			CHECK(info.leverage == Approx(0.09852216748768472));
 			CHECK(info.tradingPnL == Approx(0.0));
 		}
 
@@ -490,10 +493,10 @@ TEST_CASE("testing the position") {
 		PositionInfo info;
 		pos.fetchInfo(info, 1010, 1020);
 		CHECK(info.averagePrice == Approx(0.0));
-		CHECK(info.balance == Approx(0.1 + 0.000147783));
+		CHECK(info.balance == Approx(0.10000014778325124));
 		CHECK(info.inventoryPnL == Approx(0));
 		CHECK(info.leverage == Approx(0));
-		CHECK(info.tradingPnL == Approx(0.000147783));
+		CHECK(info.tradingPnL == Approx(1.4778325123365743e-07));
 	}
 
 	SUBCASE("Buy more than initial sell order") {
@@ -512,7 +515,7 @@ TEST_CASE("testing the position") {
 			CHECK(info.averagePrice == Approx(1015.0));
 			CHECK(info.balance == Approx(0.1));
 			CHECK(info.inventoryPnL == Approx(0));
-			CHECK(info.leverage == Approx(0.098039215));
+			CHECK(info.leverage == Approx(0.09852216748768472));
 			CHECK(info.tradingPnL == Approx(0.0));
 		}
 
@@ -528,10 +531,10 @@ TEST_CASE("testing the position") {
 		PositionInfo info;
 		pos.fetchInfo(info, 1010, 1020);
 		CHECK(info.averagePrice == Approx(1000.0));
-		CHECK(info.balance == Approx(0.1 + 0.000147783));
+		CHECK(info.balance == Approx(0.10000014559926231));
 		CHECK(info.inventoryPnL == Approx(0.0001477832));
-		CHECK(info.leverage == Approx(0.0988637968));
-		CHECK(info.tradingPnL == Approx(0.000147783));
+		CHECK(info.leverage == Approx(0.10132572958256746));
+		CHECK(info.tradingPnL == Approx(1.455992622995117e-07));
 	}
 }
 
@@ -598,7 +601,7 @@ TEST_CASE("test of strategy") {
 	Exchange exch(reader, 5);
 	InverseInstrument instr("BTC", 0.5, 10.0, 0, 0.0005);
 	Strategy strategy(instr, exch, 0.015, 0, 0, 30.0, 5);
-	strategy.quote(0, 0, 30, 45);
+	strategy.quote(30, 45);
 	exch.next();
 	const auto& bids = exch.getBidOrders();
 	const auto& asks = exch.getAskOrders();

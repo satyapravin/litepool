@@ -38,13 +38,16 @@ void PositionSignalBuilder::compute_signals(PositionInfo& info, double& bid_pric
     repo.net_position = info.netPosition;
     repo.inventory_pnl = info.inventoryPnL;
     repo.realized_pnl = info.tradingPnL;
-    repo.inventory_pnl_drawdown = 0;
-    repo.realized_pnl_drawdown = 0;
+
+    if (max_inventory_pnl < repo.inventory_pnl) max_inventory_pnl = repo.inventory_pnl;
+    if (max_trading_pnl < repo.realized_pnl) max_trading_pnl = repo.realized_pnl;
+    repo.inventory_pnl_drawdown = repo.inventory_pnl - max_inventory_pnl;
+    repo.realized_pnl_drawdown = repo.realized_pnl - max_trading_pnl;
     repo.total_pnl = repo.inventory_pnl + repo.realized_pnl;
     repo.total_drawdown = repo.inventory_pnl_drawdown + repo.realized_pnl_drawdown;
     repo.relative_price = info.averagePrice / (info.netPosition > 0 ? bid_price : ask_price);
     raw_signals.add(repo);
-    auto& to = raw_signals.get(0);
+    auto& to = *norm_raw_signals;
     NORMALIZE(repo, to, mean_raw_signals, ssr_raw_signals, net_position, alpha);
     NORMALIZE(repo, to, mean_raw_signals, ssr_raw_signals, inventory_pnl, alpha);
     NORMALIZE(repo, to, mean_raw_signals, ssr_raw_signals, realized_pnl, alpha);

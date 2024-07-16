@@ -14,7 +14,7 @@ EnvAdaptor::EnvAdaptor(Strategy& strat, Exchange& exch, uint8_t book_history, ui
 }
 
 bool EnvAdaptor::next() {
-    if(this->exchange.next()) {
+    if(this->strategy.next()) {
         std::vector<double> next_state = computeState();
         state.push_back(next_state);
         return true;
@@ -29,8 +29,8 @@ std::vector<std::vector<double>> EnvAdaptor::getState() {
     return retval;
 }
 
-void EnvAdaptor::quote(int bid_spread, int ask_spread, const double& buyVolumeAngle, const double& sellVolumeAngle) {
-     this->strategy.quote(bid_spread, ask_spread, buyVolumeAngle, sellVolumeAngle);
+void EnvAdaptor::quote(const double& buyVolumeAngle, const double& sellVolumeAngle) {
+     this->strategy.quote(buyVolumeAngle, sellVolumeAngle);
 }
 
 void EnvAdaptor::reset(int time_index, const double& positionAmount, const double& averagePrice) {
@@ -56,7 +56,8 @@ std::vector<double> EnvAdaptor::computeState()
     auto position_signals = position_builder->add_info(position_info, bid_price, ask_price);
     TradeInfo trade_info = strategy.getPosition().getTradeInfo();
     auto trade_signals = trade_builder->add_trade(trade_info, bid_price, ask_price);
-    std::vector<double> retval(market_signals.size() + position_signals.size() + trade_signals.size());
+    std::vector<double> retval;
+    retval.reserve(market_signals.size() + position_signals.size() + trade_signals.size());
     retval.insert(retval.end(), market_signals.begin(), market_signals.end());
     retval.insert(retval.end(), position_signals.begin(), position_signals.end());
     retval.insert(retval.end(), trade_signals.begin(), trade_signals.end());
