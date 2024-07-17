@@ -12,9 +12,11 @@ public:
     void quote(const double& buyVolumeAngle, const double& sellVolumeAngle);
     void reset(int time_index, const double& positionAmount, const double& averagePrice);
     bool next();
-    std::vector<std::vector<double>> getState();
+    std::unordered_map<std::string, double> getInfo();
+    std::vector<double> getState();
     bool is_data_ready() { return this->market_builder->is_data_ready(); }
     bool hasFilled();
+    long long getTime();
 private:
     std::vector<double> computeState();
 
@@ -23,10 +25,12 @@ private:
     uint8_t book_history_lags = 20;
     uint8_t price_history_lags = 20;
     uint8_t depth = 20;
+    double max_unrealized_pnl = 0;
+    double max_realized_pnl = 0;
+    long num_trades = 0;
     std::unique_ptr<MarketSignalBuilder> market_builder;
     std::unique_ptr<PositionSignalBuilder> position_builder;
     std::unique_ptr<TradeSignalBuilder> trade_builder;
-    long numTrades = 0;
-    std::vector<std::vector<double>> state;
+    std::vector<double> state;
 };
 }

@@ -19,30 +19,37 @@
 
 #include "litepool/core/async_litepool.h"
 #include "litepool/core/env.h"
+#include "env_adaptor.h"
+#include "inverse_instrument.h"
+#include <random>
 
 namespace rltrader {
 
 class RlTraderEnvFns {
  public:
   static decltype(auto) DefaultConfig() {
-    return MakeDict("state_num"_.Bind(10), "action_num"_.Bind(6));
+    return MakeDict("filename"_.Bind(std::string("")), "balance"_.Bind(1.0));
   }
 
   template <typename Config>
   static decltype(auto) StateSpec(const Config& conf) {
-    return MakeDict("obs:raw"_.Bind(Spec<int>({-1, conf["state_num"_]})),
-                    "obs:dyn"_.Bind(Spec<Container<int>>(
-                        {-1}, Spec<int>({-1, conf["state_num"_]}))),
-                    "info:players.done"_.Bind(Spec<bool>({-1})),
-                    "info:players.id"_.Bind(
-                        Spec<int>({-1}, {0, conf["max_num_players"_]})));
+    float fmax = std::numeric_limits<float>::max();
+
+    return MakeDict("obs"_.Bind(Spec<float>({258}, {-fmax, fmax})),
+                    "info:mid_price"_.Bind(Spec<float>({})),
+                    "info:balance"_.Bind(Spec<float>({})),
+                    "info:unrealized_pnl"_.Bind(Spec<float>({})),
+                    "info:realized_pnl"_.Bind(Spec<float>({})),
+                    "info:leverage"_.Bind(Spec<float>({})),
+                    "info:trade_count"_.Bind(Spec<float>({})),
+                    "info:inventory_drawdown"_.Bind(Spec<float>({})),
+                    "info:drawdown"_.Bind(Spec<float>({})));
   }
 
   template <typename Config>
   static decltype(auto) ActionSpec(const Config& conf) {
-    return MakeDict("list_action"_.Bind(Spec<double>({6})),
-                    "players.action"_.Bind(Spec<int>({-1})),
-                    "players.id"_.Bind(Spec<int>({-1})));
+    return MakeDict("buy_angle"_.Bind(Spec<float>({}, {2, 88})),
+                    "sell_angle"_.Bind(Spec<float>({}, {2, 88})));
   }
 };
 
@@ -51,21 +58,84 @@ using RlTraderEnvSpec = EnvSpec<RlTraderEnvFns>;
 class RlTraderEnv : public Env<RlTraderEnvSpec> {
  protected:
   int state_{0};
+  long long timestamp = 0;
+  bool isDone = true;
+  std::string filename;
+  double balance = 0;
+  std::unique_ptr<Simulator::CsvReader> reader_ptr;
+  std::unique_ptr<Simulator::InverseInstrument> instr_ptr;
+  std::unique_ptr<Simulator::Exchange> exchange_ptr;
+  std::unique_ptr<Simulator::Strategy> strategy_ptr;
+  std::unique_ptr<Simulator::EnvAdaptor> adaptor_ptr;
 
  public:
-  RlTraderEnv(const Spec& spec, int env_id) : Env<RlTraderEnvSpec>(spec, env_id) {
+  RlTraderEnv(const Spec& spec, int env_id) : Env<RlTraderEnvSpec>(spec, env_id),
+                                              filename(spec.config["filename"_]),
+                                              balance(spec.config["balance"_])
+  {
     if (seed_ < 1) {
-      seed_ = 1;
+      seed_ = 1;Simulator::CsvReader reader(filename);
+
     }
+
+    reader_ptr = std::make_unique<Simulator::CsvReader>(filename);
+    instr_ptr = std::make_unique<Simulator::InverseInstrument>("BTCUSD", 0.5,
+                                                                10, 0, 0);
+    exchange_ptr = std::make_unique<Simulator::Exchange>(*reader_ptr, 500000);
+    strategy_ptr = std::make_unique<Simulator::Strategy>(*instr_ptr, *exchange_ptr, balance, 0, 0, 30, 5);
+    adaptor_ptr = std::make_unique<Simulator::EnvAdaptor>(*strategy_ptr, *exchange_ptr, 20, 20, 5);
   }
 
   void Reset() override {
+    std::mt19937 rng;
+    std::random_device rd;
+    rng.seed(rd());
+    std::uniform_int_distribution<int> dist(10, 72);
+    adaptor_ptr->reset(dist(rng), 0, 0);
+
+    while(!adaptor_ptr->is_data_ready()) {
+        adaptor_ptr->next();
+    }
+
+    timestamp = adaptor_ptr->getTime();
+    isDone = false;
+    WriteState();
   }
 
   void Step(const Action& action) override {
+      auto buy_angle = action["buy_angle"_];
+      auto sell_angle = action["sell_angle"_];
+      adaptor_ptr->quote(buy_angle, sell_angle);
+      isDone = adaptor_ptr->next();
+      WriteState();
   }
 
-  bool IsDone() override { return state_ >= seed_; }
+  void WriteState() {
+    auto data = adaptor_ptr->getState();
+    State state = Allocate(1);
+    assert(data.size() == 258);
+
+    for(int ii=0; ii < data.size(); ++ii) {
+      state["obs"_][ii] = static_cast<float>(data[ii]);
+    }
+
+    auto info = adaptor_ptr->getInfo();
+
+    state["info:mid_price"_] = static_cast<float>(info["mid_price"]);
+    state["info:balance"_] = static_cast<float>(info["balance"]);
+    state["info:unrealized_pnl"_] = static_cast<float>(info["unrealized_pnl"]);
+    state["info:realized_pnl"_] = static_cast<float>(info["realized_pnl"]);
+    state["info:leverage"_] = static_cast<float>(info["leverage"]);
+    state["info:trade_count"_] = static_cast<float>(info["trade_count"]);
+    state["info:inventory_drawdown"_] = static_cast<float>(info["inventory_drawdown"]);
+    state["info:drawdown"_] = static_cast<float>(info["drawdown"]);
+    float zero = 0;
+    state["reward"_] = std::min(static_cast<float>(info["unrealized_pnl"]), zero) +
+                       static_cast<float>(info["realized_pnl"]) -
+                       static_cast<float>(info["drawdown"]);
+  }
+
+  bool IsDone() override { return isDone; }
 };
 
 using RlTraderLitePool = AsyncLitePool<RlTraderEnv>;

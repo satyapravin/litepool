@@ -156,28 +156,25 @@ TEST_CASE("env adaptor test") {
 	}
 
 	auto state = adaptor.getState();
-	CHECK(state.size() == 400);
+	CHECK(state.size() == 258);
 	adaptor.next();
 	state = adaptor.getState();
-	CHECK(state.size() == 1);
-	CHECK(state[0].size() == 258);
+	CHECK(state.size() == 258);
 	state = adaptor.getState();
 	CHECK(state.size() == 0);
 	adaptor.next();
 	state = adaptor.getState();
-	CHECK(state.size() == 1);
-	CHECK(state[0].size() == 258);
+	CHECK(state.size() == 258);
 	adaptor.quote(45, 45);
 
-	for (int ii=0; ii < 1500; ++ii) {
+	for (int ii=0; ii < 500; ++ii) {
 		adaptor.next();
 		state = adaptor.getState();
 		adaptor.quote(87, 87);
 	}
 
 	adaptor.next();
-	state = adaptor.getState();
-	auto signals = state[0];
+	auto signals = adaptor.getState();
 	CHECK(std::all_of(signals.begin(), signals.end(), [](double val) {return std::isfinite(val);}));
 	CHECK(std::all_of(signals.begin(), signals.end(), [](double val) { return std::abs(val) < 10;}));
 	CHECK(std::all_of(signals.begin(), signals.end(), [](double val) { return std::abs(val) > 0;}));

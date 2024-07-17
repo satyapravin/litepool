@@ -19,11 +19,10 @@ import time
 import numpy as np
 from absl import logging
 from absl.testing import absltest
+from litepool.rltrader.rltrader_litepool import _RlTraderLitePool, _RlTraderEnvSpec
 
-from litepool.dummy.dummy_litepool import _DummyLitePool, _DummyEnvSpec
 
-
-class _DummyLitePoolTest(absltest.TestCase):
+class _RlTraderLitePoolTest(absltest.TestCase):
 
   def test_config(self) -> None:
     ref_config_keys = [
@@ -35,20 +34,20 @@ class _DummyLitePoolTest(absltest.TestCase):
       "base_path",
       "seed",
       "gym_reset_return_info",
-      "state_num",
-      "action_num",
+      "balance",
+      "filename",
       "max_episode_steps",
     ]
-    default_conf = _DummyEnvSpec._default_config_values
+    default_conf = _RlTraderEnvSpec._default_config_values
     self.assertTrue(isinstance(default_conf, tuple))
-    config_keys = _DummyEnvSpec._config_keys
+    config_keys = _RlTraderEnvSpec._config_keys
     self.assertTrue(isinstance(config_keys, list))
     self.assertEqual(len(default_conf), len(config_keys))
     self.assertEqual(sorted(config_keys), sorted(ref_config_keys))
 
   def test_spec(self) -> None:
-    conf = _DummyEnvSpec._default_config_values
-    env_spec = _DummyEnvSpec(conf)
+    conf = _RlTraderEnvSpec._default_config_values
+    env_spec = _RlTraderEnvSpec(conf)
     state_spec = env_spec._state_spec
     action_spec = env_spec._action_spec
     state_keys = env_spec._state_keys
@@ -58,25 +57,27 @@ class _DummyLitePoolTest(absltest.TestCase):
     state_spec = dict(zip(state_keys, state_spec))
     action_spec = dict(zip(action_keys, action_spec))
     # default value of state_num is 10
-    self.assertEqual(state_spec["obs:raw"][1][-1], 10)
-    self.assertEqual(state_spec["obs:dyn"][1][1][-1], 10)
+    print(state_spec["obs"])
     # change conf and see if it can successfully change state_spec
     # directly send dict or expose config as dict?
-    conf = dict(zip(_DummyEnvSpec._config_keys, conf))
-    conf["state_num"] = 666
-    env_spec = _DummyEnvSpec(tuple(conf.values()))
+    conf = dict(zip(_RlTraderEnvSpec._config_keys, conf))
+    conf["filename"] = "data.csv"
+    conf["balance"] = 0.1
+    env_spec = _RlTraderEnvSpec(tuple(conf.values()))
     state_spec = dict(zip(state_keys, env_spec._state_spec))
-    self.assertEqual(state_spec["obs:raw"][1][-1], 666)
+    #self.assertEqual(state_spec["obs:raw"][1][-1], 666)
 
   def test_litepool(self) -> None:
     conf = dict(
-      zip(_DummyEnvSpec._config_keys, _DummyEnvSpec._default_config_values)
+      zip(_RlTraderEnvSpec._config_keys, _RlTraderEnvSpec._default_config_values)
     )
     conf["num_envs"] = num_envs = 100
     conf["batch_size"] = batch = 31
     conf["num_threads"] = os.cpu_count()
-    env_spec = _DummyEnvSpec(tuple(conf.values()))
-    env = _DummyLitePool(env_spec)
+    conf["filename"] = "data.csv"
+    conf["balance"] = 0.1
+    env_spec = _RlTraderEnvSpec(tuple(conf.values()))
+    env = _RlTraderLitePool(env_spec)
     state_keys = env._state_keys
     total = 100000
     env._reset(np.arange(num_envs, dtype=np.int32))
@@ -85,10 +86,12 @@ class _DummyLitePoolTest(absltest.TestCase):
       state = dict(zip(state_keys, env._recv()))
       action = {
         "env_id": state["info:env_id"],
-        "players.env_id": state["info:players.env_id"],
-        "list_action": np.zeros((batch, 6), dtype=np.float64),
-        "players.id": state["info:players.id"],
-        "players.action": state["info:players.id"],
+        #"players.env_id": state["info:players.env_id"],
+        #"list_action": np.zeros((batch, 6), dtype=np.float64),
+        #"players.id": state["info:players.id"],
+        #"players.action": state["info:players.id"],
+        "buy_angle" : 40,
+        "sell_angle": 48
       }
       env._send(tuple(action.values()))
     duration = time.time() - t

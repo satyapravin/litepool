@@ -5,6 +5,10 @@
 using namespace Simulator;
 
 Exchange::Exchange(CsvReader& reader, long delay) :dataReader(reader), delay(delay) {
+	bid_quotes.clear();
+	ask_quotes.clear();
+	executions.clear();
+	timed_buffer.clear();
 }
 
 void Exchange::setDelay(long delay) {
