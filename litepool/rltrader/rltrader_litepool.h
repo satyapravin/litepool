@@ -116,7 +116,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     assert(data.size() == 258);
 
     for(int ii=0; ii < data.size(); ++ii) {
-      state["obs"_][ii] = static_cast<float>(data[ii]);
+      state["obs"_](ii) = static_cast<float>(data[ii]);
     }
 
     auto info = adaptor_ptr->getInfo();

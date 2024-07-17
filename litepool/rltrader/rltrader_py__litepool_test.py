@@ -44,6 +44,7 @@ class _RlTraderLitePoolTest(absltest.TestCase):
     self.assertTrue(isinstance(config_keys, list))
     self.assertEqual(len(default_conf), len(config_keys))
     self.assertEqual(sorted(config_keys), sorted(ref_config_keys))
+    print("test_config completed")
 
   def test_spec(self) -> None:
     conf = _RlTraderEnvSpec._default_config_values
@@ -65,35 +66,36 @@ class _RlTraderLitePoolTest(absltest.TestCase):
     conf["balance"] = 0.1
     env_spec = _RlTraderEnvSpec(tuple(conf.values()))
     state_spec = dict(zip(state_keys, env_spec._state_spec))
-    #self.assertEqual(state_spec["obs:raw"][1][-1], 666)
+    print("test_spec completed")
 
   def test_litepool(self) -> None:
     conf = dict(
       zip(_RlTraderEnvSpec._config_keys, _RlTraderEnvSpec._default_config_values)
     )
     conf["num_envs"] = num_envs = 100
-    conf["batch_size"] = batch = 31
+    conf["batch_size"] = batch = 20
     conf["num_threads"] = os.cpu_count()
     conf["filename"] = "data.csv"
     conf["balance"] = 0.1
     env_spec = _RlTraderEnvSpec(tuple(conf.values()))
     env = _RlTraderLitePool(env_spec)
     state_keys = env._state_keys
-    total = 100000
+    total = 600
     env._reset(np.arange(num_envs, dtype=np.int32))
     t = time.time()
-    for _ in range(total):
-      state = dict(zip(state_keys, env._recv()))
+    for iter in range(total):
+      print("total", total, "iter=", iter)
+      state = env._recv()
+      print(state)
+
       action = {
-        "env_id": state["info:env_id"],
-        #"players.env_id": state["info:players.env_id"],
-        #"list_action": np.zeros((batch, 6), dtype=np.float64),
-        #"players.id": state["info:players.id"],
-        #"players.action": state["info:players.id"],
+        "env_id": info["env_id"],
         "buy_angle" : 40,
         "sell_angle": 48
       }
       env._send(tuple(action.values()))
+      state = env._recv()
+      print(state)
     duration = time.time() - t
     fps = total * batch / duration
     logging.info(f"FPS = {fps:.6f}")

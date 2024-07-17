@@ -7,6 +7,4 @@ register(
   dm_cls="RlTraderDMLitePool",
   gym_cls="RlTraderGymLitePool",
   gymnasium_cls="RlTraderGymnasiumLitePool",
-  max_episode_steps=2000000000000,
-  reward_threshold=195000.0,
 )
