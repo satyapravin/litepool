@@ -2,6 +2,6 @@
 
 try:
   import litepool.dummy.registration
-  #import litepool.simulator.registration
+  import litepool.rltrader.registration
 except ImportError:
   pass
