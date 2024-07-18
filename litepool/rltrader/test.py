@@ -20,4 +20,4 @@ while True:
     action = {"buy_angle": buy_angle, "sell_angle": sell_angle}
     env.send(action, env_id)
     counter += 1
-    print(rew)
+    print(counter, rew)

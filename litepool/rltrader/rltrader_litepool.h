@@ -15,7 +15,6 @@
 #ifndef LITEPOOL_RLTRADER_RLTRADER_LITEPOOL_H_
 #define LITEPOOL_RLTRADER_RLTRADER_LITEPOOL_H_
 
-#include <iostream>
 #include <memory>
 
 #include "litepool/core/async_litepool.h"
@@ -100,7 +99,6 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
 
     timestamp = adaptor_ptr->getTime();
     isDone = false;
-    std::cout << "Reset" << std::endl;
     WriteState();
   }
 
@@ -137,7 +135,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     state["info:drawdown"_] = static_cast<float>(info["drawdown"]);
     float zero = 0;
     state["reward"_] = std::min(static_cast<float>(info["unrealized_pnl"]), zero) +
-                       static_cast<float>(info["realized_pnl"]) -
+                       static_cast<float>(info["realized_pnl"]) +
                        static_cast<float>(info["drawdown"]);
   }
 
