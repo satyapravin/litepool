@@ -7,6 +7,6 @@ It allows users to create their own environments in C++ for use with popular RL 
 2. Create folder build on root litepool
 3. cmake ..
 4. Make
-5. Copy *.so from build/lib to litepool/dummy and litepool/simulator respectively
+5. Copy *.so from build/lib to litepool/dummy and litepool/rltrader_litepool.so respectively
 6. pip install .
 
