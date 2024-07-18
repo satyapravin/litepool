@@ -15,6 +15,7 @@
 #ifndef LITEPOOL_RLTRADER_RLTRADER_LITEPOOL_H_
 #define LITEPOOL_RLTRADER_RLTRADER_LITEPOOL_H_
 
+#include <iostream>
 #include <memory>
 
 #include "litepool/core/async_litepool.h"
@@ -99,6 +100,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
 
     timestamp = adaptor_ptr->getTime();
     isDone = false;
+    std::cout << "Reset" << std::endl;
     WriteState();
   }
 
@@ -106,14 +108,18 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
       auto buy_angle = action["buy_angle"_];
       auto sell_angle = action["sell_angle"_];
       adaptor_ptr->quote(buy_angle, sell_angle);
-      isDone = adaptor_ptr->next();
+      isDone = !adaptor_ptr->next();
       WriteState();
   }
 
   void WriteState() {
     auto data = adaptor_ptr->getState();
     State state = Allocate(1);
-    assert(data.size() == 258);
+
+    if (!isDone)
+        assert(data.size() == 258);
+    else
+        assert(data.empty());
 
     for(int ii=0; ii < data.size(); ++ii) {
       state["obs"_](ii) = static_cast<float>(data[ii]);

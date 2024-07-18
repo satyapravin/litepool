@@ -18,6 +18,7 @@ bool EnvAdaptor::next() {
         state = computeState();
         return true;
     }
+
     return false;
 }
 
