@@ -62,8 +62,9 @@ class _RlTraderLitePoolTest(absltest.TestCase):
     # change conf and see if it can successfully change state_spec
     # directly send dict or expose config as dict?
     conf = dict(zip(_RlTraderEnvSpec._config_keys, conf))
-    conf["filename"] = "data.csv"
+    conf["filename"] = "deribit.csv"
     conf["balance"] = 0.1
+    conf["depth"] = 25
     env_spec = _RlTraderEnvSpec(tuple(conf.values()))
     state_spec = dict(zip(state_keys, env_spec._state_spec))
     print("test_spec completed")
@@ -75,8 +76,9 @@ class _RlTraderLitePoolTest(absltest.TestCase):
     conf["num_envs"] = num_envs = 100
     conf["batch_size"] = batch = 20
     conf["num_threads"] = os.cpu_count()
-    conf["filename"] = "data.csv"
+    conf["filename"] = "deribit.csv"
     conf["balance"] = 0.1
+    conf["depth"] = 25
     env_spec = _RlTraderEnvSpec(tuple(conf.values()))
     env = _RlTraderLitePool(env_spec)
     state_keys = env._state_keys

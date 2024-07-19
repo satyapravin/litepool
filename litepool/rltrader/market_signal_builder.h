@@ -100,7 +100,7 @@ class MarketSignalBuilder {
 public:
     enum signal_type { raw=0, mean=1, ssr=2, norm=3 };
 
-    MarketSignalBuilder(u_int bookhistory=10, u_int price_history=10, u_int depth=20);
+    MarketSignalBuilder(u_int bookhistory, u_int price_history, u_int depth);
 
     bool is_data_ready() const;
 

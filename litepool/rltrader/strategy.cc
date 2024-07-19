@@ -2,7 +2,6 @@
 #include <string>
 #include <cmath>
 #include <cassert>
-#include <algorithm>
 #include "orderbook.h"
 
 using namespace Simulator;

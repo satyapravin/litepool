@@ -30,8 +30,9 @@ TEST(RlTraderLitePoolTest, SplitZeroAction) {
   config["batch_size"_] = 4;
   config["num_threads"_] = 1;
   config["seed"_] = 42;
-  config["filename"_] = std::string("./data.csv");
+  config["filename"_] = std::string("./deribit.csv");
   config["balance"_] = static_cast<float>(0.1);
+  config["depth"_] = 20;
 
   rltrader::RlTraderEnvSpec spec(config);
   rltrader::RlTraderLitePool litepool(spec);
@@ -53,8 +54,8 @@ TEST(RlTraderLitePoolTest, SplitZeroAction) {
 
   for (int i = 0; i < 4; ++i) {
     action["env_id"_][i] = i;
-    action["buy_angle"_][i] = 45;
-    action["sell_angle"_][i] = 45;
+    action["action"_][i][0] = 45;
+    action["action"_][i][1] = 45;
   }
 
   litepool.Send(action);
@@ -77,8 +78,9 @@ void Runner(int num_envs, int batch, int seed, int total_iter, int num_threads) 
   config["num_threads"_] = num_threads;
   config["seed"_] = seed;
   config["max_num_players"_] = 1;
-  config["filename"_] = std::string("./data.csv");
+  config["filename"_] = std::string("./deribit.csv");
   config["balance"_] = static_cast<float>(0.1);
+  config["depth"_] = 20;
 
   std::vector<int> length;
 
@@ -111,8 +113,8 @@ void Runner(int num_envs, int batch, int seed, int total_iter, int num_threads) 
 
     for (int i = 0; i < num_envs; ++i) {
       action["env_id"_][i] = i;
-      action["buy_angle"_][i] = 45;
-      action["sell_angle"_][i] = 45;
+      action["action"_][i][0] = 45;
+      action["action"_][i][1] = 45;
     }
     litepool.Send(action);
   }

@@ -28,7 +28,7 @@ namespace rltrader {
 class RlTraderEnvFns {
  public:
   static decltype(auto) DefaultConfig() {
-    return MakeDict("filename"_.Bind(std::string("")), "balance"_.Bind(1.0));
+    return MakeDict("filename"_.Bind(std::string("")), "balance"_.Bind(1.0), "depth"_.Bind<int>(5));
   }
 
   template <typename Config>
@@ -48,8 +48,7 @@ class RlTraderEnvFns {
 
   template <typename Config>
   static decltype(auto) ActionSpec(const Config& conf) {
-    return MakeDict("buy_angle"_.Bind(Spec<float>({}, {2, 88})),
-                    "sell_angle"_.Bind(Spec<float>({}, {2, 88})));
+    return MakeDict("action"_.Bind(Spec<float>({2}, {2, 88})));
   }
 };
 
@@ -81,9 +80,9 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     reader_ptr = std::make_unique<Simulator::CsvReader>(filename);
     instr_ptr = std::make_unique<Simulator::InverseInstrument>("BTCUSD", 0.5,
                                                                 10, 0, 0);
-    exchange_ptr = std::make_unique<Simulator::Exchange>(*reader_ptr, 500000);
+    exchange_ptr = std::make_unique<Simulator::Exchange>(*reader_ptr, 0);
     strategy_ptr = std::make_unique<Simulator::Strategy>(*instr_ptr, *exchange_ptr, balance, 0, 0, 30, 5);
-    adaptor_ptr = std::make_unique<Simulator::EnvAdaptor>(*strategy_ptr, *exchange_ptr, 20, 20, 5);
+    adaptor_ptr = std::make_unique<Simulator::EnvAdaptor>(*strategy_ptr, *exchange_ptr, 20, 20, spec.config["depth"_]);
   }
 
   void Reset() override {
@@ -103,8 +102,8 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   }
 
   void Step(const Action& action) override {
-      auto buy_angle = action["buy_angle"_];
-      auto sell_angle = action["sell_angle"_];
+      auto buy_angle = action["action"_][0];
+      auto sell_angle = action["action"_][1];
       adaptor_ptr->quote(buy_angle, sell_angle);
       isDone = !adaptor_ptr->next();
       WriteState();
@@ -134,7 +133,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     state["info:inventory_drawdown"_] = static_cast<float>(info["inventory_drawdown"]);
     state["info:drawdown"_] = static_cast<float>(info["drawdown"]);
     float zero = 0;
-    state["reward"_] = std::min(static_cast<float>(info["unrealized_pnl"]), zero) +
+    state["reward"_] = static_cast<float>(info["unrealized_pnl"]) +
                        static_cast<float>(info["realized_pnl"]) +
                        static_cast<float>(info["drawdown"]);
   }

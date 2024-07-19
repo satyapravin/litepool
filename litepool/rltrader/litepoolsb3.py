@@ -1,0 +1,78 @@
+import gymnasium
+from typing import Optional
+import numpy as np
+import torch as th
+from packaging import version
+from stable_baselines3 import PPO
+from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.vec_env import VecEnvWrapper, VecMonitor
+from stable_baselines3.common.vec_env.base_vec_env import (
+  VecEnvObs,
+  VecEnvStepReturn,
+)
+
+import litepool
+from litepool.python.protocol import LitePool
+
+class VecAdapter(VecEnvWrapper):
+  def __init__(self, venv: LitePool):
+    venv.num_envs = venv.spec.config.num_envs
+    super().__init__(venv=venv)
+
+  def step_async(self, actions: np.ndarray) -> None:
+    self.actions = actions
+
+  def reset(self) -> VecEnvObs:
+      return self.venv.reset()[0]
+
+  def seed(self, seed: Optional[int] = None) -> None:
+    pass
+
+  def step_wait(self) -> VecEnvStepReturn:
+      self.venv.send(self.actions)
+    
+      obs, rewards, terms, truncs, info_dict = self.venv.recv()
+      dones = terms + truncs
+      infos = []
+      for i in range(len(info_dict["env_id"])):
+          infos.append({
+              key: info_dict[key][i]
+              for key in info_dict.keys()
+              if isinstance(info_dict[key], np.ndarray)
+          })
+
+       
+          if infos[i]['env_id'] == 0:
+              print(rewards[i], infos[i]['balance'], infos[i]['realized_pnl'], infos[i]['unrealized_pnl'])
+          if dones[i]:
+              infos[i]["terminal_observation"] = obs[i]
+              obs[i] = self.venv.reset(np.array([i]))[0]
+      return obs, rewards, dones, infos
+
+
+env = env = litepool.make("RlTrader-v0", env_type="gymnasium", 
+                          num_envs=16, batch_size=16, 
+                          num_threads=4, 
+                          filename="deribit.csv", 
+                          balance=0.1,
+                          depth=20)
+env.spec.id = 'RlTrader-v0'
+env = VecAdapter(env)
+env = VecMonitor(env)
+
+kwargs = dict(use_sde=True, sde_sample_freq=4)
+
+model = PPO(
+  "MlpPolicy",
+  env,
+  n_steps=6000,
+  learning_rate=1e-4,
+  gae_lambda=0.95,
+  gamma=0.99999,
+  verbose=0,
+  seed=0,
+  **kwargs
+)
+
+model.learn(200000000)
