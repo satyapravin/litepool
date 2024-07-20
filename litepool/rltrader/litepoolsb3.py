@@ -3,6 +3,7 @@ import gymnasium
 from typing import Optional
 import numpy as np
 import torch as th
+import torch.nn as nn
 from packaging import version
 from stable_baselines3 import PPO
 from stable_baselines3.common.policies import ActorCriticPolicy
@@ -13,19 +14,120 @@ from stable_baselines3.common.vec_env.base_vec_env import (
   VecEnvObs,
   VecEnvStepReturn,
 )
+from stable_baselines3.common.torch_layers import create_mlp
 
 import litepool
 from litepool.python.protocol import LitePool
 
-class CustomMlpPolicy(ActorCriticPolicy):
-    def __init__(self, *args, **kwargs):
-        super(CustomMlpPolicy, self).__init__(
-            *args,
-            **kwargs,
-            net_arch=[
-                dict(pi=[256, 256], vf=[256, 256])
-            ]
+import gym
+import torch as th
+import torch.nn as nn
+import numpy as np
+from stable_baselines3 import PPO
+from stable_baselines3.common.policies import ActorCriticPolicy
+from stable_baselines3.common.vec_env import DummyVecEnv
+
+class CustomMLPExtractor(nn.Module):
+    def __init__(self, feature_dim, gru_hidden_dim, mlp_hidden_dim):
+        super(CustomMLPExtractor, self).__init__()
+        self.gru_hidden_dim = gru_hidden_dim
+        self.gru = nn.GRU(input_size=feature_dim, hidden_size=gru_hidden_dim, batch_first=True)
+        self.policy_net = nn.Sequential(
+            nn.Linear(gru_hidden_dim * 2, mlp_hidden_dim),
+            nn.ReLU(),
+            nn.Linear(mlp_hidden_dim, mlp_hidden_dim),
+            nn.ReLU()
         )
+        self.value_net = nn.Sequential(
+            nn.Linear(gru_hidden_dim * 2, mlp_hidden_dim),
+            nn.ReLU(),
+            nn.Linear(mlp_hidden_dim, mlp_hidden_dim),
+            nn.ReLU()
+        )
+        self.hidden_state = None
+        self.reset_hidden_state()
+
+    def reset_hidden_state(self, batch_size=1):
+        self.hidden_state = th.zeros(1, batch_size, self.gru_hidden_dim).to(next(self.gru.parameters()).device)
+
+    def forward_actor(self, x):
+        gru_output, self.hidden_state = self.gru(x.unsqueeze(0), self.hidden_state)
+        gru_output = gru_output.squeeze(0)
+        self.hidden_state = self.hidden_state.detach()
+        expanded_hidden_state = self.hidden_state.squeeze(0).expand(x.size(0), -1)
+        concatenated_features = th.cat((gru_output, expanded_hidden_state), dim=1)
+        return self.policy_net(concatenated_features)
+
+    def forward_critic(self, x):
+        gru_output, self.hidden_state = self.gru(x.unsqueeze(0), self.hidden_state)
+        gru_output = gru_output.squeeze(0)
+        self.hidden_state = self.hidden_state.detach()
+        expanded_hidden_state = self.hidden_state.squeeze(0).expand(x.size(0), -1).detach()
+        concatenated_features = th.cat((gru_output, expanded_hidden_state), dim=1)
+        return self.value_net(concatenated_features)
+
+class CustomGRUPolicy(ActorCriticPolicy):
+    def __init__(self, *args, **kwargs):
+        super(CustomGRUPolicy, self).__init__(*args, **kwargs, net_arch=[{}])
+        
+        feature_dim = self.features_extractor.features_dim
+        gru_hidden_dim = 16
+        mlp_hidden_dim = 16
+        self.mlp_extractor = CustomMLPExtractor(feature_dim, gru_hidden_dim, mlp_hidden_dim)
+
+        # Output layers for continuous actions. Assuming action space is Box with shape (2,)
+        self.action_net = nn.Linear(mlp_hidden_dim, 2)  # Output two action values for the policy
+        self.value_net = nn.Linear(mlp_hidden_dim, 1)  # Output one value for the value network
+
+    def extract_features(self, obs):
+        return self.features_extractor(obs)
+
+    def forward(self, obs, deterministic=False):
+        features = self.extract_features(obs)
+        
+        # Pass through the policy and value networks
+        policy_latent = self.mlp_extractor.forward_actor(features)
+        value_latent = self.mlp_extractor.forward_critic(features)
+
+        action_mean = self.action_net(policy_latent)
+        # Scale actions to the range [2, 88]
+        actions = 2 + (th.tanh(action_mean) + 1) * 43  # tanh outputs values in [-1, 1], scaling to [2, 88]
+        values = self.value_net(value_latent)
+
+        # Calculate log probabilities
+        action_dist = th.distributions.Normal(action_mean, 1.0)  # Assuming a fixed stddev for simplicity
+        log_probs = action_dist.log_prob(actions).sum(dim=-1)
+        
+        return actions, values, log_probs
+
+    def _get_action_from_latent(self, latent, deterministic):
+        action_mean = self.action_net(latent)
+        # Scale actions to the range [2, 88]
+        actions = 2 + (th.tanh(action_mean) + 1) * 43  # tanh outputs values in [-1, 1], scaling to [2, 88]
+        action_dist = th.distributions.Normal(action_mean, 1.0)  # Assuming a fixed stddev for simplicity
+        log_probs = action_dist.log_prob(actions).sum(dim=-1)
+        return actions, log_probs
+
+    def _predict(self, observation, deterministic=False):
+        actions, _, log_probs = self.forward(observation, deterministic)
+        return actions, log_probs
+
+    def evaluate_actions(self, obs, actions):
+        features = self.extract_features(obs)
+        
+        # Pass through the policy and value networks
+        policy_latent = self.mlp_extractor.forward_actor(features)
+        value_latent = self.mlp_extractor.forward_critic(features)
+
+        action_mean = self.action_net(policy_latent)
+        # Scale actions to the range [2, 88]
+        action = 2 + (th.tanh(action_mean) + 1) * 43  # tanh outputs values in [-1, 1], scaling to [2, 88]
+
+        action_dist = th.distributions.Normal(action_mean, 1.0)  # Assuming a fixed stddev for simplicity
+        log_prob = action_dist.log_prob(actions).sum(dim=-1)
+        entropy = action_dist.entropy().sum(dim=-1)
+        values = self.value_net(value_latent)
+        return values, log_prob, entropy
 
 
 class VecAdapter(VecEnvWrapper):
@@ -93,7 +195,7 @@ env = VecMonitor(env)
 kwargs = dict(use_sde=True, sde_sample_freq=4)
 
 model = PPO(
-  CustomMlpPolicy,
+  CustomGRUPolicy,
   env,
   n_steps=600,
   learning_rate=1e-4,

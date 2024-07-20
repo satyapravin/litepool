@@ -143,17 +143,15 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     double pnl = static_cast<float>(info["unrealized_pnl"]) +
                          static_cast<float>(info["realized_pnl"]);
     if (isDone) {
-      state["reward"_] = pnl + 5 * drawdown;
+      state["reward"_] = pnl + 5 * drawdown - 0.1 * info["leverage"];
     }
     else if (steps % 120 == 0) {
-      state["reward"_] = pnl + 10 * std::min(0.0, drawdown -previous_dd) - previous_pnl;
+      state["reward"_] = pnl + 10 * std::min(0.0, drawdown -previous_dd) - previous_pnl - 0.1 * info["leverage"];
 
     } else {
-      state["reward"_] = 0;
+      state["reward"_] = pnl - previous_pnl;
     }
 
-    if (info["leverage"] > 3.0)
-        state["reward"_] = -1000;
     previous_dd = drawdown;
     previous_pnl = pnl;
   }
