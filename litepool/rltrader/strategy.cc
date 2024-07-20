@@ -39,19 +39,16 @@ void Strategy::sendGrid(const double& angle, const DataRow& obs, OrderSide side)
 	double min_volume = this->instrument.getMinAmount();
 	double ref_price = side == OrderSide::BUY ? obs.data.at("bids[0].price") : obs.data.at("asks[0].price");
 	double initial_balance = this->position.getInitialBalance() * ref_price / (maxFactor / 2.0);
-	double totalVolume = 0;
 	std::string sideStr = side == OrderSide::BUY ? "bids[" : "asks[";
 
 	int placed_quotes = 0;
-	for (int ii = 0; ii < height; ++ii) {
+	for (int ii = 0; ii < 5; ++ii) {
 		if (ii == 0) {
-			area += 0.5 * (ii + 1) * tanAngle * (ii + 1) * initial_balance;
+			area += 0.5 * (ii + 1) * tanAngle * (ii + 1) * initial_balance / 50.0;
 		}
 		else {
-			area += 0.5 * (tanAngle * (2 * ii + 1)) * initial_balance;
+			area += 0.5 * (tanAngle * (2 * ii + 1)) * initial_balance / 50.0;
 		}
-
-		totalVolume += area;
 
 		if (area > min_volume) {
 			double volume = std::round(area / min_volume) * min_volume;

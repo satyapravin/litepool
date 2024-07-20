@@ -18,7 +18,7 @@ public:
     bool hasFilled();
     long long getTime();
 private:
-    std::vector<double> computeState();
+    std::vector<double> computeState(bool& controlled);
 
     Strategy& strategy;
     Exchange& exchange;
@@ -27,6 +27,7 @@ private:
     uint8_t depth = 20;
     double max_unrealized_pnl = 0;
     double max_realized_pnl = 0;
+    double drawdown = 0;
     long num_trades = 0;
     std::unique_ptr<MarketSignalBuilder> market_builder;
     std::unique_ptr<PositionSignalBuilder> position_builder;

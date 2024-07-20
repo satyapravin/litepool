@@ -15,6 +15,7 @@
 #ifndef LITEPOOL_RLTRADER_RLTRADER_LITEPOOL_H_
 #define LITEPOOL_RLTRADER_RLTRADER_LITEPOOL_H_
 
+#include <iostream>
 #include <memory>
 
 #include "litepool/core/async_litepool.h"
@@ -61,6 +62,10 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   bool isDone = true;
   std::string filename;
   double balance = 0;
+  long long steps = 0;
+  double drawdown = 0;
+  double previous_pnl = 0;
+  double previous_dd = 0;
   std::unique_ptr<Simulator::CsvReader> reader_ptr;
   std::unique_ptr<Simulator::InverseInstrument> instr_ptr;
   std::unique_ptr<Simulator::Exchange> exchange_ptr;
@@ -81,13 +86,17 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     instr_ptr = std::make_unique<Simulator::InverseInstrument>("BTCUSD", 0.5,
                                                                 10, 0, 0);
     exchange_ptr = std::make_unique<Simulator::Exchange>(*reader_ptr, 0);
-    strategy_ptr = std::make_unique<Simulator::Strategy>(*instr_ptr, *exchange_ptr, balance, 0, 0, 30, 5);
+    strategy_ptr = std::make_unique<Simulator::Strategy>(*instr_ptr, *exchange_ptr, balance, 0, 0, 30, 20);
     adaptor_ptr = std::make_unique<Simulator::EnvAdaptor>(*strategy_ptr, *exchange_ptr, 20, 20, spec.config["depth"_]);
   }
 
   void Reset() override {
     std::mt19937 rng;
     std::random_device rd;
+    steps = 0;
+    drawdown = 0;
+    previous_pnl = 0;
+    previous_dd = 0;
     rng.seed(rd());
     std::uniform_int_distribution<int> dist(10, 72);
     adaptor_ptr->reset(dist(rng), 0, 0);
@@ -106,6 +115,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
       auto sell_angle = action["action"_][1];
       adaptor_ptr->quote(buy_angle, sell_angle);
       isDone = !adaptor_ptr->next();
+      ++steps;
       WriteState();
   }
 
@@ -115,8 +125,6 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
 
     if (!isDone)
         assert(data.size() == 258);
-    else
-        assert(data.empty());
 
     for(int ii=0; ii < data.size(); ++ii) {
       state["obs"_](ii) = static_cast<float>(data[ii]);
@@ -130,12 +138,24 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     state["info:realized_pnl"_] = static_cast<float>(info["realized_pnl"]);
     state["info:leverage"_] = static_cast<float>(info["leverage"]);
     state["info:trade_count"_] = static_cast<float>(info["trade_count"]);
-    state["info:inventory_drawdown"_] = static_cast<float>(info["inventory_drawdown"]);
     state["info:drawdown"_] = static_cast<float>(info["drawdown"]);
-    float zero = 0;
-    state["reward"_] = static_cast<float>(info["unrealized_pnl"]) +
-                       static_cast<float>(info["realized_pnl"]) +
-                       static_cast<float>(info["drawdown"]);
+    drawdown = info["drawdown"];
+    double pnl = static_cast<float>(info["unrealized_pnl"]) +
+                         static_cast<float>(info["realized_pnl"]);
+    if (isDone) {
+      state["reward"_] = pnl + 5 * drawdown;
+    }
+    else if (steps % 120 == 0) {
+      state["reward"_] = pnl + 10 * std::min(0.0, drawdown -previous_dd) - previous_pnl;
+
+    } else {
+      state["reward"_] = 0;
+    }
+
+    if (info["leverage"] > 3.0)
+        state["reward"_] = -1000;
+    previous_dd = drawdown;
+    previous_pnl = pnl;
   }
 
   bool IsDone() override { return isDone; }

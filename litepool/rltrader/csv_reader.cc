@@ -3,6 +3,8 @@
 #include <map>
 #include "csv_reader.h"
 
+#include <iostream>
+
 using namespace Simulator;
 
 CsvReader::CsvReader(const std::string& filename) {

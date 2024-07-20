@@ -1,7 +1,6 @@
 #include <cmath>
 #include <stdexcept>
 #include "position.h"
-
 using namespace Simulator;
 
 Position::Position(BaseInstrument& instr, const double& aBalance,

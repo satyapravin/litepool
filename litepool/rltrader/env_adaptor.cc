@@ -15,8 +15,9 @@ EnvAdaptor::EnvAdaptor(Strategy& strat, Exchange& exch, uint8_t book_history, ui
 
 bool EnvAdaptor::next() {
     if(this->strategy.next()) {
-        state = computeState();
-        return true;
+        bool controlled = false;
+        state = computeState(controlled);
+        return controlled;
     }
 
     return false;
@@ -35,6 +36,7 @@ void EnvAdaptor::quote(const double& buyVolumeAngle, const double& sellVolumeAng
 void EnvAdaptor::reset(int time_index, const double& positionAmount, const double& averagePrice) {
     max_realized_pnl = 0;
     max_unrealized_pnl = 0;
+    drawdown = 0;
     long num_trades = 0;
     auto market_ptr = std::make_unique<MarketSignalBuilder>(book_history_lags, price_history_lags, depth);
     market_builder = std::move(market_ptr);
@@ -57,18 +59,25 @@ std::unordered_map<std::string, double> EnvAdaptor::getInfo() {
     strategy.fetchInfo(posInfo, bid_price, ask_price);
     auto tradeInfo = strategy.getPosition().getTradeInfo();
     std::unordered_map<std::string, double> retval;
+    if (max_unrealized_pnl < posInfo.inventoryPnL) max_unrealized_pnl = posInfo.inventoryPnL;
+    if (max_realized_pnl < posInfo.tradingPnL) max_realized_pnl = posInfo.tradingPnL;
+    double latest_dd = std::min(posInfo.inventoryPnL - max_unrealized_pnl, 0.0) + std::min(posInfo.tradingPnL - max_realized_pnl, 0.0);
+    if (drawdown > latest_dd) drawdown = latest_dd;
     retval["mid_price"] = (bid_price + ask_price) * 0.5;
     retval["balance"] = posInfo.balance;
     retval["unrealized_pnl"] = posInfo.inventoryPnL;
     retval["realized_pnl"] = posInfo.tradingPnL;
     retval["leverage"] = posInfo.leverage;
     retval["trade_count"] = num_trades;
-    retval["drawdown"] = (posInfo.inventoryPnL - max_unrealized_pnl) + (posInfo.tradingPnL - max_realized_pnl);
-    retval["inventory_drawdown"] = posInfo.inventoryPnL - max_unrealized_pnl;
+    retval["drawdown"] = drawdown;
+    retval["buy_amount"] = tradeInfo.buy_amount;
+    retval["sell_amount"] = tradeInfo.sell_amount;
+    retval["average_buy_price"] = tradeInfo.average_buy_price;
+    retval["average_sell_price"] = tradeInfo.average_sell_price;
     return retval;
 }
 
-std::vector<double> EnvAdaptor::computeState()
+std::vector<double> EnvAdaptor::computeState(bool& controlled)
 {
     auto obs = this->exchange.getObs();
     auto bid_price = obs.getBestBidPrice();
@@ -87,6 +96,8 @@ std::vector<double> EnvAdaptor::computeState()
     retval.insert(retval.end(), market_signals.begin(), market_signals.end());
     retval.insert(retval.end(), position_signals.begin(), position_signals.end());
     retval.insert(retval.end(), trade_signals.begin(), trade_signals.end());
+    hasFilled();
+    controlled = position_info.leverage < 25;
     return retval;
 }
 
