@@ -152,7 +152,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
       state["reward"_] = pnl + drawdown - info["leverage"];
     }
     else if (steps % 120 == 0) {
-      state["reward"_] = pnl + drawdown -previous_dd - previous_pnl - info["leverage"];
+      state["reward"_] = pnl + drawdown -previous_dd - previous_pnl - 10.0 * info["leverage"];
 
     } else {
       state["reward"_] = 0;

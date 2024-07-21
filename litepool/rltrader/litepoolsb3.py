@@ -194,8 +194,8 @@ class VecAdapter(VecEnvWrapper):
 
 
 env = litepool.make("RlTrader-v0", env_type="gymnasium", 
-                          num_envs=16, batch_size=16, 
-                          num_threads=8, 
+                          num_envs=4, batch_size=4, 
+                          num_threads=4, 
                           filename="deribit.csv", 
                           balance=1,
                           depth=20)
@@ -208,10 +208,10 @@ kwargs = dict(use_sde=True, sde_sample_freq=4)
 model = PPO(
   CustomGRUPolicy,
   env,
-  n_steps=3600,
-  learning_rate=1e-4,
+  n_steps=30000,
+  learning_rate=1e-3,
   gae_lambda=0.95,
-  gamma=0.9999999,
+  gamma=0.99,
   verbose=1,
   seed=1,
   **kwargs
