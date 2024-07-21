@@ -85,7 +85,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     reader_ptr = std::make_unique<Simulator::CsvReader>(filename);
     instr_ptr = std::make_unique<Simulator::InverseInstrument>("BTCUSD", 0.5,
                                                                 10, 0, 0);
-    exchange_ptr = std::make_unique<Simulator::Exchange>(*reader_ptr, 0);
+    exchange_ptr = std::make_unique<Simulator::Exchange>(*reader_ptr, 300);
     strategy_ptr = std::make_unique<Simulator::Strategy>(*instr_ptr, *exchange_ptr, balance, 0, 0, 30, 20);
     adaptor_ptr = std::make_unique<Simulator::EnvAdaptor>(*strategy_ptr, *exchange_ptr, 20, 20, spec.config["depth"_]);
   }
