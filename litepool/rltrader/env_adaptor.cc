@@ -74,6 +74,7 @@ std::unordered_map<std::string, double> EnvAdaptor::getInfo() {
     retval["sell_amount"] = tradeInfo.sell_amount;
     retval["average_buy_price"] = tradeInfo.average_buy_price;
     retval["average_sell_price"] = tradeInfo.average_sell_price;
+    retval["fees"] = posInfo.fees;
     return retval;
 }
 

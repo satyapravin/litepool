@@ -10,6 +10,7 @@ namespace Simulator {
         double tradingPnL = 0;
         double inventoryPnL = 0;
         double leverage = 0;
+	    double fees = 0;
 	};
 
     struct TradeInfo {

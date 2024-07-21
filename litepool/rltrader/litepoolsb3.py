@@ -138,6 +138,10 @@ class VecAdapter(VecEnvWrapper):
     self.balances = []
     self.leverages = []
     self.trades = []
+    self.fees = []
+    self.buys = []
+    self.sells = []
+
 
   def step_async(self, actions: np.ndarray) -> None:
     self.actions = actions
@@ -166,16 +170,23 @@ class VecAdapter(VecEnvWrapper):
               self.balances.append(infos[i]['balance'] + infos[0]['unrealized_pnl'])
               self.leverages.append(infos[i]['leverage'])
               self.trades.append(infos[i]['trade_count'])
+              self.fees.append(infos[i]['fees'])
+              self.buys.append(infos[i]['buy_amount'])
+              self.sells.append(infos[i]['sell_amount'])
  
           if dones[i]:
               if infos[i]["env_id"] == 0:
-                  d = {"mid": self.mid_prices, "balance": self.balances, "leverage": self.leverages, "trades": self.trades} 
+                  d = {"mid": self.mid_prices, "balance": self.balances, "leverage": self.leverages, "trades": self.trades, "fees": self.fees,
+                       "buy_amount": self.buys, "sell_amount": self.sells } 
                   df = pd.DataFrame(d)
                   df.to_csv("temp.csv", header=True, index=False)
                   self.mid_prices = []
                   self.balances = []
                   self.leverages = []
                   self.trades = []
+                  self.fees = []
+                  self.buys = []
+                  self.sells = []
               print('reward = ', rewards[i], '   balance = ',infos[i]['balance'] + infos[i]['unrealized_pnl'], '    drawdown = ', infos[i]['drawdown'])
               infos[i]["terminal_observation"] = obs[i]
               obs[i] = self.venv.reset(np.array([i]))[0]
@@ -183,8 +194,8 @@ class VecAdapter(VecEnvWrapper):
 
 
 env = litepool.make("RlTrader-v0", env_type="gymnasium", 
-                          num_envs=4, batch_size=4, 
-                          num_threads=4, 
+                          num_envs=16, batch_size=16, 
+                          num_threads=8, 
                           filename="deribit.csv", 
                           balance=1,
                           depth=20)
@@ -197,10 +208,10 @@ kwargs = dict(use_sde=True, sde_sample_freq=4)
 model = PPO(
   CustomGRUPolicy,
   env,
-  n_steps=600,
+  n_steps=3600,
   learning_rate=1e-4,
   gae_lambda=0.95,
-  gamma=0.99,
+  gamma=0.9999999,
   verbose=1,
   seed=1,
   **kwargs

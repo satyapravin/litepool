@@ -44,7 +44,10 @@ class RlTraderEnvFns {
                     "info:leverage"_.Bind(Spec<float>({})),
                     "info:trade_count"_.Bind(Spec<float>({})),
                     "info:inventory_drawdown"_.Bind(Spec<float>({})),
-                    "info:drawdown"_.Bind(Spec<float>({})));
+                    "info:drawdown"_.Bind(Spec<float>({})),
+                    "info:fees"_.Bind((Spec<float>({}))),
+                    "info:buy_amount"_.Bind((Spec<float>({}))),
+                    "info:sell_amount"_.Bind((Spec<float>({}))));
   }
 
   template <typename Config>
@@ -84,7 +87,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
 
     reader_ptr = std::make_unique<Simulator::CsvReader>(filename);
     instr_ptr = std::make_unique<Simulator::InverseInstrument>("BTCUSD", 0.5,
-                                                                10, 0, 0);
+                                                                10, 0.0001, 0);
     exchange_ptr = std::make_unique<Simulator::Exchange>(*reader_ptr, 300);
     strategy_ptr = std::make_unique<Simulator::Strategy>(*instr_ptr, *exchange_ptr, balance, 0, 0, 30, 20);
     adaptor_ptr = std::make_unique<Simulator::EnvAdaptor>(*strategy_ptr, *exchange_ptr, 20, 20, spec.config["depth"_]);
@@ -139,17 +142,20 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     state["info:leverage"_] = static_cast<float>(info["leverage"]);
     state["info:trade_count"_] = static_cast<float>(info["trade_count"]);
     state["info:drawdown"_] = static_cast<float>(info["drawdown"]);
+    state["info:fees"_] = static_cast<float>(info["fees"]);
+    state["info:buy_amount"_] = static_cast<float>(info["buy_amount"]);
+    state["info:sell_amount"_] = static_cast<float>(info["sell_amount"]);
     drawdown = info["drawdown"];
-    double pnl = static_cast<float>(info["unrealized_pnl"]) +
+    double pnl = static_cast<float>(std::min(info["unrealized_pnl"], 0.0)) +
                          static_cast<float>(info["realized_pnl"]);
     if (isDone) {
-      state["reward"_] = pnl + 5 * drawdown - 0.1 * info["leverage"];
+      state["reward"_] = pnl + drawdown - info["leverage"];
     }
     else if (steps % 120 == 0) {
-      state["reward"_] = pnl + 10 * std::min(0.0, drawdown -previous_dd) - previous_pnl - 0.1 * info["leverage"];
+      state["reward"_] = pnl + drawdown -previous_dd - previous_pnl - info["leverage"];
 
     } else {
-      state["reward"_] = pnl - previous_pnl;
+      state["reward"_] = 0;
     }
 
     previous_dd = drawdown;

@@ -35,6 +35,7 @@ void Position::fetchInfo(PositionInfo& info, const double& bidPrice, const doubl
     info.tradingPnL = this->balance - this->initialBalance;
     info.netPosition = this->netQuantity;
     info.leverage = 0;
+    info.fees = totalFee;
     
     if (this->averagePrice > instrument.getTickSize()) {
         info.leverage = std::abs(netQuantity) / (balance + info.inventoryPnL);
