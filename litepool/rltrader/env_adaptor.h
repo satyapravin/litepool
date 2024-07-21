@@ -9,7 +9,8 @@ namespace Simulator {
 class EnvAdaptor {
 public:
     EnvAdaptor(Strategy& strat, Exchange& exch, uint8_t book_history, uint8_t price_history, uint8_t depth);
-    void quote(const double& buyVolumeAngle, const double& sellVolumeAngle);
+    void quote(const double& buyPercent, const double& buyRatio,
+               const double& sellPercent, const double& sellRatio);
     void reset(int time_index, const double& positionAmount, const double& averagePrice);
     bool next();
     std::unordered_map<std::string, double> getInfo();

@@ -13,7 +13,8 @@ namespace Simulator {
 			
 		void reset(int time_index, const double& position_amount, const double& avg_price);
 
-		void quote(const double& buyVolumeAngle, const double& sellVolumeAngle);
+		void quote(const double& buyCapitalPercent, const double& buyRatio,
+		           const double& sellCapitalPercent, const double& sellRatio);
 
 		void fetchInfo(PositionInfo& info, const double& bidPrice, const double& askPrice);
                 
@@ -28,6 +29,6 @@ namespace Simulator {
 		int order_id;
 		double maxFactor;
 		int max_ticks;
-		void sendGrid(const double& angle, const DataRow& obs, OrderSide side);
+		void sendGrid(const double& percentCapital, const double& spreadRatio, const DataRow& obs, OrderSide side);
 	};
 }

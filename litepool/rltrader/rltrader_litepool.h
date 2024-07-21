@@ -52,7 +52,7 @@ class RlTraderEnvFns {
 
   template <typename Config>
   static decltype(auto) ActionSpec(const Config& conf) {
-    return MakeDict("action"_.Bind(Spec<float>({2}, {2, 88})));
+    return MakeDict("action"_.Bind(Spec<float>({4}, {{0, 0.1, 0, 0.1}, {0.1, 0.99, 0.1, 0.99}})));
   }
 };
 
@@ -114,9 +114,12 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   }
 
   void Step(const Action& action) override {
-      auto buy_angle = action["action"_][0];
-      auto sell_angle = action["action"_][1];
-      adaptor_ptr->quote(buy_angle, sell_angle);
+      auto buy_percent = action["action"_][0];
+      auto buy_ratio = action["action"_][1];
+      auto sell_percent = action["action"_][2];
+      auto sell_ratio = action["action"_][3];
+
+      adaptor_ptr->quote(buy_percent, buy_ratio, sell_percent, sell_ratio);
       isDone = !adaptor_ptr->next();
       ++steps;
       WriteState();

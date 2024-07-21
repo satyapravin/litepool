@@ -29,8 +29,9 @@ std::vector<double> EnvAdaptor::getState() {
     return retval;
 }
 
-void EnvAdaptor::quote(const double& buyVolumeAngle, const double& sellVolumeAngle) {
-     this->strategy.quote(buyVolumeAngle, sellVolumeAngle);
+void EnvAdaptor::quote(const double& buyPercent, const double& buyRatio,
+                       const double& sellPercent, const double& sellRatio) {
+     this->strategy.quote(buyPercent, buyRatio, sellPercent, sellRatio);
 }
 
 void EnvAdaptor::reset(int time_index, const double& positionAmount, const double& averagePrice) {

@@ -48,14 +48,16 @@ TEST(RlTraderLitePoolTest, SplitZeroAction) {
 
   std::vector<Array> raw_action({Array(Spec<int>({4})),
                                    Array(Spec<int>({4, 1})),
-                                   Array(Spec<float>({4, 1})),
-                                   Array(Spec<float>({4, 1}))});
+                                   Array(Spec<float>({4, 4}))});
+
   RlTraderAction action(raw_action);
 
   for (int i = 0; i < 4; ++i) {
     action["env_id"_][i] = i;
-    action["action"_][i][0] = 45;
-    action["action"_][i][1] = 45;
+    action["action"_][i][0] = 0.05;
+    action["action"_][i][1] = 0.8;
+    action["action"_][i][2] = 0.05;
+    action["action"_][i][3] = 0.8;
   }
 
   litepool.Send(action);
@@ -107,14 +109,15 @@ void Runner(int num_envs, int batch, int seed, int total_iter, int num_threads) 
 
     std::vector<Array> raw_action({Array(Spec<int>({num_envs})),
                                     Array(Spec<int>({num_envs, 1})),
-                                    Array(Spec<float>({num_envs, 1})),
-                                    Array(Spec<float>({num_envs, 1}))});
+                                    Array(Spec<float>({num_envs, 4}))});
     RlTraderAction action(raw_action);
 
     for (int i = 0; i < num_envs; ++i) {
       action["env_id"_][i] = i;
-      action["action"_][i][0] = 45;
-      action["action"_][i][1] = 45;
+      action["action"_][i][0] = 0.05;
+      action["action"_][i][1] = 0.8;
+      action["action"_][i][2] = 0.05;
+      action["action"_][i][3] = 0.8;
     }
     litepool.Send(action);
   }
