@@ -1,5 +1,7 @@
 #include "env_adaptor.h"
 
+#include <iostream>
+
 using namespace Simulator;
 
 EnvAdaptor::EnvAdaptor(Strategy& strat, Exchange& exch, uint8_t book_history, uint8_t price_history, uint8_t depth)
@@ -29,9 +31,14 @@ std::vector<double> EnvAdaptor::getState() {
     return retval;
 }
 
-void EnvAdaptor::quote(const double& buyPercent, const double& buyRatio,
-                       const double& sellPercent, const double& sellRatio) {
-     this->strategy.quote(buyPercent, buyRatio, sellPercent, sellRatio);
+void EnvAdaptor::quote(int buyPercent, int sellPercent, int buyRatio, int sellRatio, int buyLevels, int sellLevels) {
+    double dBuyPercent = buyPercent / 100.0;
+    double dSellPercent = sellPercent / 100.0;
+    double dBuyRatio = buyRatio / 100.0;
+    double dSellRatio = sellRatio / 100.0;
+    this->strategy.quote(dBuyPercent, dSellPercent,
+                         dBuyRatio, dSellRatio,
+                         buyLevels, sellLevels);
 }
 
 void EnvAdaptor::reset(int time_index, const double& positionAmount, const double& averagePrice) {

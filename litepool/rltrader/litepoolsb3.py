@@ -5,6 +5,7 @@ import numpy as np
 import torch as th
 import torch.nn as nn
 from packaging import version
+#from sb3_contrib import RecurrentPPO
 from stable_baselines3 import PPO
 from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.common.env_util import make_vec_env
@@ -19,115 +20,63 @@ from stable_baselines3.common.torch_layers import create_mlp
 import litepool
 from litepool.python.protocol import LitePool
 
-import gym
-import torch as th
+import torch
 import torch.nn as nn
-import numpy as np
-from stable_baselines3 import PPO
-from stable_baselines3.common.policies import ActorCriticPolicy
-from stable_baselines3.common.vec_env import DummyVecEnv
+import torch.nn.functional as F
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+from gymnasium import spaces
 
-class CustomMLPExtractor(nn.Module):
-    def __init__(self, feature_dim, gru_hidden_dim, mlp_hidden_dim):
-        super(CustomMLPExtractor, self).__init__()
-        self.gru_hidden_dim = gru_hidden_dim
-        self.gru = nn.GRU(input_size=feature_dim, hidden_size=gru_hidden_dim, batch_first=True)
-        self.policy_net = nn.Sequential(
-            nn.Linear(gru_hidden_dim * 2, mlp_hidden_dim),
+
+class LSTMFeatureExtractor(BaseFeaturesExtractor):
+    def __init__(self, observation_space: spaces.Box, lstm_hidden_size: int = 128, output_size: int = 32):
+        # The feature dimension is the final output size of the sequential layer
+        super(LSTMFeatureExtractor, self).__init__(observation_space, features_dim=output_size)
+        
+        self.lstm_hidden_size = lstm_hidden_size
+        self.n_input_channels = 210
+        self.remaining_input_size = 48
+        self.output_size = output_size
+        
+        # Define the LSTM layer for the first 210 floats
+        self.lstm = nn.LSTM(self.n_input_channels, lstm_hidden_size, batch_first=True)
+        
+        # This will hold the hidden state and cell state of the LSTM
+        self.hidden = None
+
+        # Define a sequential layer to process the concatenated output
+        self.fc = nn.Sequential(
+            nn.Linear(lstm_hidden_size + self.remaining_input_size, 128),
             nn.ReLU(),
-            nn.Linear(mlp_hidden_dim, mlp_hidden_dim),
-            nn.ReLU()
+            nn.Linear(128, output_size)
         )
-        self.value_net = nn.Sequential(
-            nn.Linear(gru_hidden_dim * 2, mlp_hidden_dim),
-            nn.ReLU(),
-            nn.Linear(mlp_hidden_dim, mlp_hidden_dim),
-            nn.ReLU()
-        )
-        self.hidden_state = None
-        self.reset_hidden_state()
 
-    def reset_hidden_state(self, batch_size=1):
-        self.hidden_state = th.zeros(1, batch_size, self.gru_hidden_dim).to(next(self.gru.parameters()).device)
+    def forward(self, observations: torch.Tensor) -> torch.Tensor:
+        # Split the observations into two parts
+        lstm_input = observations[:, :210]
+        remaining_input = observations[:, 210:]
 
-    def forward_actor(self, x):
-        gru_output, self.hidden_state = self.gru(x.unsqueeze(0), self.hidden_state)
-        gru_output = gru_output.squeeze(0)
-        self.hidden_state = self.hidden_state.detach()
-        expanded_hidden_state = self.hidden_state.squeeze(0).expand(x.size(0), -1)
-        concatenated_features = th.cat((gru_output, expanded_hidden_state), dim=1)
-        return self.policy_net(concatenated_features)
-
-    def forward_critic(self, x):
-        gru_output, self.hidden_state = self.gru(x.unsqueeze(0), self.hidden_state)
-        gru_output = gru_output.squeeze(0)
-        self.hidden_state = self.hidden_state.detach()
-        expanded_hidden_state = self.hidden_state.squeeze(0).expand(x.size(0), -1).detach()
-        concatenated_features = th.cat((gru_output, expanded_hidden_state), dim=1)
-        return self.value_net(concatenated_features)
-
-class CustomGRUPolicy(ActorCriticPolicy):
-    def __init__(self, *args, **kwargs):
-        super(CustomGRUPolicy, self).__init__(*args, **kwargs, net_arch=[{}])
+        # Initialize hidden state and cell state with zeros if they are not already set
+        if self.hidden is None or lstm_input.shape[0] != self.hidden[0].shape[1]:
+            self.hidden = (torch.zeros(1, lstm_input.shape[0], self.lstm_hidden_size).to(observations.device),
+                           torch.zeros(1, lstm_input.shape[0], self.lstm_hidden_size).to(observations.device))
+        else:
+            # Detach the hidden state to avoid backpropagating through the entire history
+            self.hidden = (self.hidden[0].detach(), self.hidden[1].detach())
         
-        feature_dim = self.features_extractor.features_dim
-        gru_hidden_dim = 16
-        mlp_hidden_dim = 16
-        self.mlp_extractor = CustomMLPExtractor(feature_dim, gru_hidden_dim, mlp_hidden_dim)
-
-        # Output layers for continuous actions. Assuming action space is Box with shape (2,)
-        self.action_net = nn.Linear(mlp_hidden_dim, 2)  # Output two action values for the policy
-        self.value_net = nn.Linear(mlp_hidden_dim, 1)  # Output one value for the value network
-
-    def extract_features(self, obs):
-        return self.features_extractor(obs)
-
-    def forward(self, obs, deterministic=False):
-        features = self.extract_features(obs)
+        # LSTM expects input of shape (batch_size, seq_len, input_size)
+        lstm_input = lstm_input.unsqueeze(1)  # Add sequence dimension
+        lstm_out, self.hidden = self.lstm(lstm_input, self.hidden)
         
-        # Pass through the policy and value networks
-        policy_latent = self.mlp_extractor.forward_actor(features)
-        value_latent = self.mlp_extractor.forward_critic(features)
-
-        action_mean = self.action_net(policy_latent)
-        # Scale actions to the range [2, 88]
-        actions = 2 + (th.tanh(action_mean) + 1) * 43  # tanh outputs values in [-1, 1], scaling to [2, 88]
-        values = self.value_net(value_latent)
-
-        # Calculate log probabilities
-        action_dist = th.distributions.Normal(action_mean, 1.0)  # Assuming a fixed stddev for simplicity
-        log_probs = action_dist.log_prob(actions).sum(dim=-1)
+        # Get the hidden state from the last LSTM cell
+        lstm_hidden_state = lstm_out[:, -1, :]
         
-        return actions, values, log_probs
-
-    def _get_action_from_latent(self, latent, deterministic):
-        action_mean = self.action_net(latent)
-        # Scale actions to the range [2, 88]
-        actions = 2 + (th.tanh(action_mean) + 1) * 43  # tanh outputs values in [-1, 1], scaling to [2, 88]
-        action_dist = th.distributions.Normal(action_mean, 1.0)  # Assuming a fixed stddev for simplicity
-        log_probs = action_dist.log_prob(actions).sum(dim=-1)
-        return actions, log_probs
-
-    def _predict(self, observation, deterministic=False):
-        actions, _, log_probs = self.forward(observation, deterministic)
-        return actions, log_probs
-
-    def evaluate_actions(self, obs, actions):
-        features = self.extract_features(obs)
+        # Concatenate the LSTM hidden state with the remaining input
+        combined_output = torch.cat((lstm_hidden_state, remaining_input), dim=1)
         
-        # Pass through the policy and value networks
-        policy_latent = self.mlp_extractor.forward_actor(features)
-        value_latent = self.mlp_extractor.forward_critic(features)
-
-        action_mean = self.action_net(policy_latent)
-        # Scale actions to the range [2, 88]
-        action = 2 + (th.tanh(action_mean) + 1) * 43  # tanh outputs values in [-1, 1], scaling to [2, 88]
-
-        action_dist = th.distributions.Normal(action_mean, 1.0)  # Assuming a fixed stddev for simplicity
-        log_prob = action_dist.log_prob(actions).sum(dim=-1)
-        entropy = action_dist.entropy().sum(dim=-1)
-        values = self.value_net(value_latent)
-        return values, log_prob, entropy
+        # Pass the combined output through the fully connected layer
+        final_output = self.fc(combined_output)
+        
+        return final_output
 
 
 class VecAdapter(VecEnvWrapper):
@@ -172,7 +121,7 @@ class VecAdapter(VecEnvWrapper):
               self.trades.append(infos[i]['trade_count'])
               self.fees.append(infos[i]['fees'])
               self.buys.append(infos[i]['buy_amount'])
-              self.sells.append(infos[i]['sell_amount'])
+              self.sells.append(infos[i]['sell_amount']) 
  
           if dones[i]:
               if infos[i]["env_id"] == 0:
@@ -186,7 +135,7 @@ class VecAdapter(VecEnvWrapper):
                   self.trades = []
                   self.fees = []
                   self.buys = []
-                  self.sells = []
+                  self.sells = [] 
               print('reward = ', rewards[i], '   balance = ',infos[i]['balance'] + infos[i]['unrealized_pnl'], '    drawdown = ', infos[i]['drawdown'])
               infos[i]["terminal_observation"] = obs[i]
               obs[i] = self.venv.reset(np.array([i]))[0]
@@ -205,11 +154,20 @@ env = VecMonitor(env)
 
 kwargs = dict(use_sde=True, sde_sample_freq=4)
 
+policy_kwargs = {
+    'features_extractor_class': LSTMFeatureExtractor,
+    'features_extractor_kwargs': {
+        'lstm_hidden_size': 128,
+        'output_size': 32
+    }
+}
+
 model = PPO(
-  CustomGRUPolicy,
+  "MlpPolicy", #CustomGRUPolicy,
   env,
-  n_steps=30000,
-  learning_rate=1e-3,
+  policy_kwargs=policy_kwargs,
+  n_steps=4800,
+  learning_rate=1e-4,
   gae_lambda=0.95,
   gamma=0.99,
   verbose=1,

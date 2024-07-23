@@ -52,7 +52,8 @@ class RlTraderEnvFns {
 
   template <typename Config>
   static decltype(auto) ActionSpec(const Config& conf) {
-    return MakeDict("action"_.Bind(Spec<float>({4}, {{0, 0.1, 0, 0.1}, {0.1, 0.99, 0.1, 0.99}})));
+    return MakeDict("action"_.Bind(Spec<int>({6}, {{10, 10, 10, 10, 2, 2},
+                                                                                 {300, 300, 99, 99, 5, 5}})));
   }
 };
 
@@ -115,11 +116,13 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
 
   void Step(const Action& action) override {
       auto buy_percent = action["action"_][0];
-      auto buy_ratio = action["action"_][1];
-      auto sell_percent = action["action"_][2];
+      auto sell_percent  = action["action"_][1];
+      auto buy_ratio = action["action"_][2];
       auto sell_ratio = action["action"_][3];
+      auto buy_levels = action["action"_][4];
+      auto sell_levels = action["action"_][5];
 
-      adaptor_ptr->quote(buy_percent, buy_ratio, sell_percent, sell_ratio);
+      adaptor_ptr->quote(buy_percent, sell_percent, buy_ratio, sell_ratio, buy_levels, sell_levels);
       isDone = !adaptor_ptr->next();
       ++steps;
       WriteState();
@@ -149,20 +152,25 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     state["info:buy_amount"_] = static_cast<float>(info["buy_amount"]);
     state["info:sell_amount"_] = static_cast<float>(info["sell_amount"]);
     drawdown = info["drawdown"];
-    double pnl = static_cast<float>(std::min(info["unrealized_pnl"], 0.0)) +
-                         static_cast<float>(info["realized_pnl"]);
+    double pnl = static_cast<float>(info["unrealized_pnl"] + info["realized_pnl"]);
+
     if (isDone) {
-      state["reward"_] = pnl + drawdown - info["leverage"];
+      state["reward"_] = pnl + drawdown - 0.01 * info["leverage"];
+      state["reward"_] *= 1000.0;
     }
-    else if (steps % 120 == 0) {
-      state["reward"_] = pnl + drawdown -previous_dd - previous_pnl - 10.0 * info["leverage"];
+    else if (steps % 600 == 0) {
+      auto net = pnl - previous_pnl - drawdown + previous_dd;
 
-    } else {
-      state["reward"_] = 0;
+      if (net > 0)
+        state["reward"_] = net * 10;
+      else
+        state["reward"_] = net - 0.01 * info["leverage"];
+      previous_dd = drawdown;
+      previous_pnl = pnl;
     }
-
-    previous_dd = drawdown;
-    previous_pnl = pnl;
+    else {
+      state["reward"_] = pnl - previous_pnl -0.01 * info["leverage"];
+    }
   }
 
   bool IsDone() override { return isDone; }
