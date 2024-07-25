@@ -39,6 +39,7 @@ namespace Simulator {
         void fetchInfo(PositionInfo& info, const double& bidPrice, const double& askPrice) const;
         void onFill(const Order& order, bool is_maker);
         double inventoryPnL(const double& price) const;
+        double getNetQty() const { return netQuantity; }
         double getInitialBalance() const { return initialBalance; }
         long getNumberOfTrades() const { return numOfTrades; }
         TradeInfo& getTradeInfo() { return trade_info; }

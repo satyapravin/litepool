@@ -18,7 +18,7 @@ public:
     bool hasFilled();
     long long getTime();
 private:
-    std::vector<double> computeState(bool& controlled);
+    std::vector<double> computeState();
 
     Strategy& strategy;
     Exchange& exchange;

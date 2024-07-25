@@ -45,6 +45,8 @@ namespace Simulator {
         // Adds a new order to the quote
         void quote(int order_id, OrderSide side, const double& price, const double& amount);
 
+        void market(int order_id, OrderSide side, const double& price, const double& amount);
+
     private:
         CsvReader dataReader; // reader
         long delay;           // Delay to process timed buffer  

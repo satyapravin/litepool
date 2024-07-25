@@ -211,13 +211,19 @@ std::vector<double> MarketSignalBuilder::add_book(Orderbook& book) {
     std::vector<double> retval;
 
     if (is_data_ready()) {
-        insert_norm_price_signals(retval);
-        insert_norm_spread_signals(retval);
-        insert_norm_volume_signals(retval);
-        insert_norm_velocity_1_signals(retval);
-        insert_norm_velocity_10_signals(retval);
-        insert_norm_volatility_1_signals(retval);
-        insert_norm_volatility_10_signals(retval);
+        insert_signals(retval, *raw_spread_signals);
+        insert_signals(retval, *raw_price_signal_velocities_1);
+        insert_signals(retval, raw_price_signal_velocities_10);
+        insert_signals(retval, *raw_volume_signals);
+        insert_signals(retval, *raw_price_vol_1_signal);
+        insert_signals(retval, *raw_price_signal_velocities_10);
+        //insert_norm_price_signals(retval);
+        //insert_norm_spread_signals(retval);
+        //insert_norm_volume_signals(retval);
+        //insert_norm_velocity_1_signals(retval);
+        //insert_norm_velocity_10_signals(retval);
+        //insert_norm_volatility_1_signals(retval);
+        //insert_norm_volatility_10_signals(retval);
     }
 
     return retval;

@@ -17,9 +17,8 @@ EnvAdaptor::EnvAdaptor(Strategy& strat, Exchange& exch, uint8_t book_history, ui
 
 bool EnvAdaptor::next() {
     if(this->strategy.next()) {
-        bool controlled = false;
-        state = computeState(controlled);
-        return controlled;
+        state = computeState();
+        return true;
     }
 
     return false;
@@ -86,7 +85,7 @@ std::unordered_map<std::string, double> EnvAdaptor::getInfo() {
     return retval;
 }
 
-std::vector<double> EnvAdaptor::computeState(bool& controlled)
+std::vector<double> EnvAdaptor::computeState()
 {
     auto obs = this->exchange.getObs();
     auto bid_price = obs.getBestBidPrice();
@@ -106,7 +105,6 @@ std::vector<double> EnvAdaptor::computeState(bool& controlled)
     retval.insert(retval.end(), position_signals.begin(), position_signals.end());
     retval.insert(retval.end(), trade_signals.begin(), trade_signals.end());
     hasFilled();
-    controlled = position_info.leverage < 25;
     return retval;
 }
 

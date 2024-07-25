@@ -53,6 +53,19 @@ std::vector<Order> Exchange::getUnackedOrders() const {
 
 void Exchange::quote(int order_id, OrderSide side, const double& price, const double& amount) {
 	Order order;
+	order.is_taker = false;
+	order.microSecond = this->dataReader.getTimeStamp();
+	order.amount = amount;
+	order.orderId = order_id;
+	order.price = price;
+	order.side = side;
+	order.state = OrderState::NEW;
+	this->addToBuffer(order);
+}
+
+void Exchange::market(int order_id, OrderSide side, const double &price, const double &amount) {
+	Order order;
+	order.is_taker = true;
 	order.microSecond = this->dataReader.getTimeStamp();
 	order.amount = amount;
 	order.orderId = order_id;
@@ -101,13 +114,13 @@ void Exchange::processPending(const DataRow& obs) {
 			for (Order& order : orders) {
 				if (order.state == OrderState::NEW) {
 					if (order.side == OrderSide::BUY) {
-						if (order.price < obs.data.at("asks[0].price") + epsilon) {
+						if (order.price < obs.data.at("asks[0].price") + epsilon || order.is_taker) {
 							order.state = OrderState::NEW_ACK;
 							this->bid_quotes[order.orderId] = order;
 						}
 					}
 					else {
-						if (order.price > obs.data.at("bids[0].price") + epsilon) {
+						if (order.price > obs.data.at("bids[0].price") + epsilon || order.is_taker) {
 							order.state = OrderState::NEW_ACK;
 							this->ask_quotes[order.orderId] = order;
 						}
@@ -187,8 +200,9 @@ void Exchange::execute() {
 	std::vector<long> asks_filled;
 	static const double epsilon = 0.00001;
 	for (auto& [order_id, order] : this->bid_quotes) {
-		if (order.side == OrderSide::BUY && order.price > epsilon + this->dataReader.getDouble("asks[0].price")) {
+		if (order.side == OrderSide::BUY && order.price >= epsilon + this->dataReader.getDouble("asks[0].price") || order.is_taker) {
 			order.state = OrderState::FILLED;
+			if (order.is_taker) order.price = this->dataReader.getDouble("asks[0].price");
 			bids_filled.push_back(order_id);
 			this->addToBuffer(order);
 		}
@@ -196,8 +210,9 @@ void Exchange::execute() {
 
 
 	for(auto& [order_id, order] : this->ask_quotes) {
-		if (order.side == OrderSide::SELL && order.price < this->dataReader.getDouble("bids[0].price") - epsilon) {
+		if (order.side == OrderSide::SELL && order.price <= this->dataReader.getDouble("bids[0].price") - epsilon || order.is_taker) {
 			order.state = OrderState::FILLED;
+			if (order.is_taker) order.price = this->dataReader.getDouble("bids[0].price");
 			asks_filled.push_back(order_id);
 			this->addToBuffer(order);
 		}

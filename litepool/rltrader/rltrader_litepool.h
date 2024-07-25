@@ -15,7 +15,6 @@
 #ifndef LITEPOOL_RLTRADER_RLTRADER_LITEPOOL_H_
 #define LITEPOOL_RLTRADER_RLTRADER_LITEPOOL_H_
 
-#include <iostream>
 #include <memory>
 
 #include "litepool/core/async_litepool.h"
@@ -36,7 +35,7 @@ class RlTraderEnvFns {
   static decltype(auto) StateSpec(const Config& conf) {
     float fmax = std::numeric_limits<float>::max();
 
-    return MakeDict("obs"_.Bind(Spec<float>({258}, {-fmax, fmax})),
+    return MakeDict("obs"_.Bind(Spec<float>({187}, {-fmax, fmax})),
                     "info:mid_price"_.Bind(Spec<float>({})),
                     "info:balance"_.Bind(Spec<float>({})),
                     "info:unrealized_pnl"_.Bind(Spec<float>({})),
@@ -52,8 +51,8 @@ class RlTraderEnvFns {
 
   template <typename Config>
   static decltype(auto) ActionSpec(const Config& conf) {
-    return MakeDict("action"_.Bind(Spec<int>({6}, {{10, 10, 10, 10, 2, 2},
-                                                                                 {300, 300, 99, 99, 5, 5}})));
+    return MakeDict("action"_.Bind(Spec<int>({6}, {{5, 5, 10, 10, 0, 0},
+                                                                                 {100, 100, 99, 99, 15, 15}})));
   }
 };
 
@@ -67,9 +66,11 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   std::string filename;
   double balance = 0;
   long long steps = 0;
-  double drawdown = 0;
-  double previous_pnl = 0;
+  double previous_upnl = 0;
+  double previous_rpnl = 0;
   double previous_dd = 0;
+  double previous_fees = 0;
+  double previous_leverage = 0;
   std::unique_ptr<Simulator::CsvReader> reader_ptr;
   std::unique_ptr<Simulator::InverseInstrument> instr_ptr;
   std::unique_ptr<Simulator::Exchange> exchange_ptr;
@@ -88,7 +89,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
 
     reader_ptr = std::make_unique<Simulator::CsvReader>(filename);
     instr_ptr = std::make_unique<Simulator::InverseInstrument>("BTCUSD", 0.5,
-                                                                10, 0.0001, 0);
+                                                                10, 0.000000001, -0.0005);
     exchange_ptr = std::make_unique<Simulator::Exchange>(*reader_ptr, 300);
     strategy_ptr = std::make_unique<Simulator::Strategy>(*instr_ptr, *exchange_ptr, balance, 0, 0, 30, 20);
     adaptor_ptr = std::make_unique<Simulator::EnvAdaptor>(*strategy_ptr, *exchange_ptr, 20, 20, spec.config["depth"_]);
@@ -98,9 +99,11 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     std::mt19937 rng;
     std::random_device rd;
     steps = 0;
-    drawdown = 0;
-    previous_pnl = 0;
+    previous_upnl = 0;
+    previous_rpnl = 0;
     previous_dd = 0;
+    previous_fees = 0;
+    previous_leverage = 0;
     rng.seed(rd());
     std::uniform_int_distribution<int> dist(10, 72);
     adaptor_ptr->reset(dist(rng), 0, 0);
@@ -133,7 +136,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     State state = Allocate(1);
 
     if (!isDone)
-        assert(data.size() == 258);
+      assert(data.size() == 187);
 
     for(int ii=0; ii < data.size(); ++ii) {
       state["obs"_](ii) = static_cast<float>(data[ii]);
@@ -151,26 +154,30 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     state["info:fees"_] = static_cast<float>(info["fees"]);
     state["info:buy_amount"_] = static_cast<float>(info["buy_amount"]);
     state["info:sell_amount"_] = static_cast<float>(info["sell_amount"]);
-    drawdown = info["drawdown"];
-    double pnl = static_cast<float>(info["unrealized_pnl"] + info["realized_pnl"]);
+    double drawdown = info["drawdown"];
+    double upnl = info["unrealized_pnl"];
+    double rpnl = info["realized_pnl"];
+    double leverage = info["leverage"];
 
     if (isDone) {
-      state["reward"_] = pnl + drawdown - 0.01 * info["leverage"];
-      state["reward"_] *= 1000.0;
+      state["reward"_] = rpnl + drawdown - 0.01 * leverage; // + info["fees"];
+      state["reward"_] *= 10.0;
+    }
+    else if (steps % 1201 == 0) {
+      state["reward"_] = -leverage;
     }
     else if (steps % 600 == 0) {
-      auto net = pnl - previous_pnl - drawdown + previous_dd;
-
-      if (net > 0)
-        state["reward"_] = net * 10;
-      else
-        state["reward"_] = net - 0.01 * info["leverage"];
+      state["reward"_] = rpnl - previous_rpnl + std::min(0.0, upnl - previous_upnl) + info["fees"] - previous_fees;
       previous_dd = drawdown;
-      previous_pnl = pnl;
+      previous_upnl = upnl;
+      previous_rpnl = rpnl;
+      previous_fees = info["fees"];
     }
     else {
-      state["reward"_] = pnl - previous_pnl -0.01 * info["leverage"];
+      state["reward"_] = 0;
     }
+
+    steps++;
   }
 
   bool IsDone() override { return isDone; }

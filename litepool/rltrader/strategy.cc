@@ -23,34 +23,71 @@ void Strategy::reset(int time_index, const double& position_amount, const double
 }
 
 void Strategy::quote(const double& buyPercent, const double& sellPercent,
-				   const double& buyRatio, const double& sellRatio,
-				   int buyLevels, int sellLevels) {
-	assert((buyPercent >= 0 && buyPercent <= 3.1));
-	assert((sellPercent >= 0 && sellPercent <= 3.1));
+				     const double& buyRatio, const double& sellRatio,
+				     int spread, int skew) {
+	assert((buyPercent >= 0 && buyPercent <= 40.1));
+	assert((sellPercent >= 0 && sellPercent <= 40.1));
 	assert((buyRatio >= 0.09 && buyRatio <= 0.9999));
 	assert((sellRatio >= 0.09 && sellRatio <= 0.9999));
-	assert((buyLevels >= 0 && buyLevels < 6));
-	assert((sellLevels >= 0 && sellLevels < 6));
+	assert((spread >= 0 && spread < 16));
+	assert((skew >= 0 && skew < 16));
 	const auto& obs = this->exchange.getObs();
-	if (buyLevels > 0) this->sendGrid(buyPercent, buyRatio, buyLevels, obs, OrderSide::BUY);
-	if (sellLevels > 0) this->sendGrid(sellPercent, sellRatio, sellLevels, obs, OrderSide::SELL);
+	double dSkew = skew / 100.0;
+	exchange.cancelBuys();
+	exchange.cancelSells();
+
+    /*
+	double netQty = position.getNetQty();
+	double mid_price = (obs.getBestAskPrice() + obs.getBestBidPrice()) * 0.5;
+	double upnl = position.inventoryPnL(mid_price);
+	double min_volume = this->instrument.getMinAmount();
+
+	if (upnl / std::abs(netQty) > 0.001) {
+
+		double amount = std::round(std::abs(netQty) * mid_price / min_volume) * min_volume;
+		double price = netQty < 0 ? obs.getBestAskPrice() : obs.getBestBidPrice();
+		OrderSide ordSide = netQty < 0 ? OrderSide::BUY : OrderSide::SELL;
+		exchange.market(++order_id, ordSide, price, amount);
+		return;
+	}*/
+
+	this->sendGrid(buyPercent, buyRatio, spread, dSkew, obs, OrderSide::BUY);
+	this->sendGrid(sellPercent, sellRatio, spread, dSkew, obs, OrderSide::SELL);
 }
 
-void Strategy::sendGrid(const double& percent, const double& ratio, int levels,
+void Strategy::sendGrid(const double& percent, const double& ratio,
+	                    int spread, const double& dSkew,
                         const DataRow& obs, OrderSide side) {
 	double min_volume = this->instrument.getMinAmount();
 	double ref_price = side == OrderSide::BUY ? obs.data.at("bids[0].price") : obs.data.at("asks[0].price");
 	double initial_balance = this->position.getInitialBalance() * ref_price * percent;
+
+	double price_delta = dSkew * position.getNetQty() / position.getInitialBalance();
+	double dSpread = instrument.getTickSize() * spread;
+
+	if (side == OrderSide::BUY) {
+		price_delta *= -1.0;
+		dSpread *= -1.0;
+	}
+
+	price_delta += +dSpread;
 	std::string sideStr = side == OrderSide::BUY ? "bids[" : "asks[";
 
 	std::vector<double> amounts;
-	double base_amount = initial_balance * (1.0 - ratio) / (1.0 - std::pow(ratio, levels));
+	double base_amount = initial_balance * (1.0 - ratio) / (1.0 - std::pow(ratio, 5));
 
-	for (int ii = 0; ii < levels; ++ii) {
-		double amount = base_amount * std::pow(ratio, levels - (ii+1));
+	for (int ii = 0; ii < 5; ++ii) {
+		double amount = base_amount * std::pow(ratio, 5 - (ii+1));
 		amount = std::round(amount / min_volume) * min_volume;
 		if (amount >= min_volume) {
 			double price = obs.data.at(sideStr + std::to_string(ii) + "].price");
+
+			price += price_delta;
+			if (side == OrderSide::BUY && price > obs.getBestBidPrice())
+				price = obs.getBestBidPrice();
+			else if (side == OrderSide::SELL && price < obs.getBestAskPrice())
+				price = obs.getBestAskPrice();
+
 			this->exchange.quote(++order_id, side, price, amount);
 		}
 	}

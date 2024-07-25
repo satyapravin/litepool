@@ -26,8 +26,12 @@ std::vector<double> PositionSignalBuilder::add_info(PositionInfo& info, double& 
     }
 
     std::vector<double> retval;
-    insert_signals(retval, *norm_raw_signals);
-    insert_signals(retval, *norm_velocity_10_signals);
+    //insert_signals(retval, *norm_raw_signals);
+    //insert_signals(retval, *norm_velocity_10_signals);
+    //insert_signals(retval, *norm_volatility_10_signals);
+    auto& raw = raw_signals.get(0);
+    insert_signals(retval, raw);
+    insert_signals(retval, *velocity_10_signals);
     insert_signals(retval, *norm_volatility_10_signals);
     processed_counter++;
     return retval;
@@ -46,6 +50,14 @@ void PositionSignalBuilder::compute_signals(PositionInfo& info, double& bid_pric
     repo.total_pnl = repo.inventory_pnl + repo.realized_pnl;
     repo.total_drawdown = repo.inventory_pnl_drawdown + repo.realized_pnl_drawdown;
     repo.relative_price = info.averagePrice / (info.netPosition > 0 ? bid_price : ask_price);
+
+    repo.net_position = repo.net_position / info.balance;
+    repo.inventory_pnl = repo.inventory_pnl / info.balance;
+    repo.realized_pnl = repo.realized_pnl / info.balance;
+    repo.inventory_pnl_drawdown = repo.inventory_pnl_drawdown / info.balance * 10000.0;
+    repo.realized_pnl_drawdown = repo.realized_pnl_drawdown / info.balance * 10000.0;
+    repo.total_pnl = repo.total_pnl / info.balance * 10000.0;
+    repo.total_drawdown = repo.total_drawdown / info.balance * 10000.0;
     raw_signals.add(repo);
     auto& to = *norm_raw_signals;
     NORMALIZE(repo, to, mean_raw_signals, ssr_raw_signals, net_position, alpha);

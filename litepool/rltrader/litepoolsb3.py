@@ -28,16 +28,16 @@ from gymnasium import spaces
 
 
 class LSTMFeatureExtractor(BaseFeaturesExtractor):
-    def __init__(self, observation_space: spaces.Box, lstm_hidden_size: int = 128, output_size: int = 32):
+    def __init__(self, observation_space: spaces.Box, lstm_hidden_size: int = 16, output_size: int = 32):
         # The feature dimension is the final output size of the sequential layer
         super(LSTMFeatureExtractor, self).__init__(observation_space, features_dim=output_size)
         
         self.lstm_hidden_size = lstm_hidden_size
-        self.n_input_channels = 210
+        self.n_input_channels = 139 
         self.remaining_input_size = 48
         self.output_size = output_size
         
-        # Define the LSTM layer for the first 210 floats
+        # Define the LSTM layer for the first 139 floats
         self.lstm = nn.LSTM(self.n_input_channels, lstm_hidden_size, batch_first=True)
         
         # This will hold the hidden state and cell state of the LSTM
@@ -45,15 +45,19 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
 
         # Define a sequential layer to process the concatenated output
         self.fc = nn.Sequential(
-            nn.Linear(lstm_hidden_size + self.remaining_input_size, 128),
+            nn.Linear(lstm_hidden_size + self.remaining_input_size, 64),
             nn.ReLU(),
-            nn.Linear(128, output_size)
+            nn.Linear(64, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, output_size)
         )
 
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
         # Split the observations into two parts
-        lstm_input = observations[:, :210]
-        remaining_input = observations[:, 210:]
+        lstm_input = observations[:, :139]
+        remaining_input = observations[:, 139:]
 
         # Initialize hidden state and cell state with zeros if they are not already set
         if self.hidden is None or lstm_input.shape[0] != self.hidden[0].shape[1]:
@@ -75,9 +79,7 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
         
         # Pass the combined output through the fully connected layer
         final_output = self.fc(combined_output)
-        
         return final_output
-
 
 class VecAdapter(VecEnvWrapper):
   def __init__(self, venv: LitePool):
@@ -90,12 +92,14 @@ class VecAdapter(VecEnvWrapper):
     self.fees = []
     self.buys = []
     self.sells = []
-
+    self.upnl = []
+    self.steps = 0
 
   def step_async(self, actions: np.ndarray) -> None:
     self.actions = actions
 
   def reset(self) -> VecEnvObs:
+      self.steps = 0
       return self.venv.reset()[0]
 
   def seed(self, seed: Optional[int] = None) -> None:
@@ -116,35 +120,41 @@ class VecAdapter(VecEnvWrapper):
 
           if infos[i]["env_id"] == 0:
               self.mid_prices.append(infos[i]['mid_price'])
-              self.balances.append(infos[i]['balance'] + infos[0]['unrealized_pnl'])
+              self.balances.append(infos[i]['balance'])
+              self.upnl.append(infos[i]['unrealized_pnl'])
               self.leverages.append(infos[i]['leverage'])
               self.trades.append(infos[i]['trade_count'])
               self.fees.append(infos[i]['fees'])
               self.buys.append(infos[i]['buy_amount'])
               self.sells.append(infos[i]['sell_amount']) 
- 
+           
           if dones[i]:
               if infos[i]["env_id"] == 0:
-                  d = {"mid": self.mid_prices, "balance": self.balances, "leverage": self.leverages, "trades": self.trades, "fees": self.fees,
+                  d = {"mid": self.mid_prices, "balance": self.balances, "upnl" : self.upnl, 
+                       "leverage": self.leverages, "trades": self.trades, "fees": self.fees,
                        "buy_amount": self.buys, "sell_amount": self.sells } 
                   df = pd.DataFrame(d)
                   df.to_csv("temp.csv", header=True, index=False)
                   self.mid_prices = []
                   self.balances = []
+                  self.upnl = []
                   self.leverages = []
                   self.trades = []
                   self.fees = []
                   self.buys = []
                   self.sells = [] 
-              print('reward = ', rewards[i], '   balance = ',infos[i]['balance'] + infos[i]['unrealized_pnl'], '    drawdown = ', infos[i]['drawdown'])
               infos[i]["terminal_observation"] = obs[i]
               obs[i] = self.venv.reset(np.array([i]))[0]
+          if self.steps % 1000 == 0:
+              print("index", i, 'balance = ',infos[i]['balance'], "  unreal = ", infos[i]['unrealized_pnl'], 
+                    " real = ", infos[i]['realized_pnl'], '    drawdown = ', infos[i]['drawdown'])
+      self.steps += 1
       return obs, rewards, dones, infos
 
 
 env = litepool.make("RlTrader-v0", env_type="gymnasium", 
                           num_envs=4, batch_size=4, 
-                          num_threads=4, 
+                          num_threads=4,
                           filename="deribit.csv", 
                           balance=1,
                           depth=20)
@@ -157,19 +167,21 @@ kwargs = dict(use_sde=True, sde_sample_freq=4)
 policy_kwargs = {
     'features_extractor_class': LSTMFeatureExtractor,
     'features_extractor_kwargs': {
-        'lstm_hidden_size': 128,
+        'lstm_hidden_size': 32,
         'output_size': 32
-    }
+    },
+    'activation_fn': th.nn.ReLU,
+    'net_arch': dict(pi=[64, 64, 32], vf=[64, 64, 32])
 }
 
 model = PPO(
   "MlpPolicy", #CustomGRUPolicy,
   env,
   policy_kwargs=policy_kwargs,
-  n_steps=4800,
+  n_steps=600,
   learning_rate=1e-4,
   gae_lambda=0.95,
-  gamma=0.99,
+  gamma=0.995,
   verbose=1,
   seed=1,
   **kwargs

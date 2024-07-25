@@ -15,7 +15,7 @@ namespace Simulator {
 
 		void quote(const double& buyPercent, const double& sellPercent,
 			       const double& buyRatio, const double& sellRatio,
-			       int buyLevels, int sellLevels);
+			       int spread, int skew);
 
 		void fetchInfo(PositionInfo& info, const double& bidPrice, const double& askPrice);
                 
@@ -32,7 +32,8 @@ namespace Simulator {
 		int max_ticks;
 		void sendGrid(const double& percentCapital,
 		              const double& spreadRatio,
-		              int levels,
+		              int spread,
+		              const double& skew,
 		              const DataRow& obs,
 		              OrderSide side);
 	};

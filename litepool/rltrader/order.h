@@ -20,6 +20,7 @@ namespace Simulator {
 
     struct Order
     {
+        bool is_taker;
         int orderId;
         OrderSide side;
         double price;
