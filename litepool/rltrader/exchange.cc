@@ -4,11 +4,12 @@
 
 using namespace Simulator;
 
-Exchange::Exchange(CsvReader& reader, long delay) :dataReader(reader), delay(delay) {
+Exchange::Exchange(const std::string& filename, long delay) :dataReader(filename), delay(delay) {
 	bid_quotes.clear();
 	ask_quotes.clear();
 	executions.clear();
 	timed_buffer.clear();
+	dataReader.reset(0);
 }
 
 void Exchange::setDelay(long delay) {
@@ -27,10 +28,11 @@ bool Exchange::next() {
 	if (this->dataReader.hasNext()) {
 		this->dataReader.next();
 		this->execute();
-		return true;
+	} else {
+		return false;
 	}
 
-	return false;
+	return true;
 }
 
 const std::map<long, Order>& Exchange::getBidOrders() const {

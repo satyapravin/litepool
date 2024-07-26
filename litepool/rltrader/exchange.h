@@ -10,7 +10,7 @@ namespace Simulator {
     class Exchange {
     public:
         // Constructor
-        Exchange(CsvReader& reader, long delay=300000); // 300 milliseconds delay
+        Exchange(const std::string& filename, long delay); // 300 milliseconds delay
 
         void setDelay(long delay); // override delay
 

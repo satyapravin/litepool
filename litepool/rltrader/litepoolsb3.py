@@ -146,15 +146,15 @@ class VecAdapter(VecEnvWrapper):
               infos[i]["terminal_observation"] = obs[i]
               obs[i] = self.venv.reset(np.array([i]))[0]
           if self.steps % 1000 == 0:
-              print("index", i, 'balance = ',infos[i]['balance'], "  unreal = ", infos[i]['unrealized_pnl'], 
+              print("steps ", self.steps, 'balance = ',infos[i]['balance'], "  unreal = ", infos[i]['unrealized_pnl'], 
                     " real = ", infos[i]['realized_pnl'], '    drawdown = ', infos[i]['drawdown'])
       self.steps += 1
       return obs, rewards, dones, infos
 
 
 env = litepool.make("RlTrader-v0", env_type="gymnasium", 
-                          num_envs=4, batch_size=4, 
-                          num_threads=4,
+                          num_envs=8, batch_size=8, 
+                          num_threads=8,
                           filename="deribit.csv", 
                           balance=1,
                           depth=20)
@@ -178,10 +178,12 @@ model = PPO(
   "MlpPolicy", #CustomGRUPolicy,
   env,
   policy_kwargs=policy_kwargs,
-  n_steps=600,
-  learning_rate=1e-4,
+  n_steps=2048*4,
+  learning_rate=1e-5,
   gae_lambda=0.95,
-  gamma=0.995,
+  gamma=0.99,
+  clip_range=0.1,
+  ent_coef=0.01,
   verbose=1,
   seed=1,
   **kwargs

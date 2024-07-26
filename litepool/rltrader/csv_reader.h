@@ -3,6 +3,8 @@
 #include <string>
 #include <unordered_map>
 #include <stdexcept>
+#include <fstream>
+#include <iostream>
 
 namespace Simulator {
     struct DataRow {
@@ -28,13 +30,14 @@ namespace Simulator {
         class Iterator {
         private:
             const std::vector<DataRow>* rowsPtr;
-            size_t current = 0;
+            size_t current = -1;
 
         public:
             Iterator():rowsPtr(0), current(0) {}
 
             void populate(std::vector<DataRow>* ptr) {
                 rowsPtr = ptr;
+                current = -1;
             }
 
             bool hasNext() const {
@@ -57,6 +60,7 @@ namespace Simulator {
             }
 
             const DataRow& currentRow() const {
+                if (current < 0) throw std::runtime_error("Invalid current row");
                 return (*rowsPtr)[current];
             }
 
@@ -65,15 +69,17 @@ namespace Simulator {
             }
         };
 
-
+        std::ifstream filestream;
         Iterator iterator;
+        std::vector<std::string> headers;
         std::vector<DataRow> rows;
         std::vector<double> parseLineToDoubles(const std::string& line);
-        void readCSV(const std::string& filename);
+        void readCSV();
+        bool more_data;
 
     public:
         CsvReader(const std::string& filename);
-        bool hasNext() const;
+        bool hasNext();
         const DataRow& next();
         const DataRow& current() const;
         long long getTimeStamp() const;

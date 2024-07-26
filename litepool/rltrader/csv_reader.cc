@@ -1,19 +1,28 @@
-#include <fstream>
 #include <sstream>
-#include <map>
 #include "csv_reader.h"
 
-#include <iostream>
 
 using namespace Simulator;
 
-CsvReader::CsvReader(const std::string& filename) {
-    this->readCSV(filename);
+CsvReader::CsvReader(const std::string& filename):filestream(filename), more_data(true) {
+    this->readCSV();
     this->iterator.populate(&rows);
 }
 
-bool CsvReader::hasNext() const {
-    return this->iterator.hasNext();
+bool CsvReader::hasNext() {
+    bool retval = this->iterator.hasNext();
+    if (!retval) {
+        if (more_data) {
+            this->readCSV();
+            this->iterator.populate(&rows);
+            return this->iterator.hasNext();
+        }
+        else {
+            return more_data;
+        }
+    }
+
+    return retval;
 }
 
 const DataRow& CsvReader::next() {
@@ -33,7 +42,10 @@ double CsvReader::getDouble(const std::string& keyName) const {
 }
 
 void CsvReader::reset(int counter) {
-    return this->iterator.reset(counter);
+    this->headers.clear();
+    this->iterator.reset(0);
+    this->readCSV();
+    this->iterator.populate(&rows);
 }
 
 std::vector<double> CsvReader::parseLineToDoubles(const std::string& line) {
@@ -54,23 +66,28 @@ std::vector<double> CsvReader::parseLineToDoubles(const std::string& line) {
 }
 
 
-void CsvReader::readCSV(const std::string& filename) {
-    std::ifstream file(filename);
-    if (!file.is_open()) {
+void CsvReader::readCSV() {
+    if (!filestream.is_open()) {
         throw std::runtime_error("Could not open file");
     }
 
     std::string line;
-    std::getline(file, line); // Read the header line
-    std::istringstream headerStream(line);
-    std::string header;
-    std::vector<std::string> headers;
-    std::getline(headerStream, header, ','); // Skip the first header as it is the ID
-    while (std::getline(headerStream, header, ',')) {
-        headers.push_back(header);
+    bool batch_read = false;
+    if (this->headers.empty()) {
+        filestream.clear();
+        filestream.seekg(0, std::ios::beg);
+        std::getline(filestream, line); // Read the header line
+        std::istringstream headerStream(line);
+        std::string header;
+        std::getline(headerStream, header, ','); // Skip the first header as it is the ID
+        while (std::getline(headerStream, header, ',')) {
+            headers.push_back(header);
+        }
     }
 
-    while (std::getline(file, line)) {
+    int num_lines = 0;
+    rows.clear();
+    while (std::getline(filestream, line)) {
         std::istringstream lineStream(line);
         std::string cell;
         std::getline(lineStream, cell, ','); // Read the ID
@@ -84,7 +101,14 @@ void CsvReader::readCSV(const std::string& filename) {
 
         DataRow row(id, data);
         this->rows.push_back(row);
+        if (++num_lines >= 3600) {
+            batch_read = true;
+            break;
+        }
     }
 
-    file.close();
+    if (!batch_read) {
+        more_data = false;
+        filestream.close();
+    }
 }

@@ -2,6 +2,8 @@
 #include <string>
 #include <cmath>
 #include <cassert>
+#include <iostream>
+
 #include "orderbook.h"
 
 using namespace Simulator;
@@ -27,8 +29,8 @@ void Strategy::quote(const double& buyPercent, const double& sellPercent,
 				     int spread, int skew) {
 	assert((buyPercent >= 0 && buyPercent <= 40.1));
 	assert((sellPercent >= 0 && sellPercent <= 40.1));
-	assert((buyRatio >= 0.09 && buyRatio <= 0.9999));
-	assert((sellRatio >= 0.09 && sellRatio <= 0.9999));
+	assert((buyRatio > 0 && buyRatio <= 0.9999));
+	assert((sellRatio > 0 && sellRatio <= 0.9999));
 	assert((spread >= 0 && spread < 16));
 	assert((skew >= 0 && skew < 16));
 	const auto& obs = this->exchange.getObs();
@@ -36,13 +38,13 @@ void Strategy::quote(const double& buyPercent, const double& sellPercent,
 	exchange.cancelBuys();
 	exchange.cancelSells();
 
-    /*
+	/*
 	double netQty = position.getNetQty();
 	double mid_price = (obs.getBestAskPrice() + obs.getBestBidPrice()) * 0.5;
 	double upnl = position.inventoryPnL(mid_price);
 	double min_volume = this->instrument.getMinAmount();
 
-	if (upnl / std::abs(netQty) > 0.001) {
+	if (upnl / std::abs(netQty) > 0.002 && std::abs(netQty) > 1e-6) {
 
 		double amount = std::round(std::abs(netQty) * mid_price / min_volume) * min_volume;
 		double price = netQty < 0 ? obs.getBestAskPrice() : obs.getBestBidPrice();
@@ -95,9 +97,11 @@ void Strategy::sendGrid(const double& percent, const double& ratio,
 
 bool Strategy::next() {
 	bool retval = exchange.next();
-	auto fills = exchange.getFills();
-	for(auto order: fills) {
-		position.onFill(order, true);
+	if (retval) {
+		auto fills = exchange.getFills();
+		for(auto order: fills) {
+			position.onFill(order, true);
+		}
 	}
 	return retval;
 }

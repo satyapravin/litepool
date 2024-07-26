@@ -71,7 +71,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   double previous_dd = 0;
   double previous_fees = 0;
   double previous_leverage = 0;
-  std::unique_ptr<Simulator::CsvReader> reader_ptr;
+  double previous_count = 0;
   std::unique_ptr<Simulator::InverseInstrument> instr_ptr;
   std::unique_ptr<Simulator::Exchange> exchange_ptr;
   std::unique_ptr<Simulator::Strategy> strategy_ptr;
@@ -87,10 +87,9 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
 
     }
 
-    reader_ptr = std::make_unique<Simulator::CsvReader>(filename);
     instr_ptr = std::make_unique<Simulator::InverseInstrument>("BTCUSD", 0.5,
                                                                 10, 0.000000001, -0.0005);
-    exchange_ptr = std::make_unique<Simulator::Exchange>(*reader_ptr, 300);
+    exchange_ptr = std::make_unique<Simulator::Exchange>(filename, 300);
     strategy_ptr = std::make_unique<Simulator::Strategy>(*instr_ptr, *exchange_ptr, balance, 0, 0, 30, 20);
     adaptor_ptr = std::make_unique<Simulator::EnvAdaptor>(*strategy_ptr, *exchange_ptr, 20, 20, spec.config["depth"_]);
   }
@@ -104,6 +103,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     previous_dd = 0;
     previous_fees = 0;
     previous_leverage = 0;
+    previous_count = 0;
     rng.seed(rd());
     std::uniform_int_distribution<int> dist(10, 72);
     adaptor_ptr->reset(dist(rng), 0, 0);
@@ -158,20 +158,22 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     double upnl = info["unrealized_pnl"];
     double rpnl = info["realized_pnl"];
     double leverage = info["leverage"];
+    double count = info["trade_count"];
 
     if (isDone) {
-      state["reward"_] = rpnl + drawdown - 0.01 * leverage; // + info["fees"];
-      state["reward"_] *= 10.0;
+      state["reward"_] = rpnl + upnl + drawdown - 0.1 * leverage;
     }
-    else if (steps % 1201 == 0) {
-      state["reward"_] = -leverage;
-    }
-    else if (steps % 600 == 0) {
-      state["reward"_] = rpnl - previous_rpnl + std::min(0.0, upnl - previous_upnl) + info["fees"] - previous_fees;
+    else if (steps % 1200 == 0) {
+      state["reward"_] = -0.1 * leverage +
+                         rpnl - previous_rpnl +
+                         std::min(0.0, upnl - previous_upnl) +
+                             info["fees"] - previous_fees + drawdown - previous_dd +
+                               0.01 * std::min(0.0, count - previous_count - 2);
       previous_dd = drawdown;
       previous_upnl = upnl;
       previous_rpnl = rpnl;
       previous_fees = info["fees"];
+      previous_leverage = leverage;
     }
     else {
       state["reward"_] = 0;
