@@ -26,12 +26,8 @@ std::vector<double> PositionSignalBuilder::add_info(PositionInfo& info, double& 
     }
 
     std::vector<double> retval;
-    //insert_signals(retval, *norm_raw_signals);
-    //insert_signals(retval, *norm_velocity_10_signals);
-    //insert_signals(retval, *norm_volatility_10_signals);
-    auto& raw = raw_signals.get(0);
-    insert_signals(retval, raw);
-    insert_signals(retval, *velocity_10_signals);
+    insert_signals(retval, *norm_raw_signals);
+    insert_signals(retval, *norm_velocity_10_signals);
     insert_signals(retval, *norm_volatility_10_signals);
     processed_counter++;
     return retval;

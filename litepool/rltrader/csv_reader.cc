@@ -101,7 +101,7 @@ void CsvReader::readCSV() {
 
         DataRow row(id, data);
         this->rows.push_back(row);
-        if (++num_lines >= 3600) {
+        if (++num_lines >= 360) {
             batch_read = true;
             break;
         }

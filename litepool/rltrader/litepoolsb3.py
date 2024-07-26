@@ -33,11 +33,10 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
         super(LSTMFeatureExtractor, self).__init__(observation_space, features_dim=output_size)
         
         self.lstm_hidden_size = lstm_hidden_size
-        self.n_input_channels = 139 
+        self.n_input_channels = 210 
         self.remaining_input_size = 48
         self.output_size = output_size
         
-        # Define the LSTM layer for the first 139 floats
         self.lstm = nn.LSTM(self.n_input_channels, lstm_hidden_size, batch_first=True)
         
         # This will hold the hidden state and cell state of the LSTM
@@ -56,8 +55,8 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
 
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
         # Split the observations into two parts
-        lstm_input = observations[:, :139]
-        remaining_input = observations[:, 139:]
+        lstm_input = observations[:, :210]
+        remaining_input = observations[:, 210:]
 
         # Initialize hidden state and cell state with zeros if they are not already set
         if self.hidden is None or lstm_input.shape[0] != self.hidden[0].shape[1]:
@@ -145,16 +144,16 @@ class VecAdapter(VecEnvWrapper):
                   self.sells = [] 
               infos[i]["terminal_observation"] = obs[i]
               obs[i] = self.venv.reset(np.array([i]))[0]
-          if self.steps % 1000 == 0:
-              print("steps ", self.steps, 'balance = ',infos[i]['balance'], "  unreal = ", infos[i]['unrealized_pnl'], 
+          if self.steps % 4000 == 0:
+              print("env_id ", i,  " steps ", self.steps, 'balance = ',infos[i]['balance'], "  unreal = ", infos[i]['unrealized_pnl'], 
                     " real = ", infos[i]['realized_pnl'], '    drawdown = ', infos[i]['drawdown'])
       self.steps += 1
       return obs, rewards, dones, infos
 
 
 env = litepool.make("RlTrader-v0", env_type="gymnasium", 
-                          num_envs=8, batch_size=8, 
-                          num_threads=8,
+                          num_envs=128, batch_size=128, 
+                          num_threads=32,
                           filename="deribit.csv", 
                           balance=1,
                           depth=20)
@@ -178,12 +177,12 @@ model = PPO(
   "MlpPolicy", #CustomGRUPolicy,
   env,
   policy_kwargs=policy_kwargs,
-  n_steps=2048*4,
-  learning_rate=1e-5,
+  n_steps=4800,
+  learning_rate=1e-4,
   gae_lambda=0.95,
   gamma=0.99,
   clip_range=0.1,
-  ent_coef=0.01,
+  ent_coef=0.02,
   verbose=1,
   seed=1,
   **kwargs

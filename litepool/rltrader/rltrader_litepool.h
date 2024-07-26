@@ -35,7 +35,7 @@ class RlTraderEnvFns {
   static decltype(auto) StateSpec(const Config& conf) {
     float fmax = std::numeric_limits<float>::max();
 
-    return MakeDict("obs"_.Bind(Spec<float>({187}, {-fmax, fmax})),
+    return MakeDict("obs"_.Bind(Spec<float>({258}, {-fmax, fmax})),
                     "info:mid_price"_.Bind(Spec<float>({})),
                     "info:balance"_.Bind(Spec<float>({})),
                     "info:unrealized_pnl"_.Bind(Spec<float>({})),
@@ -136,7 +136,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     State state = Allocate(1);
 
     if (!isDone)
-      assert(data.size() == 187);
+      assert(data.size() == 258);
 
     for(int ii=0; ii < data.size(); ++ii) {
       state["obs"_](ii) = static_cast<float>(data[ii]);
