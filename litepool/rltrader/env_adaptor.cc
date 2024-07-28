@@ -30,14 +30,17 @@ std::vector<double> EnvAdaptor::getState() {
     return retval;
 }
 
-void EnvAdaptor::quote(int buyPercent, int sellPercent, int buyRatio, int sellRatio, int buyLevels, int sellLevels) {
-    double dBuyPercent = buyPercent / 100.0;
-    double dSellPercent = sellPercent / 100.0;
-    double dBuyRatio = buyRatio / 100.0;
-    double dSellRatio = sellRatio / 100.0;
+void EnvAdaptor::quote(double buyPercent, double sellPercent, double buyRatio,
+                       double sellRatio, double spread, double skew) {
+    double dBuyPercent = (buyPercent + 1.01) / 50.0;
+    double dSellPercent = (sellPercent + 1.01) / 50.0;
+    double dBuyRatio = (buyRatio + 1) / 2.0;
+    double dSellRatio = (sellRatio + 1) / 2.0;
+    double dSkew = (skew + 1.0) / 2.0 * 10;
+    double dSpread = (spread + 1.0) / 2.0 * 10;
     this->strategy.quote(dBuyPercent, dSellPercent,
                          dBuyRatio, dSellRatio,
-                         buyLevels, sellLevels);
+                         dSpread, dSkew);
 }
 
 void EnvAdaptor::reset(int time_index, const double& positionAmount, const double& averagePrice) {
@@ -51,7 +54,8 @@ void EnvAdaptor::reset(int time_index, const double& positionAmount, const doubl
     position_builder = std::move(position_ptr);
     auto trade_ptr = std::make_unique<TradeSignalBuilder>();
     trade_builder = std::move(trade_ptr);
-    return this->strategy.reset(time_index, positionAmount, averagePrice);
+    this->strategy.reset(time_index, positionAmount, averagePrice);
+    this->next();
 }
 
 long long EnvAdaptor::getTime() {

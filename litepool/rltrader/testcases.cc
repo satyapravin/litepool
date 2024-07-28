@@ -148,25 +148,16 @@ TEST_CASE("env adaptor test") {
 	adaptor.reset(0, 0, 0);
 
 	int counter = 0;
-	while(!adaptor.is_data_ready()) {
-		if (!adaptor.next()) {
-			throw std::runtime_error("Data file not sufficient");
-		}
-
-		++counter;
-	}
-
-	counter = 0;
 	auto state = adaptor.getState();
-	CHECK(state.size() == 187);
+	CHECK(state.size() == 44);
 	adaptor.next();
 	state = adaptor.getState();
-	CHECK(state.size() == 187);
+	CHECK(state.size() == 44);
 	state = adaptor.getState();
 	CHECK(state.size() == 0);
 	adaptor.next();
 	state = adaptor.getState();
-	CHECK(state.size() == 187);
+	CHECK(state.size() == 44);
 	adaptor.quote(10, 10, 1, 1, 1, 1);
 
 	for (int ii=0; ii < 500; ++ii) {
@@ -234,11 +225,9 @@ TEST_CASE("test of orderbook and signals") {
 		Orderbook book(lob);
 		auto signals = builder.add_book(book);
 
-		if (builder.is_data_ready()) {
-			CHECK(std::all_of(signals.begin(), signals.end(), [](double val) {return std::isfinite(val);}));
-			//CHECK(std::all_of(signals.begin(), signals.end(), [](double val) { return std::abs(val) > 0;}));
-			//CHECK(std::all_of(signals.begin(), signals.end(), [](double val) { return std::abs(val) < 10;}));
-		}
+		CHECK(std::all_of(signals.begin(), signals.end(), [](double val) {return std::isfinite(val);}));
+		CHECK(std::all_of(signals.begin(), signals.end(), [](double val) { return std::abs(val) > 0;}));
+		CHECK(std::all_of(signals.begin(), signals.end(), [](double val) { return std::abs(val) < 10;}));
 	}
 
 	CHECK(ii == 15000);
@@ -266,7 +255,14 @@ TEST_CASE("testing the csv reader") {
 		counter++;
 	}
 
-
+	Exchange exch("data.csv", 300);
+	exch.reset(0);
+	counter = 0;
+	while(exch.next())
+		++counter;
+	exch.reset(0);
+	while(exch.next())
+		++counter;
 }
 
 TEST_CASE("testing the position") {

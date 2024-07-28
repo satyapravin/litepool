@@ -4,7 +4,7 @@
 
 using namespace Simulator;
 
-CsvReader::CsvReader(const std::string& filename):filestream(filename), more_data(true) {
+CsvReader::CsvReader(const std::string& fname):filestream(fname), filename(fname), more_data(true) {
     this->readCSV();
     this->iterator.populate(&rows);
 }
@@ -44,6 +44,8 @@ double CsvReader::getDouble(const std::string& keyName) const {
 void CsvReader::reset(int counter) {
     this->headers.clear();
     this->iterator.reset(0);
+    this->filestream.open(filename);
+    more_data = true;
     this->readCSV();
     this->iterator.populate(&rows);
 }
@@ -55,12 +57,7 @@ std::vector<double> CsvReader::parseLineToDoubles(const std::string& line) {
     std::getline(stream, cell, ','); // Skip the first token (ID)
 
     while (std::getline(stream, cell, ',')) {
-        try {
-            results.push_back(std::stod(cell));
-        }
-        catch (const std::exception& e) {
-            throw e;
-        }
+        results.push_back(std::stod(cell));
     }
     return results;
 }
@@ -101,7 +98,7 @@ void CsvReader::readCSV() {
 
         DataRow row(id, data);
         this->rows.push_back(row);
-        if (++num_lines >= 360) {
+        if (++num_lines >= 400) {
             batch_read = true;
             break;
         }

@@ -35,7 +35,7 @@ class RlTraderEnvFns {
   static decltype(auto) StateSpec(const Config& conf) {
     float fmax = std::numeric_limits<float>::max();
 
-    return MakeDict("obs"_.Bind(Spec<float>({258}, {-fmax, fmax})),
+    return MakeDict("obs"_.Bind(Spec<float>({44}, {-fmax, fmax})),
                     "info:mid_price"_.Bind(Spec<float>({})),
                     "info:balance"_.Bind(Spec<float>({})),
                     "info:unrealized_pnl"_.Bind(Spec<float>({})),
@@ -51,8 +51,8 @@ class RlTraderEnvFns {
 
   template <typename Config>
   static decltype(auto) ActionSpec(const Config& conf) {
-    return MakeDict("action"_.Bind(Spec<int>({6}, {{5, 5, 10, 10, 0, 0},
-                                                                                 {100, 100, 99, 99, 15, 15}})));
+    return MakeDict("action"_.Bind(Spec<float>({6}, {{-1.0, -1.0, -1, -1.0, -1.0, -1.0},
+                                                                                  {1.0, 1.0, 1.0, 1.0, 1.0, 1.0}})));
   }
 };
 
@@ -82,13 +82,14 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
                                               filename(spec.config["filename"_]),
                                               balance(spec.config["balance"_])
   {
+    seed_ = env_id + 1;
     if (seed_ < 1) {
       seed_ = 1;Simulator::CsvReader reader(filename);
 
     }
 
     instr_ptr = std::make_unique<Simulator::InverseInstrument>("BTCUSD", 0.5,
-                                                                10, 0.000000001, -0.0005);
+                                                                10, 0.0001, -0.0005);
     exchange_ptr = std::make_unique<Simulator::Exchange>(filename, 300);
     strategy_ptr = std::make_unique<Simulator::Strategy>(*instr_ptr, *exchange_ptr, balance, 0, 0, 30, 20);
     adaptor_ptr = std::make_unique<Simulator::EnvAdaptor>(*strategy_ptr, *exchange_ptr, 20, 20, spec.config["depth"_]);
@@ -107,11 +108,6 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     rng.seed(rd());
     std::uniform_int_distribution<int> dist(10, 72);
     adaptor_ptr->reset(dist(rng), 0, 0);
-
-    while(!adaptor_ptr->is_data_ready()) {
-        adaptor_ptr->next();
-    }
-
     timestamp = adaptor_ptr->getTime();
     isDone = false;
     WriteState();
@@ -135,8 +131,11 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     auto data = adaptor_ptr->getState();
     State state = Allocate(1);
 
-    if (!isDone)
-      assert(data.size() == 258);
+    if (!isDone) {
+      assert(data.size() == 44);
+    } else {
+      return;
+    }
 
     for(int ii=0; ii < data.size(); ++ii) {
       state["obs"_](ii) = static_cast<float>(data[ii]);
@@ -160,15 +159,15 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     double leverage = info["leverage"];
     double count = info["trade_count"];
 
-    if (isDone) {
-      state["reward"_] = rpnl + upnl + drawdown - 0.1 * leverage;
+    if (isDone || steps % 481 == 0)  {
+      state["reward"_] = rpnl + upnl + drawdown - leverage;
     }
-    else if (steps % 1200 == 0) {
-      state["reward"_] = -0.1 * leverage +
+    else if (steps % 60 == 0) {
+      state["reward"_] = -(leverage - previous_leverage) +
                          rpnl - previous_rpnl +
-                         std::min(0.0, upnl - previous_upnl) +
-                             info["fees"] - previous_fees + drawdown - previous_dd +
-                               0.01 * std::min(0.0, count - previous_count - 2);
+                         upnl - previous_upnl +
+                             info["fees"] - previous_fees  +
+                               0.01 * std::min(0.0, count - previous_count - 10);
       previous_dd = drawdown;
       previous_upnl = upnl;
       previous_rpnl = rpnl;

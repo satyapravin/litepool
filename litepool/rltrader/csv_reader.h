@@ -70,10 +70,11 @@ namespace Simulator {
         };
 
         std::ifstream filestream;
+        std::string filename;
         Iterator iterator;
         std::vector<std::string> headers;
         std::vector<DataRow> rows;
-        std::vector<double> parseLineToDoubles(const std::string& line);
+        static std::vector<double> parseLineToDoubles(const std::string& line);
         void readCSV();
         bool more_data;
 

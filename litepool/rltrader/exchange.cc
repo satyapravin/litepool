@@ -25,11 +25,14 @@ void Exchange::reset(int startPos) {
 }
 
 bool Exchange::next() {
-	if (this->dataReader.hasNext()) {
-		this->dataReader.next();
-		this->execute();
-	} else {
-		return false;
+
+	for(int ii =0; ii < 3; ++ii) {
+		if (this->dataReader.hasNext()) {
+			this->dataReader.next();
+			this->execute();
+		} else {
+			return false;
+		}
 	}
 
 	return true;

@@ -9,12 +9,12 @@ namespace Simulator {
 class EnvAdaptor {
 public:
     EnvAdaptor(Strategy& strat, Exchange& exch, uint8_t book_history, uint8_t price_history, uint8_t depth);
-    void quote(int buyPercent, int sellPercent, int buyRatio, int sellRatio, int buyLevels, int sellLevels);
+    void quote(double buyPercent, double sellPercent, double buyRatio,
+               double sellRatio, double spread, double skew);
     void reset(int time_index, const double& positionAmount, const double& averagePrice);
     bool next();
     std::unordered_map<std::string, double> getInfo();
     std::vector<double> getState();
-    bool is_data_ready() { return this->market_builder->is_data_ready(); }
     bool hasFilled();
     long long getTime();
 private:

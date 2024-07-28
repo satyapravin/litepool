@@ -5,8 +5,8 @@ import numpy as np
 import torch as th
 import torch.nn as nn
 from packaging import version
-#from sb3_contrib import RecurrentPPO
-from stable_baselines3 import PPO
+from sb3_contrib import RecurrentPPO
+#from stable_baselines3 import PPO
 from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.evaluation import evaluate_policy
@@ -33,8 +33,8 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
         super(LSTMFeatureExtractor, self).__init__(observation_space, features_dim=output_size)
         
         self.lstm_hidden_size = lstm_hidden_size
-        self.n_input_channels = 210 
-        self.remaining_input_size = 48
+        self.n_input_channels = 30 
+        self.remaining_input_size = 14 
         self.output_size = output_size
         
         self.lstm = nn.LSTM(self.n_input_channels, lstm_hidden_size, batch_first=True)
@@ -55,8 +55,8 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
 
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
         # Split the observations into two parts
-        lstm_input = observations[:, :210]
-        remaining_input = observations[:, 210:]
+        lstm_input = observations[:, :30]
+        remaining_input = observations[:, 30:]
 
         # Initialize hidden state and cell state with zeros if they are not already set
         if self.hidden is None or lstm_input.shape[0] != self.hidden[0].shape[1]:
@@ -93,6 +93,7 @@ class VecAdapter(VecEnvWrapper):
     self.sells = []
     self.upnl = []
     self.steps = 0
+    self.header = True
 
   def step_async(self, actions: np.ndarray) -> None:
     self.actions = actions
@@ -128,12 +129,22 @@ class VecAdapter(VecEnvWrapper):
               self.sells.append(infos[i]['sell_amount']) 
            
           if dones[i]:
+              infos[i]["terminal_observation"] = obs[i]
+              obs[i] = self.venv.reset(np.array([i]))[0]
+
+          if self.steps % 1000 == 0 or dones[i]:
               if infos[i]["env_id"] == 0:
                   d = {"mid": self.mid_prices, "balance": self.balances, "upnl" : self.upnl, 
                        "leverage": self.leverages, "trades": self.trades, "fees": self.fees,
                        "buy_amount": self.buys, "sell_amount": self.sells } 
                   df = pd.DataFrame(d)
-                  df.to_csv("temp.csv", header=True, index=False)
+
+                  if self.header:
+                       df.to_csv("temp.csv", header=self.header, index=False) 
+                       self.header=False
+                  else:
+                       df.to_csv("temp.csv", mode='a', header=False, index=False)
+
                   self.mid_prices = []
                   self.balances = []
                   self.upnl = []
@@ -142,18 +153,19 @@ class VecAdapter(VecEnvWrapper):
                   self.fees = []
                   self.buys = []
                   self.sells = [] 
-              infos[i]["terminal_observation"] = obs[i]
-              obs[i] = self.venv.reset(np.array([i]))[0]
-          if self.steps % 4000 == 0:
+                  self.header = False
+                  self.header = dones[i]
               print("env_id ", i,  " steps ", self.steps, 'balance = ',infos[i]['balance'], "  unreal = ", infos[i]['unrealized_pnl'], 
                     " real = ", infos[i]['realized_pnl'], '    drawdown = ', infos[i]['drawdown'])
       self.steps += 1
+      if (np.isnan(obs).any()):
+          print("NaN in OBS...................")
       return obs, rewards, dones, infos
 
 
 env = litepool.make("RlTrader-v0", env_type="gymnasium", 
-                          num_envs=128, batch_size=128, 
-                          num_threads=32,
+                          num_envs=4, batch_size=4, 
+                          num_threads=4,
                           filename="deribit.csv", 
                           balance=1,
                           depth=20)
@@ -170,21 +182,23 @@ policy_kwargs = {
         'output_size': 32
     },
     'activation_fn': th.nn.ReLU,
-    'net_arch': dict(pi=[64, 64, 32], vf=[64, 64, 32])
+    'net_arch': dict(pi=[64, 64, 64, 64, 32], vf=[64, 64, 64, 64, 32])
 }
 
-model = PPO(
-  "MlpPolicy", #CustomGRUPolicy,
+import os
+os.remove("temp.csv")
+
+model = RecurrentPPO(
+  "MlpLstmPolicy", #CustomGRUPolicy,
   env,
   policy_kwargs=policy_kwargs,
-  n_steps=4800,
+  n_steps=1200,
   learning_rate=1e-4,
   gae_lambda=0.95,
   gamma=0.99,
   clip_range=0.1,
-  ent_coef=0.02,
   verbose=1,
-  seed=1,
+  seed=10,
   **kwargs
 )
 
