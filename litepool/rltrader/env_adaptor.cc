@@ -47,7 +47,6 @@ void EnvAdaptor::reset(int time_index, const double& positionAmount, const doubl
     max_realized_pnl = 0;
     max_unrealized_pnl = 0;
     drawdown = 0;
-    long num_trades = 0;
     auto market_ptr = std::make_unique<MarketSignalBuilder>(book_history_lags, price_history_lags, depth);
     market_builder = std::move(market_ptr);
     auto position_ptr = std::make_unique<PositionSignalBuilder>();
@@ -66,8 +65,7 @@ std::unordered_map<std::string, double> EnvAdaptor::getInfo() {
     auto obs = exchange.getObs();
     auto bid_price = obs.getBestBidPrice();
     auto ask_price = obs.getBestAskPrice();
-    PositionInfo posInfo;
-    strategy.fetchInfo(posInfo, bid_price, ask_price);
+    PositionInfo posInfo =  strategy.getPosition().getPositionInfo(bid_price, ask_price);
     auto tradeInfo = strategy.getPosition().getTradeInfo();
     std::unordered_map<std::string, double> retval;
     if (max_unrealized_pnl < posInfo.inventoryPnL) max_unrealized_pnl = posInfo.inventoryPnL;
@@ -79,7 +77,7 @@ std::unordered_map<std::string, double> EnvAdaptor::getInfo() {
     retval["unrealized_pnl"] = posInfo.inventoryPnL;
     retval["realized_pnl"] = posInfo.tradingPnL;
     retval["leverage"] = posInfo.leverage;
-    retval["trade_count"] = num_trades;
+    retval["trade_count"] = tradeInfo.buy_trades + tradeInfo.sell_trades;
     retval["drawdown"] = drawdown;
     retval["buy_amount"] = tradeInfo.buy_amount;
     retval["sell_amount"] = tradeInfo.sell_amount;
@@ -96,10 +94,9 @@ std::vector<double> EnvAdaptor::computeState()
     auto ask_price = obs.getBestAskPrice();
     auto book = Orderbook(obs.data);
     auto market_signals = market_builder->add_book(book);
-    PositionInfo position_info;
+    PositionInfo position_info = strategy.getPosition().getPositionInfo(obs.getBestBidPrice(), obs.getBestAskPrice());
     if (position_info.inventoryPnL > max_unrealized_pnl) max_unrealized_pnl = position_info.inventoryPnL;
     if (position_info.tradingPnL > max_realized_pnl) max_realized_pnl = position_info.tradingPnL;
-    strategy.fetchInfo(position_info, obs.getBestBidPrice(), obs.getBestAskPrice());
     auto position_signals = position_builder->add_info(position_info, bid_price, ask_price);
     TradeInfo trade_info = strategy.getPosition().getTradeInfo();
     auto trade_signals = trade_builder->add_trade(trade_info, bid_price, ask_price);
@@ -108,14 +105,5 @@ std::vector<double> EnvAdaptor::computeState()
     retval.insert(retval.end(), market_signals.begin(), market_signals.end());
     retval.insert(retval.end(), position_signals.begin(), position_signals.end());
     retval.insert(retval.end(), trade_signals.begin(), trade_signals.end());
-    hasFilled();
     return retval;
-}
-
-bool EnvAdaptor::hasFilled() {
-    Position& pos = strategy.getPosition();
-    auto actualTrades = pos.getNumberOfTrades();
-    bool filled = num_trades <  actualTrades;
-    num_trades = actualTrades;
-    return filled;
 }

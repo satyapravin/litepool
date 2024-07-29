@@ -106,7 +106,7 @@ public:
     [[nodiscard]] volume_signal_repository& get_volume_signals() const;
 
 private:
-    void compute_signals();
+    void compute_signals(Orderbook& book);
 
     static void compute_price_signals( price_signal_repository& repo,
                                       const std::vector<double>& current_bid_prices,
@@ -126,12 +126,6 @@ private:
                                 const std::vector<double>& cum_ask_sizes) const;
 
 private:
-    TemporalTable bid_prices;
-    TemporalTable ask_prices;
-    TemporalTable bid_sizes;
-    TemporalTable ask_sizes;
-
-    TemporalBuffer<price_signal_repository> raw_price_signals;
     std::unique_ptr<spread_signal_repository> raw_spread_signals;
     std::unique_ptr<volume_signal_repository> raw_volume_signals;
 };

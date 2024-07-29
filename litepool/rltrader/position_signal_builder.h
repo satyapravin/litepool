@@ -1,5 +1,6 @@
 #pragma once
 
+#include <circ_buffer.h>
 #include <vector>
 #include <memory>
 #include "position.h"
@@ -22,13 +23,13 @@ namespace Simulator {
 
         std::vector<double> add_info(const PositionInfo& info, const double& bid_price, const double& ask_price);
 
-        [[nodiscard]] position_signal_repository& get_position_signals() const;
 
     private:
         void compute_signals(const PositionInfo& info, const double& bid_price, const double& ask_price);
 
         double max_inventory_pnl = 0;
         double max_trading_pnl = 0;
-        std::unique_ptr<position_signal_repository> raw_signals;
+        std::unique_ptr<position_signal_repository> raw_previous_signals;
+        std::unique_ptr<position_signal_repository> raw_spread_signals;
     };
 }

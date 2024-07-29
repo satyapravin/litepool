@@ -17,8 +17,6 @@ namespace Simulator {
 			       const double& buyRatio, const double& sellRatio,
 			       const double& spread, const double& skew);
 
-		void fetchInfo(PositionInfo& info, const double& bidPrice, const double& askPrice);
-                
 		Position& getPosition() { return position; }
 
 		bool next();

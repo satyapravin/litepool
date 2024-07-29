@@ -51,8 +51,8 @@ class RlTraderEnvFns {
 
   template <typename Config>
   static decltype(auto) ActionSpec(const Config& conf) {
-    return MakeDict("action"_.Bind(Spec<float>({6}, {{-1.0, -1.0, -1, -1.0, -1.0, -1.0},
-                                                                                  {1.0, 1.0, 1.0, 1.0, 1.0, 1.0}})));
+    return MakeDict("action"_.Bind(Spec<float>({2}, {{-1.0, -1.0},
+                                                                                  {1.0, 1.0}})));
   }
 };
 
@@ -116,12 +116,10 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   void Step(const Action& action) override {
       auto buy_percent = action["action"_][0];
       auto sell_percent  = action["action"_][1];
-      auto buy_ratio = action["action"_][2];
-      auto sell_ratio = action["action"_][3];
-      auto buy_levels = action["action"_][4];
-      auto sell_levels = action["action"_][5];
 
-      adaptor_ptr->quote(buy_percent, sell_percent, buy_ratio, sell_ratio, buy_levels, sell_levels);
+
+      adaptor_ptr->quote(buy_percent, sell_percent, 0, 0, 0, 0);
+      auto info = adaptor_ptr->getInfo();
       isDone = !adaptor_ptr->next();
       ++steps;
       WriteState();
@@ -159,15 +157,17 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     double leverage = info["leverage"];
     double count = info["trade_count"];
 
-    if (isDone || steps % 481 == 0)  {
-      state["reward"_] = rpnl + upnl + drawdown - leverage;
+    if (isDone)  {
+      state["reward"_] = (rpnl + upnl + drawdown - leverage);
     }
-    else if (steps % 60 == 0) {
-      state["reward"_] = -(leverage - previous_leverage) +
-                         rpnl - previous_rpnl +
-                         upnl - previous_upnl +
-                             info["fees"] - previous_fees  +
-                               0.01 * std::min(0.0, count - previous_count - 10);
+    else if (leverage > 2.0) {
+      state["reward"_] = -100;
+    }
+    else if (steps % 20 == 0) {
+      state["reward"_] = -1e-2 * (leverage - previous_leverage) +
+                                1e+2 * (rpnl - previous_rpnl) +
+                                1e+2 * (upnl - previous_upnl) +
+                                1e+2 * (info["fees"] - previous_fees);
       previous_dd = drawdown;
       previous_upnl = upnl;
       previous_rpnl = rpnl;

@@ -271,8 +271,7 @@ TEST_CASE("testing the position") {
 
 	SUBCASE("initial position") {
 		CHECK(pos.getInitialBalance() == Approx(0.1));
-		PositionInfo info;
-		pos.fetchInfo(info, 1000, 1001);
+		PositionInfo info = pos.getPositionInfo(1000, 1001);
 		TradeInfo& tradeInfo = pos.getTradeInfo();
 		CHECK(info.averagePrice == Approx(0.0));
 		CHECK(info.balance == Approx(0.1));
@@ -297,8 +296,7 @@ TEST_CASE("testing the position") {
 		order.state = OrderState::FILLED;
 		pos.onFill(order, true);
 		CHECK(pos.getInitialBalance() == Approx(0.1));
-		PositionInfo info;
-		pos.fetchInfo(info, 1010, 1020);
+		PositionInfo info = pos.getPositionInfo(1010, 1020);
 		CHECK(info.averagePrice == Approx(1000.0));
 		CHECK(info.balance == Approx(0.1));
 		CHECK(info.inventoryPnL == Approx(0.000147783));
@@ -324,8 +322,7 @@ TEST_CASE("testing the position") {
 			order.state = OrderState::FILLED;
 			pos.onFill(order, true);
 			CHECK(pos.getInitialBalance() == Approx(0.1));
-			PositionInfo info;
-			pos.fetchInfo(info, 1010, 1020);
+			PositionInfo info = pos.getPositionInfo(1010, 1020);
 			CHECK(info.averagePrice == Approx(1000.0));
 			CHECK(info.balance == Approx(0.1));
 			CHECK(info.inventoryPnL == Approx(0.000147783 * ii));
@@ -348,8 +345,7 @@ TEST_CASE("testing the position") {
 		order.state = OrderState::FILLED;
 		pos.onFill(order, true);
 		CHECK(pos.getInitialBalance() == Approx(0.1));
-		PositionInfo info;
-		pos.fetchInfo(info, 1010, 1020);
+		PositionInfo info = pos.getPositionInfo(1010, 1020);
 		CHECK(info.averagePrice == Approx(1000.0));
 		CHECK(info.balance == Approx(0.10000021839889345));
 		CHECK(info.inventoryPnL == Approx(0.000147783 * 1.5));
@@ -375,8 +371,7 @@ TEST_CASE("testing the position") {
 			order.state = OrderState::FILLED;
 			pos.onFill(order, true);
 			CHECK(pos.getInitialBalance() == Approx(0.1));
-			PositionInfo info;
-			pos.fetchInfo(info, 1010, 1020);
+			PositionInfo info = pos.getPositionInfo(1010, 1020);
 			CHECK(info.averagePrice == Approx(1000.0));
 			CHECK(info.balance == Approx(0.1));
 			CHECK(info.inventoryPnL == Approx(-0.000147783 * ii));
@@ -399,8 +394,7 @@ TEST_CASE("testing the position") {
 		order.state = OrderState::FILLED;
 		pos.onFill(order, true);
 		CHECK(pos.getInitialBalance() == Approx(0.1));
-		PositionInfo info;
-		pos.fetchInfo(info, 1010, 1020);
+		PositionInfo info = pos.getPositionInfo(1010, 1020);
 		CHECK(info.averagePrice == Approx(1000.0));
 		CHECK(info.balance == Approx(0.099999781601106563));
 		CHECK(info.inventoryPnL == Approx(-0.000147783 * 1.5));
@@ -419,8 +413,7 @@ TEST_CASE("testing the position") {
 			order.state = OrderState::FILLED;
 			pos.onFill(order, true);
 			CHECK(pos.getInitialBalance() == Approx(0.1));
-			PositionInfo info;
-			pos.fetchInfo(info, 1010, 1020);
+			PositionInfo info = pos.getPositionInfo(1010, 1020);
 			CHECK(info.averagePrice == Approx(1000.0));
 			CHECK(info.balance == Approx(0.1));
 			CHECK(info.inventoryPnL == Approx(0.000147783));
@@ -437,8 +430,7 @@ TEST_CASE("testing the position") {
 		order.state = OrderState::FILLED;
 		pos.onFill(order, true);
 		CHECK(pos.getInitialBalance() == Approx(0.1));
-		PositionInfo info;
-		pos.fetchInfo(info, 1010, 1020);
+		PositionInfo info= pos.getPositionInfo(1010, 1020);
 		CHECK(info.averagePrice == Approx(0.0));
 		CHECK(info.balance == Approx(0.10000014559926231));
 		CHECK(info.inventoryPnL == Approx(0));
@@ -457,8 +449,7 @@ TEST_CASE("testing the position") {
 			order.state = OrderState::FILLED;
 			pos.onFill(order, true);
 			CHECK(pos.getInitialBalance() == Approx(0.1));
-			PositionInfo info;
-			pos.fetchInfo(info, 1010, 1020);
+			PositionInfo info = pos.getPositionInfo(1010, 1020);
 			CHECK(info.averagePrice == Approx(1015.0));
 			CHECK(info.balance == Approx(0.1));
 			CHECK(info.inventoryPnL == Approx(0));
@@ -475,8 +466,7 @@ TEST_CASE("testing the position") {
 		order.state = OrderState::FILLED;
 		pos.onFill(order, true);
 		CHECK(pos.getInitialBalance() == Approx(0.1));
-		PositionInfo info;
-		pos.fetchInfo(info, 1010, 1020);
+		PositionInfo info = pos.getPositionInfo(1010, 1020);
 		CHECK(info.averagePrice == Approx(0.0));
 		CHECK(info.balance == Approx(0.10000014778325124));
 		CHECK(info.inventoryPnL == Approx(0));
@@ -495,8 +485,7 @@ TEST_CASE("testing the position") {
 			order.state = OrderState::FILLED;
 			pos.onFill(order, true);
 			CHECK(pos.getInitialBalance() == Approx(0.1));
-			PositionInfo info;
-			pos.fetchInfo(info, 1010, 1020);
+			PositionInfo info = pos.getPositionInfo(1010, 1020);
 			CHECK(info.averagePrice == Approx(1015.0));
 			CHECK(info.balance == Approx(0.1));
 			CHECK(info.inventoryPnL == Approx(0));
@@ -513,8 +502,7 @@ TEST_CASE("testing the position") {
 		order.state = OrderState::FILLED;
 		pos.onFill(order, true);
 		CHECK(pos.getInitialBalance() == Approx(0.1));
-		PositionInfo info;
-		pos.fetchInfo(info, 1010, 1020);
+		PositionInfo info = pos.getPositionInfo(1010, 1020);
 		CHECK(info.averagePrice == Approx(1000.0));
 		CHECK(info.balance == Approx(0.10000014559926231));
 		CHECK(info.inventoryPnL == Approx(0.0001477832));

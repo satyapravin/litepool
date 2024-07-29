@@ -6,7 +6,7 @@ import torch as th
 import torch.nn as nn
 from packaging import version
 from sb3_contrib import RecurrentPPO
-#from stable_baselines3 import PPO
+#from stable_baselines3 import SAC
 from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.evaluation import evaluate_policy
@@ -30,10 +30,10 @@ from gymnasium import spaces
 class LSTMFeatureExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space: spaces.Box, lstm_hidden_size: int = 16, output_size: int = 32):
         # The feature dimension is the final output size of the sequential layer
-        super(LSTMFeatureExtractor, self).__init__(observation_space, features_dim=output_size)
+        super(LSTMFeatureExtractor, self).__init__(observation_space, features_dim=output_size+lstm_hidden_size)
         
         self.lstm_hidden_size = lstm_hidden_size
-        self.n_input_channels = 30 
+        self.n_input_channels = 30
         self.remaining_input_size = 14 
         self.output_size = output_size
         
@@ -44,13 +44,9 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
 
         # Define a sequential layer to process the concatenated output
         self.fc = nn.Sequential(
-            nn.Linear(lstm_hidden_size + self.remaining_input_size, 64),
+            nn.Linear(self.remaining_input_size, 32),
             nn.ReLU(),
-            nn.Linear(64, 128),
-            nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, output_size)
+            nn.Linear(32, output_size)
         )
 
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
@@ -70,15 +66,11 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
         lstm_input = lstm_input.unsqueeze(1)  # Add sequence dimension
         lstm_out, self.hidden = self.lstm(lstm_input, self.hidden)
         
-        # Get the hidden state from the last LSTM cell
         lstm_hidden_state = lstm_out[:, -1, :]
         
-        # Concatenate the LSTM hidden state with the remaining input
-        combined_output = torch.cat((lstm_hidden_state, remaining_input), dim=1)
-        
-        # Pass the combined output through the fully connected layer
-        final_output = self.fc(combined_output)
-        return final_output
+        final_output = self.fc(remaining_input)
+        combined_output = torch.cat((lstm_hidden_state, final_output), dim=1)
+        return combined_output 
 
 class VecAdapter(VecEnvWrapper):
   def __init__(self, venv: LitePool):
@@ -167,7 +159,7 @@ env = litepool.make("RlTrader-v0", env_type="gymnasium",
                           num_envs=4, batch_size=4, 
                           num_threads=4,
                           filename="deribit.csv", 
-                          balance=1,
+                          balance=0.02,
                           depth=20)
 env.spec.id = 'RlTrader-v0'
 env = VecAdapter(env)
@@ -178,28 +170,51 @@ kwargs = dict(use_sde=True, sde_sample_freq=4)
 policy_kwargs = {
     'features_extractor_class': LSTMFeatureExtractor,
     'features_extractor_kwargs': {
-        'lstm_hidden_size': 32,
-        'output_size': 32
+        'lstm_hidden_size': 8,
+        'output_size': 16
     },
     'activation_fn': th.nn.ReLU,
-    'net_arch': dict(pi=[64, 64, 64, 64, 32], vf=[64, 64, 64, 64, 32])
+    'net_arch': dict(pi=[16, 32, 8], vf=[16, 32, 16, 8], qf=[16, 32, 16, 8])
 }
 
 import os
 os.remove("temp.csv")
 
+
 model = RecurrentPPO(
   "MlpLstmPolicy", #CustomGRUPolicy,
   env,
   policy_kwargs=policy_kwargs,
-  n_steps=1200,
-  learning_rate=1e-4,
+  n_steps=4800,
+  learning_rate=1e-3,
   gae_lambda=0.95,
-  gamma=0.99,
+  gamma=0.9999,
+  ent_coef=0.01,
+  target_kl=0.06,
   clip_range=0.1,
   verbose=1,
   seed=10,
   **kwargs
 )
+
+'''
+model = SAC(
+    "MlpPolicy",
+    env,
+    policy_kwargs=policy_kwargs,
+    learning_rate=3e-4,
+    buffer_size=1000000,
+    learning_starts=1000,
+    batch_size=64,
+    tau=0.005,
+    gamma=0.99999,
+    train_freq=1,
+    gradient_steps=1,
+    ent_coef='auto',
+    target_update_interval=1,
+    target_entropy='auto',
+    verbose=1,
+)
+'''
 
 model.learn(200000000)

@@ -6,20 +6,11 @@
 using namespace Simulator;
 
 MarketSignalBuilder::MarketSignalBuilder(u_int bookhistory, u_int price_history, u_int depth)
-              :bid_prices(bookhistory, depth),
-               ask_prices(bookhistory, depth),
-               bid_sizes(bookhistory, depth),
-               ask_sizes(bookhistory, depth),
-               raw_price_signals(price_history),                                                         // price
-               raw_spread_signals(std::make_unique<spread_signal_repository>()),                         // spread
+              :raw_spread_signals(std::make_unique<spread_signal_repository>()),                         // spread
                raw_volume_signals(std::make_unique<volume_signal_repository>())                          // volume
 {
 }
 
-
-price_signal_repository& MarketSignalBuilder::get_price_signals(int lag) {
-    return raw_price_signals.get(lag);
-}
 
 spread_signal_repository& MarketSignalBuilder::get_spread_signals() const {
     return *raw_spread_signals;
@@ -69,12 +60,7 @@ double micro_price(const double& bid_price, const double& ask_price,
 }
 
 std::vector<double> MarketSignalBuilder::add_book(Orderbook& book) {
-    bid_prices.addRow(book.bid_prices);
-    bid_sizes.addRow(book.bid_sizes);
-    ask_prices.addRow(book.ask_prices);
-    ask_sizes.addRow(book.ask_sizes);
-
-    compute_signals();
+    compute_signals(book);
 
     std::vector<double> retval;
     insert_signals(retval, *raw_spread_signals);
@@ -82,11 +68,11 @@ std::vector<double> MarketSignalBuilder::add_book(Orderbook& book) {
     return retval;
 }
 
-void MarketSignalBuilder::compute_signals() {
-    auto current_bid_prices = bid_prices.get(0);
-    auto current_ask_prices = ask_prices.get(0);
-    auto current_bid_sizes = bid_sizes.get(0);
-    auto current_ask_sizes = ask_sizes.get(0);
+void MarketSignalBuilder::compute_signals(Orderbook& book) {
+    auto current_bid_prices = book.bid_prices;
+    auto current_ask_prices = book.ask_prices;
+    auto current_bid_sizes = book.bid_sizes;
+    auto current_ask_sizes = book.ask_sizes;
 
     std::vector<double> cum_bid_sizes = get_cumulative_sizes(current_bid_sizes);
     std::vector<double> cum_ask_sizes = get_cumulative_sizes(current_ask_sizes);
@@ -105,8 +91,6 @@ void MarketSignalBuilder::compute_signals() {
                           cum_ask_sizes,
                           cum_bid_amounts,
                           cum_ask_amounts);
-
-    raw_price_signals.add(repo);
 
     compute_spread_signals(repo);
 

@@ -2,9 +2,8 @@
 #include <string>
 #include <cmath>
 #include <cassert>
-#include <iostream>
-
 #include "orderbook.h"
+#include "position_signal_builder.h"
 
 using namespace Simulator;
 
@@ -46,34 +45,19 @@ void Strategy::sendGrid(const double& percent, const double& ratio,
                         const DataRow& obs, OrderSide side) {
 	double min_volume = this->instrument.getMinAmount();
 	double ref_price = side == OrderSide::BUY ? obs.data.at("bids[0].price") : obs.data.at("asks[0].price");
+	double netQty = position.getNetQty();
+	double leverage = std::abs(netQty) / position.getInitialBalance();
 	double initial_balance = this->position.getInitialBalance() * ref_price * percent;
+	if (side == OrderSide::BUY && netQty > 0) initial_balance /= (1 + leverage);
+	if (side == OrderSide::SELL && netQty < 0) initial_balance /= (1 + leverage);
 
-	double price_delta = dSkew * position.getNetQty() / position.getInitialBalance();
-	double dSpread = instrument.getTickSize() * spread;
-
-	if (side == OrderSide::BUY) {
-		price_delta *= -1.0;
-		dSpread *= -1.0;
-	}
-
-	price_delta += dSpread;
 	std::string sideStr = side == OrderSide::BUY ? "bids[" : "asks[";
 
-	std::vector<double> amounts;
-	double base_amount = initial_balance * (1.0 - ratio) / (1.0 - std::pow(ratio, 15));
-
-	for (int ii = 0; ii < 15; ++ii) {
-		double amount = base_amount * std::pow(ratio, 15 - (ii+1));
+	for (int ii = 0; ii < 5; ++ii) {
+		double amount = initial_balance;
 		amount = std::round(amount / min_volume) * min_volume;
 		if (amount >= min_volume) {
 			double price = obs.data.at(sideStr + std::to_string(ii) + "].price");
-			price += price_delta;
-			price = std::round(price / instrument.getTickSize()) * instrument.getTickSize();
-			if (side == OrderSide::BUY && price > obs.getBestBidPrice())
-				price = obs.getBestBidPrice();
-			else if (side == OrderSide::SELL && price < obs.getBestAskPrice())
-				price = obs.getBestAskPrice();
-
 			this->exchange.quote(++order_id, side, price, amount);
 		}
 	}
@@ -88,8 +72,4 @@ bool Strategy::next() {
 		}
 	}
 	return retval;
-}
-
-void Strategy::fetchInfo(PositionInfo& info, const double& bidPrice, const double& askPrice) {
-	return position.fetchInfo(info, bidPrice, askPrice);
 }

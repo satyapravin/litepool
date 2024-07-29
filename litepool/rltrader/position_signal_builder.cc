@@ -1,22 +1,26 @@
 #include "position_signal_builder.h"
+
+#include "market_signal_builder.h"
 #include "rl_macros.h"
 
 using namespace Simulator;
 
 PositionSignalBuilder::PositionSignalBuilder()
-                      :raw_signals(std::make_unique<position_signal_repository>()) {
+                      :raw_previous_signals(std::make_unique<position_signal_repository>()),
+                       raw_spread_signals(std::make_unique<position_signal_repository>()) {
 }
 
 std::vector<double> PositionSignalBuilder::add_info(const PositionInfo& info, const double& bid_price, const double& ask_price) {
     compute_signals(info, bid_price, ask_price);
 
     std::vector<double> retval;
-    insert_signals(retval, *raw_signals);
+    insert_signals(retval, *raw_spread_signals);
     return retval;
 }
 
 void PositionSignalBuilder::compute_signals(const PositionInfo& info, const double& bid_price, const double& ask_price) {
-    position_signal_repository& repo = *raw_signals;
+    position_signal_repository repo;
+    position_signal_repository& previous_repo = *raw_previous_signals;
     repo.net_position = info.netPosition;
     repo.inventory_pnl = info.inventoryPnL;
     repo.realized_pnl = info.tradingPnL;
@@ -36,9 +40,23 @@ void PositionSignalBuilder::compute_signals(const PositionInfo& info, const doub
     repo.realized_pnl_drawdown = repo.realized_pnl_drawdown / info.balance;
     repo.total_pnl = repo.total_pnl / info.balance;
     repo.total_drawdown = repo.total_drawdown / info.balance;
-}
 
-position_signal_repository& PositionSignalBuilder::get_position_signals() const {
-    return *raw_signals;
-}
+    auto& spread_repo = *raw_spread_signals;
+    spread_repo.inventory_pnl = repo.inventory_pnl - previous_repo.inventory_pnl;
+    spread_repo.inventory_pnl_drawdown = repo.inventory_pnl_drawdown - previous_repo.inventory_pnl_drawdown;
+    spread_repo.net_position = repo.net_position - previous_repo.net_position;
+    spread_repo.realized_pnl_drawdown = repo.realized_pnl_drawdown - previous_repo.realized_pnl_drawdown;
+    spread_repo.realized_pnl = repo.realized_pnl - previous_repo.realized_pnl;
+    spread_repo.total_pnl = repo.total_pnl - previous_repo.total_pnl;
+    spread_repo.total_drawdown = repo.total_drawdown - previous_repo.total_drawdown;
+    spread_repo.relative_price = repo.relative_price - previous_repo.relative_price;
 
+    previous_repo.inventory_pnl = repo.inventory_pnl;
+    previous_repo.inventory_pnl_drawdown = repo.inventory_pnl_drawdown;
+    previous_repo.net_position = repo.net_position;
+    previous_repo.realized_pnl_drawdown = repo.realized_pnl_drawdown;
+    previous_repo.realized_pnl = repo.realized_pnl;
+    previous_repo.total_pnl = repo.total_pnl;
+    previous_repo.total_drawdown = repo.total_drawdown;
+    previous_repo.relative_price = repo.relative_price;
+}

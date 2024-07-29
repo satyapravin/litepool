@@ -30,7 +30,8 @@ void Position::reset(const double& initialQty, const double& initialPrice) {
     trade_info.average_sell_price = 0;
 }
 
-void Position::fetchInfo(PositionInfo& info, const double& bidPrice, const double& askPrice) const {
+PositionInfo Position::getPositionInfo(const double& bidPrice, const double& askPrice) const {
+    PositionInfo info;
     info.balance = this->balance;
     info.inventoryPnL = this->inventoryPnL(0.5 * (bidPrice + askPrice));
     info.averagePrice = this->averagePrice;
@@ -42,6 +43,8 @@ void Position::fetchInfo(PositionInfo& info, const double& bidPrice, const doubl
     if (this->averagePrice > instrument.getTickSize()) {
         info.leverage = std::abs(netQuantity) / (balance + info.inventoryPnL);
     }
+
+    return info;
 }
 
 double Position::inventoryPnL(const double& price) const {

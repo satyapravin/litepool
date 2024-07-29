@@ -19,11 +19,9 @@ namespace Simulator {
 
             std::vector<double> add_trade(const TradeInfo& info, const double& bid_price, const double& ask_price);
 
-            [[nodiscard]] trade_signal_repository& get_trade_signals() const;
-
-
         private:
             void compute_trade_signals(const TradeInfo& info, const double& bid_price, const double& ask_price);
-            std::unique_ptr<trade_signal_repository> raw_signals;
+            std::unique_ptr<trade_signal_repository> raw_previous_signals;
+            std::unique_ptr<trade_signal_repository> raw_spread_signals;
     };
 }
