@@ -26,7 +26,7 @@ void Exchange::reset(int startPos) {
 
 bool Exchange::next() {
 
-	for(int ii =0; ii < 5; ++ii) {
+	for(int ii =0; ii < 200; ++ii) {
 		if (this->dataReader.hasNext()) {
 			this->dataReader.next();
 			this->execute();
@@ -100,34 +100,37 @@ std::vector<Order> Exchange::getFills() {
 
 void Exchange::cancel(std::map<long, Order>& quotes) {
 	for (auto it = quotes.begin(); it != quotes.end(); ++it) {
-		if (it->second.state != OrderState::NEW
+		assert(it->second.state != OrderState::NEW
 			&& it->second.state != OrderState::FILLED
 			&& it->second.state != OrderState::CANCELLED
-			&& it->second.state != OrderState::CANCELLED_ACK) {
-			it->second.state = OrderState::CANCELLED;
-			it->second.microSecond = this->dataReader.getTimeStamp();
-			this->addToBuffer(it->second);
-		}
+			&& it->second.state != OrderState::CANCELLED_ACK);
+		it->second.state = OrderState::CANCELLED;
+		it->second.microSecond = this->dataReader.getTimeStamp();
+		this->addToBuffer(it->second);
 	}
 }
 
 void Exchange::processPending(const DataRow& obs) {
-	static const double epsilon = 0.0001;
 	std::vector<long long> delete_stamps;
+	std::vector<Order> bids;
+	std::vector<Order> asks;
+
+
 	for (auto& [timestamp, orders] : timed_buffer) {
 		if (obs.id >= timestamp + delay) {
 			for (Order& order : orders) {
+
 				if (order.state == OrderState::NEW) {
 					if (order.side == OrderSide::BUY) {
-						if (order.price < obs.data.at("asks[0].price") + epsilon || order.is_taker) {
+						if (order.price < obs.data.at("asks[0].price") || order.is_taker) {
 							order.state = OrderState::NEW_ACK;
-							this->bid_quotes[order.orderId] = order;
+							bids.push_back(order);
 						}
 					}
 					else {
-						if (order.price > obs.data.at("bids[0].price") + epsilon || order.is_taker) {
+						if (order.price > obs.data.at("bids[0].price") || order.is_taker) {
 							order.state = OrderState::NEW_ACK;
-							this->ask_quotes[order.orderId] = order;
+							asks.push_back(order);
 						}
 					}
 				}
@@ -172,13 +175,21 @@ void Exchange::processPending(const DataRow& obs) {
 					executions.push_back(order);
 				}
 			}
-		}
 
-		delete_stamps.push_back(timestamp);
+			delete_stamps.push_back(timestamp);
+		}
 	}
 
 	for (auto timestamp : delete_stamps)
 		timed_buffer.erase(timestamp);
+
+	for (auto order : bids) {
+		this->bid_quotes[order.orderId] = order;
+	}
+
+	for(auto order: asks) {
+		this->ask_quotes[order.orderId] = order;
+	}
 }
 
 void Exchange::cancelBuys() {
@@ -203,9 +214,9 @@ void Exchange::execute() {
 
 	std::vector<long> bids_filled;
 	std::vector<long> asks_filled;
-	static const double epsilon = 0.00001;
+
 	for (auto& [order_id, order] : this->bid_quotes) {
-		if (order.side == OrderSide::BUY && order.price >= epsilon + this->dataReader.getDouble("asks[0].price") || order.is_taker) {
+		if (order.side == OrderSide::BUY && order.price >  0.00001 + this->dataReader.getDouble("asks[0].price") || order.is_taker) {
 			order.state = OrderState::FILLED;
 			if (order.is_taker) order.price = this->dataReader.getDouble("asks[0].price");
 			bids_filled.push_back(order_id);
@@ -215,13 +226,14 @@ void Exchange::execute() {
 
 
 	for(auto& [order_id, order] : this->ask_quotes) {
-		if (order.side == OrderSide::SELL && order.price <= this->dataReader.getDouble("bids[0].price") - epsilon || order.is_taker) {
+		if (order.side == OrderSide::SELL && order.price < 0.00001 + this->dataReader.getDouble("bids[0].price") || order.is_taker) {
 			order.state = OrderState::FILLED;
 			if (order.is_taker) order.price = this->dataReader.getDouble("bids[0].price");
 			asks_filled.push_back(order_id);
 			this->addToBuffer(order);
 		}
 	}
+
 
 	for (auto& order_id : bids_filled) {
 		this->bid_quotes.erase(order_id);

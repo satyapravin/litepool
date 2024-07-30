@@ -7,6 +7,7 @@
 
 namespace Simulator {
     struct position_signal_repository {
+        double leverage = 0;
         double net_position = 0;
         double relative_price = 0;
         double total_drawdown = 0;

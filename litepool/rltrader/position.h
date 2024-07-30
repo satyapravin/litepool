@@ -26,7 +26,7 @@ namespace Simulator {
     private:
         BaseInstrument& instrument;
         double averagePrice = 0.0;
-        double netQuantity = 0.0;
+        double netAmount = 0.0;
         double totalFee = 0.0;
         int numOfTrades = 0;
         double initialBalance = 0.0;
@@ -39,7 +39,7 @@ namespace Simulator {
         [[nodiscard]] PositionInfo getPositionInfo(const double& bidPrice, const double& askPrice) const;
         void onFill(const Order& order, bool is_maker);
         [[nodiscard]] double inventoryPnL(const double& price) const;
-        [[nodiscard]] double getNetQty() const { return netQuantity; }
+        [[nodiscard]] double getNetAmount() const { return netAmount; }
         [[nodiscard]] double getInitialBalance() const { return initialBalance; }
         [[nodiscard]] long getNumberOfTrades() const { return numOfTrades; }
         TradeInfo& getTradeInfo() { return trade_info; }

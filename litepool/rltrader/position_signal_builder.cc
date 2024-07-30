@@ -15,6 +15,7 @@ std::vector<double> PositionSignalBuilder::add_info(const PositionInfo& info, co
 
     std::vector<double> retval;
     insert_signals(retval, *raw_spread_signals);
+    insert_signals(retval, *raw_previous_signals);
     return retval;
 }
 
@@ -40,6 +41,7 @@ void PositionSignalBuilder::compute_signals(const PositionInfo& info, const doub
     repo.realized_pnl_drawdown = repo.realized_pnl_drawdown / info.balance;
     repo.total_pnl = repo.total_pnl / info.balance;
     repo.total_drawdown = repo.total_drawdown / info.balance;
+    repo.leverage = std::abs(repo.net_position);
 
     auto& spread_repo = *raw_spread_signals;
     spread_repo.inventory_pnl = repo.inventory_pnl - previous_repo.inventory_pnl;
@@ -50,7 +52,9 @@ void PositionSignalBuilder::compute_signals(const PositionInfo& info, const doub
     spread_repo.total_pnl = repo.total_pnl - previous_repo.total_pnl;
     spread_repo.total_drawdown = repo.total_drawdown - previous_repo.total_drawdown;
     spread_repo.relative_price = repo.relative_price - previous_repo.relative_price;
+    spread_repo.leverage = repo.leverage - previous_repo.leverage;
 
+    previous_repo.leverage = repo.leverage;
     previous_repo.inventory_pnl = repo.inventory_pnl;
     previous_repo.inventory_pnl_drawdown = repo.inventory_pnl_drawdown;
     previous_repo.net_position = repo.net_position;

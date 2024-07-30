@@ -9,7 +9,7 @@ Position::Position(BaseInstrument& instr, const double& aBalance,
     const double& initialQty, const double& initialAvgprice)
     :instrument(instr)
     , averagePrice(initialAvgprice)
-    , netQuantity(initialQty)
+    , netAmount(initialQty)
     , totalFee(0)
     , numOfTrades(0)
     , initialBalance(aBalance)
@@ -18,7 +18,7 @@ Position::Position(BaseInstrument& instr, const double& aBalance,
 
 void Position::reset(const double& initialQty, const double& initialPrice) {
     averagePrice = initialPrice;
-    netQuantity = initialQty;
+    netAmount = initialQty;
     totalFee = 0.0;
     numOfTrades = 0;
     balance = initialBalance;
@@ -32,23 +32,24 @@ void Position::reset(const double& initialQty, const double& initialPrice) {
 
 PositionInfo Position::getPositionInfo(const double& bidPrice, const double& askPrice) const {
     PositionInfo info;
+    double mid = 0.5 * (bidPrice + askPrice);
     info.balance = this->balance;
-    info.inventoryPnL = this->inventoryPnL(0.5 * (bidPrice + askPrice));
+    info.inventoryPnL = this->inventoryPnL(mid);
     info.averagePrice = this->averagePrice;
     info.tradingPnL = this->balance - this->initialBalance;
-    info.netPosition = this->netQuantity;
+    info.netPosition = this->netAmount / mid;
     info.leverage = 0;
     info.fees = totalFee;
     
     if (this->averagePrice > instrument.getTickSize()) {
-        info.leverage = std::abs(netQuantity) / (balance + info.inventoryPnL);
+        info.leverage = std::abs(netAmount) / mid / (balance + info.inventoryPnL);
     }
 
     return info;
 }
 
 double Position::inventoryPnL(const double& price) const {
-    return this->instrument.pnl(netQuantity * averagePrice, averagePrice, price);
+    return this->instrument.pnl(netAmount, averagePrice, price);
 }
 
 void Position::onFill(const Order& order, bool is_maker)
@@ -77,27 +78,25 @@ void Position::onFill(const Order& order, bool is_maker)
     }
 
     double pnl = 0;
-    double orderQty = order.amount / order.price;
     double sideSign = order.side == OrderSide::BUY ? 1.0 : -1.0;
-    double netNotional = netQuantity * averagePrice;
 
-    if (std::abs(netNotional) < 1e-3) {
+    if (std::abs(netAmount) < 1) {
         averagePrice = order.price;
-        netQuantity = orderQty * sideSign;
+        netAmount = order.amount * sideSign;
     }
-    else if (std::signbit(netNotional) == std::signbit(sideSign)) {
-        netQuantity += orderQty * sideSign;
-        averagePrice = (order.amount + std::abs(netQuantity) * averagePrice) / (orderQty + std::abs(netQuantity));
+    else if (std::signbit(netAmount) == std::signbit(sideSign)) {
+        averagePrice = (order.amount * order.price + std::abs(netAmount) * averagePrice) / (order.amount + std::abs(netAmount));
+        netAmount += order.amount * sideSign;
     }
     else {
-        if (orderQty >= std::abs(netQuantity)) {
-            pnl = instrument.pnl(netQuantity * averagePrice, averagePrice, order.price);
+        if (order.amount >= std::abs(netAmount)) {
+            pnl = instrument.pnl(netAmount, averagePrice, order.price);
             averagePrice = order.price;
-            netQuantity += orderQty * sideSign;
+            netAmount += order.amount * sideSign;
         }
         else {
-            pnl = instrument.pnl(order.amount * -sideSign, averagePrice, order.price);
-            netQuantity += orderQty * sideSign;
+            pnl = instrument.pnl(order.amount * (netAmount > 0 ? 1.0 : -1.0), averagePrice, order.price);
+            netAmount += order.amount * sideSign;
         }
     }
 

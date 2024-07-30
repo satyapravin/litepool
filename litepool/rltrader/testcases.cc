@@ -149,21 +149,21 @@ TEST_CASE("env adaptor test") {
 
 	int counter = 0;
 	auto state = adaptor.getState();
-	CHECK(state.size() == 44);
+	CHECK(state.size() == 54);
 	adaptor.next();
 	state = adaptor.getState();
-	CHECK(state.size() == 44);
+	CHECK(state.size() == 54);
 	state = adaptor.getState();
 	CHECK(state.size() == 0);
 	adaptor.next();
 	state = adaptor.getState();
-	CHECK(state.size() == 44);
-	adaptor.quote(10, 10, 1, 1, 1, 1);
+	CHECK(state.size() == 54);
+	adaptor.quote(0.01, 0.01, 0.1, 0.1);
 
 	for (int ii=0; ii < 500; ++ii) {
 		adaptor.next();
 		state = adaptor.getState();
-		adaptor.quote(100, 100, 90, 90, 2, 2);
+		adaptor.quote(0, 0, 0.1, 0.1);
 	}
 
 	adaptor.next();
@@ -572,7 +572,7 @@ TEST_CASE("test of strategy") {
 	Exchange exch("data.csv", 5);
 	InverseInstrument instr("BTC", 0.5, 10.0, 0, 0.0005);
 	Strategy strategy(instr, exch, 0.015, 0, 0, 30.0, 5);
-	strategy.quote(10, 10, 0.8, 0.8, 5, 5);
+	strategy.quote(0.01, 0.01, 0.1, 0.1);
 	exch.next();
 	const auto& bids = exch.getBidOrders();
 	const auto& asks = exch.getAskOrders();

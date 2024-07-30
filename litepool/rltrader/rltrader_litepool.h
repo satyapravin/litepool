@@ -35,7 +35,7 @@ class RlTraderEnvFns {
   static decltype(auto) StateSpec(const Config& conf) {
     float fmax = std::numeric_limits<float>::max();
 
-    return MakeDict("obs"_.Bind(Spec<float>({44}, {-fmax, fmax})),
+    return MakeDict("obs"_.Bind(Spec<float>({54}, {-fmax, fmax})),
                     "info:mid_price"_.Bind(Spec<float>({})),
                     "info:balance"_.Bind(Spec<float>({})),
                     "info:unrealized_pnl"_.Bind(Spec<float>({})),
@@ -51,8 +51,13 @@ class RlTraderEnvFns {
 
   template <typename Config>
   static decltype(auto) ActionSpec(const Config& conf) {
-    return MakeDict("action"_.Bind(Spec<float>({2}, {{-1.0, -1.0},
-                                                                                  {1.0, 1.0}})));
+    std::vector<int> shape = {1};
+    float spread_min = 0;
+    float spread_max = 0.1;
+    float vol_min = 0.02;
+    float vol_max = 0.1;
+    return MakeDict("action"_.Bind(Spec<float>({4}, {{spread_min, spread_min, vol_min, vol_min},
+                                                      {spread_max, spread_max, vol_max, vol_max}})));
   }
 };
 
@@ -90,7 +95,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
 
     instr_ptr = std::make_unique<Simulator::InverseInstrument>("BTCUSD", 0.5,
                                                                 10, 0.0001, -0.0005);
-    exchange_ptr = std::make_unique<Simulator::Exchange>(filename, 300);
+    exchange_ptr = std::make_unique<Simulator::Exchange>(filename, 250);
     strategy_ptr = std::make_unique<Simulator::Strategy>(*instr_ptr, *exchange_ptr, balance, 0, 0, 30, 20);
     adaptor_ptr = std::make_unique<Simulator::EnvAdaptor>(*strategy_ptr, *exchange_ptr, 20, 20, spec.config["depth"_]);
   }
@@ -114,13 +119,14 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   }
 
   void Step(const Action& action) override {
-      auto buy_percent = action["action"_][0];
-      auto sell_percent  = action["action"_][1];
+      auto buy_spread = action["action"_][0];
+      auto sell_spread = action["action"_][1];
+      auto buy_volume = action["action"_][2];
+      auto sell_volume = action["action"_][3];
 
-
-      adaptor_ptr->quote(buy_percent, sell_percent, 0, 0, 0, 0);
+      adaptor_ptr->quote(buy_spread, sell_spread, buy_volume, sell_volume);
       auto info = adaptor_ptr->getInfo();
-      isDone = !adaptor_ptr->next();
+      isDone = !adaptor_ptr->next() || info["leverage"] > 25;
       ++steps;
       WriteState();
   }
@@ -130,17 +136,10 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     State state = Allocate(1);
 
     if (!isDone) {
-      assert(data.size() == 44);
-    } else {
-      return;
-    }
-
-    for(int ii=0; ii < data.size(); ++ii) {
-      state["obs"_](ii) = static_cast<float>(data[ii]);
+      assert(data.size() == 54);
     }
 
     auto info = adaptor_ptr->getInfo();
-
     state["info:mid_price"_] = static_cast<float>(info["mid_price"]);
     state["info:balance"_] = static_cast<float>(info["balance"]);
     state["info:unrealized_pnl"_] = static_cast<float>(info["unrealized_pnl"]);
@@ -155,29 +154,24 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     double upnl = info["unrealized_pnl"];
     double rpnl = info["realized_pnl"];
     double leverage = info["leverage"];
-    double count = info["trade_count"];
 
     if (isDone)  {
       state["reward"_] = (rpnl + upnl + drawdown - leverage);
+      return;
     }
-    else if (leverage > 2.0) {
-      state["reward"_] = -100;
-    }
-    else if (steps % 20 == 0) {
-      state["reward"_] = -1e-2 * (leverage - previous_leverage) +
-                                1e+2 * (rpnl - previous_rpnl) +
-                                1e+2 * (upnl - previous_upnl) +
-                                1e+2 * (info["fees"] - previous_fees);
+    else {
+      state["reward"_] = 0.01 * std::min(0.0, -leverage + 2) + (rpnl - previous_rpnl) +
+                                std::min(0.0, upnl - previous_upnl) + (drawdown - previous_dd);
       previous_dd = drawdown;
       previous_upnl = upnl;
       previous_rpnl = rpnl;
       previous_fees = info["fees"];
       previous_leverage = leverage;
     }
-    else {
-      state["reward"_] = 0;
-    }
 
+    for(int ii=0; ii < data.size(); ++ii) {
+      state["obs"_](ii) = static_cast<float>(data[ii]);
+    }
     steps++;
   }
 

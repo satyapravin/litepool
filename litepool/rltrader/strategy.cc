@@ -4,6 +4,7 @@
 #include <cassert>
 #include "orderbook.h"
 #include "position_signal_builder.h"
+#include "trade_signal_builder.h"
 
 using namespace Simulator;
 
@@ -23,42 +24,31 @@ void Strategy::reset(int time_index, const double& position_amount, const double
 	this->order_id = 0;
 }
 
-void Strategy::quote(const double& buyPercent, const double& sellPercent,
-				     const double& buyRatio, const double& sellRatio,
-				     const double& spread, const double& skew) {
-	assert((buyPercent >= 0 && buyPercent <= 1.0));
-	assert((sellPercent >= 0 && sellPercent <= 1.0));
-	assert((buyRatio >= 0 && buyRatio <= 1.0));
-	assert((sellRatio >= 0 && sellRatio <= 1.0));
-	assert((spread >= 0));
-	assert((skew >= 0));
+void Strategy::quote(const double& buy_spread, const double& sell_spread, const double& buy_percent, const double& sell_percent) {
 	const auto& obs = this->exchange.getObs();
 	exchange.cancelBuys();
 	exchange.cancelSells();
 
-	this->sendGrid(buyPercent, buyRatio, spread, skew, obs, OrderSide::BUY);
-	this->sendGrid(sellPercent, sellRatio, spread, skew, obs, OrderSide::SELL);
+	int buy_level  = static_cast<int>(std::round(buy_percent * 100));
+	int sell_level = static_cast<int>(std::round(sell_percent * 100));
+	double buy_volume = position.getInitialBalance() * buy_percent;
+	double sell_volume = position.getInitialBalance() * sell_percent;
+	this->sendGrid(buy_level, buy_volume, obs, OrderSide::BUY);
+	this->sendGrid(sell_level, sell_volume, obs, OrderSide::SELL);
 }
 
-void Strategy::sendGrid(const double& percent, const double& ratio,
-	                    const double& spread, const double& dSkew,
-                        const DataRow& obs, OrderSide side) {
-	double min_volume = this->instrument.getMinAmount();
-	double ref_price = side == OrderSide::BUY ? obs.data.at("bids[0].price") : obs.data.at("asks[0].price");
-	double netQty = position.getNetQty();
-	double leverage = std::abs(netQty) / position.getInitialBalance();
-	double initial_balance = this->position.getInitialBalance() * ref_price * percent;
-	if (side == OrderSide::BUY && netQty > 0) initial_balance /= (1 + leverage);
-	if (side == OrderSide::SELL && netQty < 0) initial_balance /= (1 + leverage);
-
+void Strategy::sendGrid(int start_level, const double& amount, const DataRow& obs, OrderSide side) {
 	std::string sideStr = side == OrderSide::BUY ? "bids[" : "asks[";
+	auto refPrice = side == OrderSide::SELL ? obs.getBestAskPrice() : obs.getBestBidPrice();
+	auto trade_amount = std::round(amount * refPrice / instrument.getMinAmount()) * instrument.getMinAmount();
 
 	for (int ii = 0; ii < 5; ++ii) {
-		double amount = initial_balance;
-		amount = std::round(amount / min_volume) * min_volume;
-		if (amount >= min_volume) {
-			double price = obs.data.at(sideStr + std::to_string(ii) + "].price");
-			this->exchange.quote(++order_id, side, price, amount);
+		if (trade_amount >= instrument.getMinAmount() && ii % 2 == 0) {
+			auto level = ii + start_level;
+			if (level < 20) {
+				double price = obs.data.at(sideStr + std::to_string(level) + "].price");
+				this->exchange.quote(++order_id, side, price, trade_amount);
+			}
 		}
 	}
 }

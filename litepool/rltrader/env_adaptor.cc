@@ -30,17 +30,8 @@ std::vector<double> EnvAdaptor::getState() {
     return retval;
 }
 
-void EnvAdaptor::quote(double buyPercent, double sellPercent, double buyRatio,
-                       double sellRatio, double spread, double skew) {
-    double dBuyPercent = (buyPercent + 1.01) / 50.0;
-    double dSellPercent = (sellPercent + 1.01) / 50.0;
-    double dBuyRatio = (buyRatio + 1) / 2.0;
-    double dSellRatio = (sellRatio + 1) / 2.0;
-    double dSkew = (skew + 1.0) / 2.0 * 10;
-    double dSpread = (spread + 1.0) / 2.0 * 10;
-    this->strategy.quote(dBuyPercent, dSellPercent,
-                         dBuyRatio, dSellRatio,
-                         dSpread, dSkew);
+void EnvAdaptor::quote(const double& buy_spread, const double& sell_spred, const double& buy_percent, const double& sell_percent) {
+    this->strategy.quote(buy_spread, sell_spred, buy_percent, sell_percent);
 }
 
 void EnvAdaptor::reset(int time_index, const double& positionAmount, const double& averagePrice) {

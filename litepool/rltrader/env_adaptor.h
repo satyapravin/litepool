@@ -9,13 +9,11 @@ namespace Simulator {
 class EnvAdaptor {
 public:
     EnvAdaptor(Strategy& strat, Exchange& exch, uint8_t book_history, uint8_t price_history, uint8_t depth);
-    void quote(double buyPercent, double sellPercent, double buyRatio,
-               double sellRatio, double spread, double skew);
+    void quote(const double& buy_spread, const double& sell_spred, const double& buy_percent, const double& sell_percent);
     void reset(int time_index, const double& positionAmount, const double& averagePrice);
     bool next();
     std::unordered_map<std::string, double> getInfo();
     std::vector<double> getState();
-    bool hasFilled();
     long long getTime();
 private:
     std::vector<double> computeState();
