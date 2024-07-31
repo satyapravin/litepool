@@ -26,7 +26,7 @@ void Exchange::reset(int startPos) {
 
 bool Exchange::next() {
 
-	for(int ii =0; ii < 200; ++ii) {
+	for(int ii =0; ii < 30; ++ii) {
 		if (this->dataReader.hasNext()) {
 			this->dataReader.next();
 			this->execute();

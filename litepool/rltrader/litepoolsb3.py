@@ -158,8 +158,8 @@ import os
 if os.path.exists('temp.csv'):
     os.remove('temp.csv')
 env = litepool.make("RlTrader-v0", env_type="gymnasium", 
-                          num_envs=1, batch_size=1, 
-                          num_threads=1,
+                          num_envs=4, batch_size=4, 
+                          num_threads=4,
                           filename="deribit.csv", 
                           balance=0.02,
                           depth=20)
@@ -181,19 +181,19 @@ policy_kwargs = {
 
 import os
 
-model = RecurrentPPO(
-  "MlpLstmPolicy", 
+model = PPO(
+  "MlpPolicy", 
   env,
   policy_kwargs=policy_kwargs,
   learning_rate=1e-4,
-  n_steps=256, 
+  n_steps=1024, 
   batch_size=64,
   gamma=0.99,
   clip_range=0.1,
   ent_coef=0.02,
   vf_coef=0.5,
   max_grad_norm=0.5,
-  target_kl=0.1,
+  #target_kl=0.1,
   gae_lambda=0.95,
   verbose=1,
   seed=10,

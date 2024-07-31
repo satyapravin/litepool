@@ -28,7 +28,7 @@ void Strategy::quote(const double& buy_spread, const double& sell_spread, const 
 	const auto& obs = this->exchange.getObs();
 	exchange.cancelBuys();
 	exchange.cancelSells();
-
+	auto netAmount = position.getNetAmount();
 	int buy_level  = static_cast<int>(std::round(buy_percent * 100));
 	int sell_level = static_cast<int>(std::round(sell_percent * 100));
 	double buy_volume = position.getInitialBalance() * buy_percent;
@@ -42,8 +42,8 @@ void Strategy::sendGrid(int start_level, const double& amount, const DataRow& ob
 	auto refPrice = side == OrderSide::SELL ? obs.getBestAskPrice() : obs.getBestBidPrice();
 	auto trade_amount = std::round(amount * refPrice / instrument.getMinAmount()) * instrument.getMinAmount();
 
-	for (int ii = 0; ii < 5; ++ii) {
-		if (trade_amount >= instrument.getMinAmount() && ii % 2 == 0) {
+	for (int ii = 0; ii < 1; ++ii) {
+		if (trade_amount >= instrument.getMinAmount()) {
 			auto level = ii + start_level;
 			if (level < 20) {
 				double price = obs.data.at(sideStr + std::to_string(level) + "].price");

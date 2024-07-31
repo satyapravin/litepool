@@ -159,14 +159,16 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
       state["reward"_] = (rpnl + upnl + drawdown - leverage);
       return;
     }
-    else {
-      state["reward"_] = 0.01 * std::min(0.0, -leverage + 2) + (rpnl - previous_rpnl) +
+    else if (steps % 30 == 0) {
+      state["reward"_] = 0.01 * std::min(0.0, -leverage + 1) + (rpnl - previous_rpnl) +
                                 std::min(0.0, upnl - previous_upnl) + (drawdown - previous_dd);
       previous_dd = drawdown;
       previous_upnl = upnl;
       previous_rpnl = rpnl;
       previous_fees = info["fees"];
       previous_leverage = leverage;
+    } else {
+      state["reward"_] = 0.0;
     }
 
     for(int ii=0; ii < data.size(); ++ii) {
