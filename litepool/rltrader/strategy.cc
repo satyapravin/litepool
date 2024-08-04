@@ -31,8 +31,8 @@ void Strategy::quote(const double& buy_spread, const double& sell_spread, const 
 	auto netAmount = position.getNetAmount();
 	int buy_level  = static_cast<int>(std::round(buy_percent * 100));
 	int sell_level = static_cast<int>(std::round(sell_percent * 100));
-	double buy_volume = position.getInitialBalance() * buy_percent;
-	double sell_volume = position.getInitialBalance() * sell_percent;
+	double buy_volume = position.getInitialBalance() * buy_percent * 5;
+	double sell_volume = position.getInitialBalance() * sell_percent * 5;
 	this->sendGrid(buy_level, buy_volume, obs, OrderSide::BUY);
 	this->sendGrid(sell_level, sell_volume, obs, OrderSide::SELL);
 }

@@ -73,10 +73,9 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   long long steps = 0;
   double previous_upnl = 0;
   double previous_rpnl = 0;
-  double previous_dd = 0;
+  double holding_period = 0;
   double previous_fees = 0;
   double previous_leverage = 0;
-  double previous_count = 0;
   std::unique_ptr<Simulator::InverseInstrument> instr_ptr;
   std::unique_ptr<Simulator::Exchange> exchange_ptr;
   std::unique_ptr<Simulator::Strategy> strategy_ptr;
@@ -106,10 +105,9 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     steps = 0;
     previous_upnl = 0;
     previous_rpnl = 0;
-    previous_dd = 0;
+    holding_period = 0;
     previous_fees = 0;
     previous_leverage = 0;
-    previous_count = 0;
     rng.seed(rd());
     std::uniform_int_distribution<int> dist(10, 72);
     adaptor_ptr->reset(dist(rng), 0, 0);
@@ -153,22 +151,37 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     double drawdown = info["drawdown"];
     double upnl = info["unrealized_pnl"];
     double rpnl = info["realized_pnl"];
-    double leverage = info["leverage"];
+    double leverage = info["buy_amount"] - info["sell_amount"];
+    double init_balance = 0.02;
 
-    if (isDone)  {
-      state["reward"_] = (rpnl + upnl + drawdown - leverage);
-      return;
+    if (isDone || steps % 200 == 0)  {
+      auto netpnl = (rpnl + upnl) / init_balance;
+
+      if (netpnl > 0) {
+        state["reward"_] =  netpnl / std::abs(drawdown);
+      }
+      else {
+        state["reward"_] = netpnl + drawdown;
+      }
+
+      if (isDone) return;
     }
-    else if (steps % 30 == 0) {
-      state["reward"_] = 0.01 * std::min(0.0, -leverage + 1) + (rpnl - previous_rpnl) +
-                                std::min(0.0, upnl - previous_upnl) + (drawdown - previous_dd);
-      previous_dd = drawdown;
+    else {
+      auto abs_leverage = std::abs(leverage);
+
+      if (std::signbit(leverage) == std::signbit(previous_leverage)) {
+          holding_period += 1;
+      } else {
+          holding_period = 0;
+      }
+      state["reward"_] = -0.001 * holding_period +
+                         std::signbit(holding_period) * (leverage - previous_leverage) +
+                         (rpnl - previous_rpnl) / init_balance +
+                         std::min(0.0, upnl - previous_upnl) / init_balance;
       previous_upnl = upnl;
       previous_rpnl = rpnl;
       previous_fees = info["fees"];
       previous_leverage = leverage;
-    } else {
-      state["reward"_] = 0.0;
     }
 
     for(int ii=0; ii < data.size(); ++ii) {
