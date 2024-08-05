@@ -90,8 +90,8 @@ void Position::onFill(const Order& order, bool is_maker)
     else {
         if (order.amount >= std::abs(netAmount)) {
             pnl = instrument.pnl(netAmount, averagePrice, order.price);
-            averagePrice = order.price;
             netAmount += order.amount * sideSign;
+            averagePrice = std::abs(netAmount) > 0 ? order.price : 0.0;
         }
         else {
             pnl = instrument.pnl(order.amount * (netAmount > 0 ? 1.0 : -1.0), averagePrice, order.price);

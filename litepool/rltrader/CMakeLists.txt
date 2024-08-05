@@ -1,6 +1,14 @@
 find_package(GTest REQUIRED)
 find_package(pybind11 REQUIRED)
 
+add_executable(signal_gen base_instrument.h
+        csv_reader.h csv_reader.cc
+        inverse_instrument.h inverse_instrument.cc
+        orderbook.h orderbook.cc
+        market_signal_builder.h market_signal_builder.cc
+        signal_gen.cc
+)
+
 add_executable(test_sim base_instrument.h
         csv_reader.h csv_reader.cc
         exchange.h exchange.cc

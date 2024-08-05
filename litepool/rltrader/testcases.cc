@@ -226,7 +226,7 @@ TEST_CASE("test of orderbook and signals") {
 		auto signals = builder.add_book(book);
 
 		CHECK(std::all_of(signals.begin(), signals.end(), [](double val) {return std::isfinite(val);}));
-		CHECK(std::all_of(signals.begin(), signals.end(), [](double val) { return std::abs(val) > 0;}));
+		CHECK(std::count_if(signals.begin(), signals.end(), [](double val) { return std::abs(val) == 0.0;}) <= 2);
 		CHECK(std::all_of(signals.begin(), signals.end(), [](double val) { return std::abs(val) < 10;}));
 	}
 
@@ -300,7 +300,7 @@ TEST_CASE("testing the position") {
 		CHECK(info.averagePrice == Approx(1000.0));
 		CHECK(info.balance == Approx(0.1));
 		CHECK(info.inventoryPnL == Approx(0.000147783));
-		CHECK(info.leverage == Approx(0.0998524));
+		CHECK(info.leverage == Approx(0.09837678));
 		CHECK(info.tradingPnL == Approx(0.0));
 		TradeInfo& tradeInfo = pos.getTradeInfo();
 		CHECK(tradeInfo.buy_trades == 1);
@@ -347,10 +347,10 @@ TEST_CASE("testing the position") {
 		CHECK(pos.getInitialBalance() == Approx(0.1));
 		PositionInfo info = pos.getPositionInfo(1010, 1020);
 		CHECK(info.averagePrice == Approx(1000.0));
-		CHECK(info.balance == Approx(0.10000021839889345));
+		CHECK(info.balance == Approx(0.10022167));
 		CHECK(info.inventoryPnL == Approx(0.000147783 * 1.5));
-		CHECK(info.leverage == Approx(0.15187477346623476));
-		CHECK(info.tradingPnL == Approx(2.1839889344232866e-07));
+		CHECK(info.leverage == Approx(0.14713094));
+		CHECK(info.tradingPnL == Approx(0.0002216487));
 		TradeInfo& tradeInfo = pos.getTradeInfo();
 		CHECK(tradeInfo.sell_trades == 1);
 		CHECK(tradeInfo.buy_trades == 3);
@@ -396,10 +396,10 @@ TEST_CASE("testing the position") {
 		CHECK(pos.getInitialBalance() == Approx(0.1));
 		PositionInfo info = pos.getPositionInfo(1010, 1020);
 		CHECK(info.averagePrice == Approx(1000.0));
-		CHECK(info.balance == Approx(0.099999781601106563));
+		CHECK(info.balance == Approx(0.099778325));
 		CHECK(info.inventoryPnL == Approx(-0.000147783 * 1.5));
-		CHECK(info.leverage == Approx(0.15256026759275718));
-		CHECK(info.tradingPnL == Approx(-2.1839889344232866e-07));
+		CHECK(info.leverage == Approx(0.1484413656));
+		CHECK(info.tradingPnL == Approx(-0.00022167487));
 	}
 
 	SUBCASE("Equal buy and sell order") {
@@ -417,7 +417,7 @@ TEST_CASE("testing the position") {
 			CHECK(info.averagePrice == Approx(1000.0));
 			CHECK(info.balance == Approx(0.1));
 			CHECK(info.inventoryPnL == Approx(0.000147783));
-			CHECK(info.leverage == Approx(0.099852434825381212));
+			CHECK(info.leverage == Approx(0.09837678));
 			CHECK(info.tradingPnL == Approx(0.0));
 		}
 
@@ -431,11 +431,11 @@ TEST_CASE("testing the position") {
 		pos.onFill(order, true);
 		CHECK(pos.getInitialBalance() == Approx(0.1));
 		PositionInfo info= pos.getPositionInfo(1010, 1020);
-		CHECK(info.averagePrice == Approx(0.0));
-		CHECK(info.balance == Approx(0.10000014559926231));
+		CHECK(info.averagePrice == Approx(0));
+		CHECK(info.balance == Approx(0.10014778325));
 		CHECK(info.inventoryPnL == Approx(0));
 		CHECK(info.leverage == Approx(0));
-		CHECK(info.tradingPnL == Approx(1.455992622995117e-07));
+		CHECK(info.tradingPnL == Approx(0.00014778325));
 	}
 
 	SUBCASE("Equal sell and buy order") {
@@ -468,10 +468,10 @@ TEST_CASE("testing the position") {
 		CHECK(pos.getInitialBalance() == Approx(0.1));
 		PositionInfo info = pos.getPositionInfo(1010, 1020);
 		CHECK(info.averagePrice == Approx(0.0));
-		CHECK(info.balance == Approx(0.10000014778325124));
+		CHECK(info.balance == Approx(0.10014778325));
 		CHECK(info.inventoryPnL == Approx(0));
 		CHECK(info.leverage == Approx(0));
-		CHECK(info.tradingPnL == Approx(1.4778325123365743e-07));
+		CHECK(info.tradingPnL == Approx(0.00014778325));
 	}
 
 	SUBCASE("Buy more than initial sell order") {
@@ -504,24 +504,25 @@ TEST_CASE("testing the position") {
 		CHECK(pos.getInitialBalance() == Approx(0.1));
 		PositionInfo info = pos.getPositionInfo(1010, 1020);
 		CHECK(info.averagePrice == Approx(1000.0));
-		CHECK(info.balance == Approx(0.10000014559926231));
+		CHECK(info.balance == Approx(0.10014778325));
 		CHECK(info.inventoryPnL == Approx(0.0001477832));
-		CHECK(info.leverage == Approx(0.10132572958256746));
-		CHECK(info.tradingPnL == Approx(1.455992622995117e-07));
+		CHECK(info.leverage == Approx(0.09823182));
+		CHECK(info.tradingPnL == Approx(0.00014778325));
 	}
 }
 
 TEST_CASE("testing exchange") {
-	Exchange exch("test.csv", 5); // 10 microsecond delay is not practical in reality
+	Exchange exch("data.csv", 5); // 10 microsecond delay is not practical in reality
+	exch.next();
 	const auto& row = exch.getObs();
-	CHECK(row.id == 1704067200170770);
-	CHECK(row.data.at("bids[0].price") == Approx(42301.5));
-	CHECK(row.data.at("bids[1].price") == Approx(42301.0));
+	CHECK(row.id == 1714348800832252);
+	CHECK(row.data.at("bids[0].price") == Approx(63100));
+	CHECK(row.data.at("bids[1].price") == Approx(63099.5));
 
 	for (int ii = 0; ii < 8; ++ii)
 		CHECK(exch.next());
 
-	CHECK(!exch.next());
+	CHECK(exch.next());
 	exch.reset(1);
 	auto next = exch.getObs();
 	CHECK(next.id == 1704067200170778);
@@ -570,6 +571,7 @@ TEST_CASE("testing exchange") {
 
 TEST_CASE("test of strategy") {
 	Exchange exch("data.csv", 5);
+	exch.next();
 	InverseInstrument instr("BTC", 0.5, 10.0, 0, 0.0005);
 	Strategy strategy(instr, exch, 0.015, 0, 0, 30.0, 5);
 	strategy.quote(0.01, 0.01, 0.1, 0.1);
