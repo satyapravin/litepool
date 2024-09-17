@@ -134,7 +134,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     State state = Allocate(1);
 
     if (!isDone) {
-      assert(data.size() == 54);
+      assert(data.size() == 62);
     }
 
     auto info = adaptor_ptr->getInfo();
