@@ -4,13 +4,11 @@
 
 using namespace Simulator;
 
-EnvAdaptor::EnvAdaptor(Strategy& strat, Exchange& exch, uint8_t book_history, uint8_t price_history, uint8_t depth)
-           :strategy(strat),
+EnvAdaptor::EnvAdaptor(Strategy& strat, Exchange& exch, int depth)
+           :market_depth(depth),
+            strategy(strat),
             exchange(exch),
-            book_history_lags(book_history),
-            price_history_lags(price_history),
-            depth(depth),
-            market_builder(std::make_unique<MarketSignalBuilder>(book_history, price_history, depth)),
+            market_builder(std::make_unique<MarketSignalBuilder>(depth)),
             position_builder(std::make_unique<PositionSignalBuilder>()),
             trade_builder(std::unique_ptr<TradeSignalBuilder>()) {
 }
@@ -30,7 +28,7 @@ std::vector<double> EnvAdaptor::getState() {
     return retval;
 }
 
-void EnvAdaptor::quote(const double& buy_spread, const double& sell_spred, const double& buy_percent, const double& sell_percent) {
+void EnvAdaptor::quote(int buy_spread, int sell_spred, int buy_percent, int sell_percent) {
     this->strategy.quote(buy_spread, sell_spred, buy_percent, sell_percent);
 }
 
@@ -38,7 +36,7 @@ void EnvAdaptor::reset(int time_index, const double& positionAmount, const doubl
     max_realized_pnl = 0;
     max_unrealized_pnl = 0;
     drawdown = 0;
-    auto market_ptr = std::make_unique<MarketSignalBuilder>(book_history_lags, price_history_lags, depth);
+    auto market_ptr = std::make_unique<MarketSignalBuilder>(market_depth);
     market_builder = std::move(market_ptr);
     auto position_ptr = std::make_unique<PositionSignalBuilder>();
     position_builder = std::move(position_ptr);

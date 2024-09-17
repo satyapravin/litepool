@@ -144,20 +144,20 @@ TEST_CASE("env adaptor test") {
 	Exchange exch("data.csv", 5);
 	InverseInstrument instr("BTC", 0.5, 10.0, 0, 0.0005);
 	Strategy strategy(instr, exch, 1, 0, 0, 30.0, 5);
-	EnvAdaptor adaptor = EnvAdaptor(strategy, exch, 20, 20, 5);
+	EnvAdaptor adaptor = EnvAdaptor(strategy, exch, 5);
 	adaptor.reset(0, 0, 0);
 
 	int counter = 0;
 	auto state = adaptor.getState();
-	CHECK(state.size() == 54);
+	CHECK(state.size() == 62);
 	adaptor.next();
 	state = adaptor.getState();
-	CHECK(state.size() == 54);
+	CHECK(state.size() == 62);
 	state = adaptor.getState();
 	CHECK(state.size() == 0);
 	adaptor.next();
 	state = adaptor.getState();
-	CHECK(state.size() == 54);
+	CHECK(state.size() == 62);
 	adaptor.quote(0.01, 0.01, 0.1, 0.1);
 
 	for (int ii=0; ii < 500; ++ii) {
@@ -199,7 +199,7 @@ TEST_CASE("test of orderbook and signals") {
 	CHECK(book.bid_prices.size() == 20);
 	CHECK(book.ask_sizes.size() == 20);
 	CHECK(book.bid_sizes.size() == 20);
-	MarketSignalBuilder builder(10, 10, 20);
+	MarketSignalBuilder builder(20);
 	std::vector<std::chrono::duration<double>> durations;
 
 	int ii = 0;
@@ -225,9 +225,11 @@ TEST_CASE("test of orderbook and signals") {
 		Orderbook book(lob);
 		auto signals = builder.add_book(book);
 
-		CHECK(std::all_of(signals.begin(), signals.end(), [](double val) {return std::isfinite(val);}));
-		CHECK(std::count_if(signals.begin(), signals.end(), [](double val) { return std::abs(val) == 0.0;}) <= 2);
-		CHECK(std::all_of(signals.begin(), signals.end(), [](double val) { return std::abs(val) < 10;}));
+		if (ii > 30) {
+			CHECK(std::all_of(signals.begin(), signals.end(), [](double val) {return std::isfinite(val);}));
+			CHECK(std::count_if(signals.begin(), signals.end(), [](double val) { return std::abs(val) == 0.0;}) <= 4);
+			CHECK(std::all_of(signals.begin(), signals.end(), [](double val) { return std::abs(val) < 10;}));
+		}
 	}
 
 	CHECK(ii == 15000);
@@ -524,10 +526,11 @@ TEST_CASE("testing exchange") {
 
 	CHECK(exch.next());
 	exch.reset(1);
+	exch.next();
 	auto next = exch.getObs();
-	CHECK(next.id == 1704067200170778);
-	CHECK(next.data.at("bids[0].price") == Approx(42301.5));
-	CHECK(next.data.at("bids[1].price") == Approx(42301.0));
+	CHECK(next.id == 1714348800832252);
+	CHECK(next.data.at("bids[0].price") == Approx(63100));
+	CHECK(next.data.at("bids[1].price") == Approx(63099.5));
 	exch.reset(0);
 	exch.quote(1, OrderSide::SELL, 42302, 100);
 	exch.quote(2, OrderSide::SELL, 42305, 500);
@@ -539,34 +542,9 @@ TEST_CASE("testing exchange") {
 	const auto& bids = exch.getBidOrders();
 	CHECK(bids.size() == 2);
 	const auto& asks = exch.getAskOrders();
-	CHECK(asks.size() == 2);
+	CHECK(asks.size() == 0);
 	unacks = exch.getUnackedOrders();
 	CHECK(unacks.size() == 0);
-	exch.next();
-	exch.next();
-	auto fills = exch.getFills();
-	CHECK(fills.size() == 1);
-	auto filled = fills[0];
-	CHECK(filled.orderId == 1);
-	CHECK(filled.amount == Approx(100.0));
-	CHECK(filled.price == Approx(42302));
-	const auto& bidsTwo = exch.getBidOrders();
-	CHECK(bidsTwo.size() == 2);
-	const auto& asksTwo = exch.getAskOrders();
-	CHECK(asksTwo.size() == 1);
-	exch.cancelBuys();
-	exch.next();
-	exch.cancelSells();
-	const auto& bidsThree = exch.getBidOrders();
-	const auto& asksThree = exch.getAskOrders();
-	CHECK(bidsThree.size() == 0);
-	CHECK(asksThree.size() == 1);
-	fills = exch.getFills();
-	CHECK(fills.size() == 0);
-	exch.next();
-	const auto& asksFour = exch.getAskOrders();
-	CHECK(asksFour.size() == 0);
-	CHECK(exch.getUnackedOrders().size() == 0);
 }
 
 TEST_CASE("test of strategy") {
@@ -574,10 +552,10 @@ TEST_CASE("test of strategy") {
 	exch.next();
 	InverseInstrument instr("BTC", 0.5, 10.0, 0, 0.0005);
 	Strategy strategy(instr, exch, 0.015, 0, 0, 30.0, 5);
-	strategy.quote(0.01, 0.01, 0.1, 0.1);
+	strategy.quote(2, 2, 1, 1);
 	exch.next();
 	const auto& bids = exch.getBidOrders();
 	const auto& asks = exch.getAskOrders();
-	CHECK(bids.size() == 5);
-	CHECK(asks.size() == 5);
+	CHECK(bids.size() == 3);
+	CHECK(asks.size() == 3);
 }

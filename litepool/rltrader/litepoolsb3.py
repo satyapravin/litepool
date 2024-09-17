@@ -172,11 +172,11 @@ kwargs = dict(use_sde=True, sde_sample_freq=4)
 policy_kwargs = {
     'features_extractor_class': LSTMFeatureExtractor,
     'features_extractor_kwargs': {
-        'lstm_hidden_size': 8,
-        'output_size': 4
+        'lstm_hidden_size': 32,
+        'output_size': 16
     },
     'activation_fn': th.nn.ReLU,
-    'net_arch': dict(pi=[16, 32, 8], vf=[16, 32, 16, 8], qf=[16, 32, 16, 8])
+    'net_arch': dict(pi=[64, 32, 16], vf=[64, 32, 16], qf=[64, 32, 16])
 }
 
 import os

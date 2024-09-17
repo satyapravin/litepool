@@ -35,7 +35,7 @@ class RlTraderEnvFns {
   static decltype(auto) StateSpec(const Config& conf) {
     float fmax = std::numeric_limits<float>::max();
 
-    return MakeDict("obs"_.Bind(Spec<float>({54}, {-fmax, fmax})),
+    return MakeDict("obs"_.Bind(Spec<float>({62}, {-fmax, fmax})),
                     "info:mid_price"_.Bind(Spec<float>({})),
                     "info:balance"_.Bind(Spec<float>({})),
                     "info:unrealized_pnl"_.Bind(Spec<float>({})),
@@ -52,11 +52,11 @@ class RlTraderEnvFns {
   template <typename Config>
   static decltype(auto) ActionSpec(const Config& conf) {
     std::vector<int> shape = {1};
-    float spread_min = 0;
-    float spread_max = 0.1;
-    float vol_min = 0.02;
-    float vol_max = 0.1;
-    return MakeDict("action"_.Bind(Spec<float>({4}, {{spread_min, spread_min, vol_min, vol_min},
+    int spread_min = 0;
+    int spread_max = 15;
+    int vol_min = 1;
+    int vol_max = 10;
+    return MakeDict("action"_.Bind(Spec<int>({4}, {{spread_min, spread_min, vol_min, vol_min},
                                                       {spread_max, spread_max, vol_max, vol_max}})));
   }
 };
@@ -96,7 +96,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
                                                                 10, 0.0001, -0.0005);
     exchange_ptr = std::make_unique<Simulator::Exchange>(filename, 250);
     strategy_ptr = std::make_unique<Simulator::Strategy>(*instr_ptr, *exchange_ptr, balance, 0, 0, 30, 20);
-    adaptor_ptr = std::make_unique<Simulator::EnvAdaptor>(*strategy_ptr, *exchange_ptr, 20, 20, spec.config["depth"_]);
+    adaptor_ptr = std::make_unique<Simulator::EnvAdaptor>(*strategy_ptr, *exchange_ptr, spec.config["depth"_]);
   }
 
   void Reset() override {

@@ -13,7 +13,7 @@ namespace Simulator {
 			
 		void reset(int time_index, const double& position_amount, const double& avg_price);
 
-		void quote(const double& buy_spread, const double& sell_spred, const double& buy_percent, const double& sell_percent);
+		void quote(int buy_spread, int sell_spred, int buy_percent, int sell_percent);
 
 		Position& getPosition() { return position; }
 

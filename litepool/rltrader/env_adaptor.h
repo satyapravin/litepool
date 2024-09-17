@@ -8,21 +8,19 @@
 namespace Simulator {
 class EnvAdaptor {
 public:
-    EnvAdaptor(Strategy& strat, Exchange& exch, uint8_t book_history, uint8_t price_history, uint8_t depth);
-    void quote(const double& buy_spread, const double& sell_spred, const double& buy_percent, const double& sell_percent);
+    EnvAdaptor(Strategy& strat, Exchange& exch, int depth);
+    void quote(int buy_spread, int sell_spred, int buy_percent, int sell_percent);
     void reset(int time_index, const double& positionAmount, const double& averagePrice);
     bool next();
     std::unordered_map<std::string, double> getInfo();
     std::vector<double> getState();
     long long getTime();
 private:
+    int market_depth;
     std::vector<double> computeState();
 
     Strategy& strategy;
     Exchange& exchange;
-    uint8_t book_history_lags = 20;
-    uint8_t price_history_lags = 20;
-    uint8_t depth = 20;
     double max_unrealized_pnl = 0;
     double max_realized_pnl = 0;
     double drawdown = 0;

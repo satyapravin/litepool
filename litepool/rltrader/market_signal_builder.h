@@ -14,6 +14,16 @@ namespace Simulator {
         double volume_imbalance_signal_2 = 0;
         double volume_imbalance_signal_3 = 0;
         double volume_imbalance_signal_4 = 0;
+
+        double volume_ofi_signal_0 = 0; // 100 msec level 1
+        double volume_ofi_signal_1 = 0; // 100 msec level 5
+        double volume_ofi_signal_2 = 0; // 1 sec level 1
+        double volume_ofi_signal_3 = 0; // 1 sec level 5
+        double volume_ofi_signal_4 = 0; // 2 sec level 1
+        double volume_ofi_signal_5 = 0; // 2 sec level 5
+        double volume_ofi_signal_6 = 0; // 3 sec level 1
+        double volume_ofi_signal_7 = 0; // 3 sec level 5
+
     } __attribute((packed));
 
     struct spread_signal_repository {
@@ -95,18 +105,24 @@ namespace Simulator {
 
 class MarketSignalBuilder {
 public:
-    MarketSignalBuilder(u_int bookhistory, u_int price_history, u_int depth);
+    MarketSignalBuilder(int depth);
 
     std::vector<double> add_book(Orderbook& lob);
 
-    price_signal_repository& get_price_signals(int lag);
-
-    [[nodiscard]] spread_signal_repository& get_spread_signals() const;
-
-    [[nodiscard]] volume_signal_repository& get_volume_signals() const;
 
 private:
     void compute_signals(Orderbook& book);
+
+    static double compute_ofi(double curr_bid_price, double curr_bid_size,
+                       double curr_ask_price, double curr_ask_size,
+                       double prev_bid_price, double prev_bid_size,
+                       double prev_ask_price, double prev_ask_size);
+
+    std::tuple<double, double>
+    compute_lagged_ofi(const price_signal_repository& repo,
+                                             const std::vector<double>& cum_bid_sizes,
+                                             const std::vector<double>& cum_ask_sizes,
+                                             int lag);
 
     static void compute_price_signals( price_signal_repository& repo,
                                       const std::vector<double>& current_bid_prices,
@@ -126,6 +142,10 @@ private:
                                 const std::vector<double>& cum_ask_sizes) const;
 
 private:
+    TemporalTable previous_bid_prices;
+    TemporalTable previous_ask_prices;
+    TemporalTable previous_bid_amounts;
+    TemporalTable previous_ask_amounts;
     std::unique_ptr<spread_signal_repository> raw_spread_signals;
     std::unique_ptr<volume_signal_repository> raw_volume_signals;
 };

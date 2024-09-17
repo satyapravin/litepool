@@ -24,17 +24,14 @@ void Strategy::reset(int time_index, const double& position_amount, const double
 	this->order_id = 0;
 }
 
-void Strategy::quote(const double& buy_spread, const double& sell_spread, const double& buy_percent, const double& sell_percent) {
+void Strategy::quote(int buy_spread, int sell_spread, int buy_percent, int sell_percent) {
 	const auto& obs = this->exchange.getObs();
 	exchange.cancelBuys();
 	exchange.cancelSells();
-	auto netAmount = position.getNetAmount();
-	int buy_level  = static_cast<int>(std::round(buy_percent * 100));
-	int sell_level = static_cast<int>(std::round(sell_percent * 100));
-	double buy_volume = position.getInitialBalance() * buy_percent * 5;
-	double sell_volume = position.getInitialBalance() * sell_percent * 5;
-	this->sendGrid(buy_level, buy_volume, obs, OrderSide::BUY);
-	this->sendGrid(sell_level, sell_volume, obs, OrderSide::SELL);
+	double buy_volume = position.getInitialBalance() * buy_percent / 100.0;
+	double sell_volume = position.getInitialBalance() * sell_percent / 100.0;
+	this->sendGrid(buy_spread, buy_volume, obs, OrderSide::BUY);
+	this->sendGrid(sell_spread, sell_volume, obs, OrderSide::SELL);
 }
 
 void Strategy::sendGrid(int start_level, const double& amount, const DataRow& obs, OrderSide side) {
@@ -42,11 +39,12 @@ void Strategy::sendGrid(int start_level, const double& amount, const DataRow& ob
 	auto refPrice = side == OrderSide::SELL ? obs.getBestAskPrice() : obs.getBestBidPrice();
 	auto trade_amount = std::round(amount * refPrice / instrument.getMinAmount()) * instrument.getMinAmount();
 
-	for (int ii = 0; ii < 1; ++ii) {
+	for (int ii = 0; ii < 5; ++ii) {
 		if (trade_amount >= instrument.getMinAmount()) {
 			auto level = ii + start_level;
-			if (level < 20) {
-				double price = obs.data.at(sideStr + std::to_string(level) + "].price");
+			std::string key = sideStr + std::to_string(level) + "].price";
+			if (obs.data.find(key) != obs.data.end()) {
+				double price = obs.data.at(key);
 				this->exchange.quote(++order_id, side, price, trade_amount);
 			}
 		}
