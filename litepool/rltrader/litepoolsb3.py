@@ -33,7 +33,7 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
         super(LSTMFeatureExtractor, self).__init__(observation_space, features_dim=output_size+lstm_hidden_size+24)
         
         self.lstm_hidden_size = lstm_hidden_size
-        self.n_input_channels = 30
+        self.n_input_channels = 38
         self.remaining_input_size = 24 
         self.output_size = output_size
         
@@ -51,8 +51,8 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
 
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
         # Split the observations into two parts
-        lstm_input = observations[:, :30]
-        remaining_input = observations[:, 30:]
+        lstm_input = observations[:, :38]
+        remaining_input = observations[:, 38:]
 
         # Initialize hidden state and cell state with zeros if they are not already set
         if self.hidden is None or lstm_input.shape[0] != self.hidden[0].shape[1]:
