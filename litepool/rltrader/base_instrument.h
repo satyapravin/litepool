@@ -12,17 +12,18 @@ namespace Simulator {
         }
 
         virtual ~BaseInstrument() = default;
-        std::string getName() const { return symbol; }
-        double getTickSize() const { return tickSize; }
-        double getMinAmount() const { return minAmount; }
-        virtual double equity(const double& mid, const double& balance, 
+        [[nodiscard]] std::string getName() const { return symbol; }
+        [[nodiscard]] double getTickSize() const { return tickSize; }
+        [[nodiscard]] double getMinAmount() const { return minAmount; }
+        [[nodiscard]] virtual double getPositionFromAmount(const double& amount, const double& price) = 0;
+        [[nodiscard]] virtual double getLeverage(const double& amount, const double& equity, const double& price) = 0;
+        [[nodiscard]] virtual double getTradeAmount(const double& amount, const double& refPrice) = 0;
+        [[nodiscard]] virtual double equity(const double& mid, const double& balance,
                               const double& position, const double& avgPrice, 
                               const double& fee) const = 0;
-        virtual double getQtyFromNotional(const double& price, 
-                                          const double& notional) const = 0;
-        virtual double pnl(const double& qty, const double& entryPrice, 
+        [[nodiscard]] virtual double pnl(const double& qty, const double& entryPrice,
                            const double& exitPrice) const = 0;
-        virtual double fees(const double& qty, const double& price, bool isMaker) const = 0;
+        [[nodiscard]] virtual double fees(const double& qty, const double& price, bool isMaker) const = 0;
 
     protected:
         std::string symbol;

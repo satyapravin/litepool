@@ -16,6 +16,8 @@
 #include "env_adaptor.h"
 #include <iostream>
 
+#include "normal_instrument.h"
+
 using namespace Simulator;
 using namespace doctest;
 
@@ -240,10 +242,19 @@ TEST_CASE("testing the inverse_instrument") {
 	CHECK(instr.getTickSize() == Approx(0.5));
 	CHECK(instr.getName() == "BTC");
 	CHECK(instr.getMinAmount() == Approx(10.0));
-	CHECK(instr.getQtyFromNotional(10000.0, 100.0) == Approx(0.01));
 	CHECK(instr.pnl(1000, 10000.0, 20000.0) == Approx(0.05));
 	CHECK(instr.fees(1000, 10000.0, true) == Approx(0.0));
 	CHECK(instr.fees(1000, 10000.0, false) == Approx(0.00005));
+}
+
+TEST_CASE("testing the normal_instrument") {
+	NormalInstrument instr("BTCUSDT", 0.1, 0.0001, -0.0001, 0.0075);
+	CHECK(instr.getTickSize() == Approx(0.1));
+	CHECK(instr.getName() == "BTCUSDT");
+	CHECK(instr.getMinAmount() == Approx(0.0001));
+	CHECK(instr.pnl(0.1, 10000, 20000) == Approx(1000));
+	CHECK(instr.fees(0.1, 10000.0, true) == Approx(1000 * -0.0001));
+	CHECK(instr.fees(0.1, 10000.0, false) == Approx(1000 * 0.0075));
 }
 
 TEST_CASE("testing the csv reader") {

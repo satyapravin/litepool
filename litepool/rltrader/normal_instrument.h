@@ -3,9 +3,9 @@
 #include "base_instrument.h"
 
 namespace Simulator {
-    class InverseInstrument : public BaseInstrument {
+    class NormalInstrument : public BaseInstrument {
     public:
-        InverseInstrument(const std::string& symbol, const double& tickSize, 
+        NormalInstrument(const std::string& symbol, const double& tickSize,
             const double& minAmount, const double& makerFee, const double& takerFee);
         [[nodiscard]] double getPositionFromAmount(const double& amount, const double& price) override;
         [[nodiscard]] double getLeverage(const double& amount, const double& equity, const double& price) override;

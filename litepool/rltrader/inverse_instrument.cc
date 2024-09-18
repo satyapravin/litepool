@@ -8,8 +8,16 @@ InverseInstrument::InverseInstrument(const std::string& symbol, const double& ti
     const double& minAmount, const double& makerFee, const double& takerFee)
     : BaseInstrument(symbol, tickSize, minAmount, makerFee, takerFee) {}
 
-double InverseInstrument::getQtyFromNotional(const double& price, const double& notional) const {
-    return notional / price;
+double InverseInstrument::getPositionFromAmount(const double& amount, const double& price) {
+    return amount / price;
+}
+
+double InverseInstrument::getLeverage(const double& amount, const double& equity, const double& price) {
+    return std::abs(amount) / price / equity;
+}
+
+double InverseInstrument::getTradeAmount(const double &amount, const double &refPrice) {
+    return std::round(amount * refPrice / minAmount) * minAmount;
 }
 
 double InverseInstrument::pnl(const double& qty, const double& entryPrice, const double& exitPrice) const {

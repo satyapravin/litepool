@@ -4,6 +4,7 @@ find_package(pybind11 REQUIRED)
 add_executable(signal_gen base_instrument.h
         csv_reader.h csv_reader.cc
         inverse_instrument.h inverse_instrument.cc
+        normal_instrument.h normal_instrument.cc
         orderbook.h orderbook.cc
         market_signal_builder.h market_signal_builder.cc
         signal_gen.cc
@@ -13,6 +14,7 @@ add_executable(test_sim base_instrument.h
         csv_reader.h csv_reader.cc
         exchange.h exchange.cc
         inverse_instrument.h inverse_instrument.cc
+        normal_instrument.h normal_instrument.cc
         order.h position.h position.cc
         strategy.cc doctest.h strategy.h
         orderbook.h orderbook.cc
@@ -27,6 +29,7 @@ pybind11_add_module(rltrader_litepool rltrader_litepool.h rltrader_litepool.cc
                                       csv_reader.h csv_reader.cc
                                       exchange.h exchange.cc
                                       inverse_instrument.h inverse_instrument.cc
+                                      normal_instrument.h normal_instrument.cc
                                       order.h position.h position.cc
                                       strategy.cc doctest.h strategy.h
                                       orderbook.h orderbook.cc
@@ -42,6 +45,7 @@ add_executable(rltradertest rltrader_litepool_test.cc
                                       csv_reader.h csv_reader.cc
                                       exchange.h exchange.cc
                                       inverse_instrument.h inverse_instrument.cc
+                                      normal_instrument.h normal_instrument.cc
                                       order.h position.h position.cc
                                       strategy.cc doctest.h strategy.h
                                       orderbook.h orderbook.cc
@@ -49,7 +53,7 @@ add_executable(rltradertest rltrader_litepool_test.cc
                                       position_signal_builder.h position_signal_builder.cc
                                       trade_signal_builder.h trade_signal_builder.cc
                                       env_adaptor.h env_adaptor.cc
-        rl_macros.h)
+                                      rl_macros.h)
 target_link_libraries(rltrader_litepool PRIVATE glog)
 target_link_libraries(rltradertest PRIVATE GTest::GTest GTest::Main ${GFLAG_LIBRARY_NAME} gmock glog)
 include(GoogleTest)

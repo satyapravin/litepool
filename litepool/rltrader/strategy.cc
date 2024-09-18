@@ -37,7 +37,7 @@ void Strategy::quote(int buy_spread, int sell_spread, int buy_percent, int sell_
 void Strategy::sendGrid(int start_level, const double& amount, const DataRow& obs, OrderSide side) {
 	std::string sideStr = side == OrderSide::BUY ? "bids[" : "asks[";
 	auto refPrice = side == OrderSide::SELL ? obs.getBestAskPrice() : obs.getBestBidPrice();
-	auto trade_amount = std::round(amount * refPrice / instrument.getMinAmount()) * instrument.getMinAmount();
+	auto trade_amount = instrument.getTradeAmount(amount, refPrice);
 
 	for (int ii = 0; ii < 5; ++ii) {
 		if (trade_amount >= instrument.getMinAmount()) {
