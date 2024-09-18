@@ -1,8 +1,0 @@
-add_subdirectory(abseil-cpp)
-add_subdirectory(concurrentqueue)
-add_subdirectory(gflags)
-add_subdirectory(glog)
-add_subdirectory(googletest)
-add_subdirectory(pugixml)
-add_subdirectory(threadpool)
-add_subdirectory(zlib)

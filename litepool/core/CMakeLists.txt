@@ -25,7 +25,7 @@ target_link_options(circular_buffer_test PRIVATE -static-libgcc)
 
 target_link_libraries(dicttest PRIVATE GTest::GTest GTest::Main glog gflags gmock)
 target_link_libraries(action_buffer_queue_test PRIVATE GTest::GTest GTest::Main glog gflags gmock)
-target_link_libraries(state_buffer_queue_test PRIVATE Threads::Threads GTest::GTest GTest::Main glog gflags gmock /usr/lib/gcc/x86_64-linux-gnu/11/libstdc++.a m)
+target_link_libraries(state_buffer_queue_test PRIVATE Threads::Threads GTest::GTest GTest::Main glog gflags gmock libstdc++.a m)
 target_link_libraries(state_buffer_test PRIVATE GTest::GTest GTest::Main glog gflags gmock)
 target_link_libraries(circular_buffer_test PRIVATE GTest::GTest GTest::Main glog gflags gmock)
 
