@@ -98,7 +98,7 @@ void CsvReader::readCSV() {
 
         DataRow row(id, data);
         this->rows.push_back(row);
-        if (++num_lines >= 4000) {
+        if (++num_lines >= 400) {
             batch_read = true;
             break;
         }

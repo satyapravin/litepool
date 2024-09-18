@@ -26,6 +26,7 @@ import torch.nn.functional as F
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from gymnasium import spaces
 
+device = torch.device("cuda")
 
 class LSTMFeatureExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space: spaces.Box, lstm_hidden_size: int = 16, output_size: int = 32):
@@ -158,9 +159,9 @@ import os
 if os.path.exists('temp.csv'):
     os.remove('temp.csv')
 env = litepool.make("RlTrader-v0", env_type="gymnasium", 
-                          num_envs=4, batch_size=4, 
-                          num_threads=4,
-                          filename="deribit.csv", 
+                          num_envs=64, batch_size=64, 
+                          num_threads=64,
+                          filename="bitmex.csv", 
                           balance=0.02,
                           depth=20)
 env.spec.id = 'RlTrader-v0'
@@ -172,15 +173,16 @@ kwargs = dict(use_sde=True, sde_sample_freq=4)
 policy_kwargs = {
     'features_extractor_class': LSTMFeatureExtractor,
     'features_extractor_kwargs': {
-        'lstm_hidden_size': 32,
-        'output_size': 16
+        'lstm_hidden_size': 64,
+        'output_size': 32
     },
     'activation_fn': th.nn.ReLU,
-    'net_arch': dict(pi=[64, 32, 16], vf=[64, 32, 16], qf=[64, 32, 16])
+    'net_arch': dict(pi=[64, 128, 32], vf=[64, 128, 32], qf=[64, 128, 32])
 }
 
 import os
 
+'''
 model = PPO(
   "MlpPolicy", 
   env,
@@ -200,6 +202,7 @@ model = PPO(
   **kwargs
 )
 '''
+
 model = SAC(
     "MlpPolicy",
     env,
@@ -216,6 +219,7 @@ model = SAC(
     target_update_interval=1,
     target_entropy='auto',
     verbose=1,
+    device=device,
 )
-'''
+
 model.learn(200000000)

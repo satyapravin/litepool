@@ -55,6 +55,6 @@ add_executable(rltradertest rltrader_litepool_test.cc
                                       env_adaptor.h env_adaptor.cc
                                       rl_macros.h)
 target_link_libraries(rltrader_litepool PRIVATE glog)
-target_link_libraries(rltradertest PRIVATE GTest::GTest GTest::Main ${GFLAG_LIBRARY_NAME} gmock glog)
+target_link_libraries(rltradertest PRIVATE GTest::GTest GTest::Main gflags gmock glog)
 include(GoogleTest)
 gtest_discover_tests(rltradertest)
