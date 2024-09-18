@@ -92,10 +92,10 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
 
     }
 
-    instr_ptr = std::make_unique<Simulator::InverseInstrument>("BTCUSD", 0.5,
-                                                                10, 0.0001, -0.0005);
+    instr_ptr = std::make_unique<Simulator::InverseInstrument>("BTCUSDT", 0.1,
+                                                                0.0001, -0.0001, 0.0075);
     exchange_ptr = std::make_unique<Simulator::Exchange>(filename, 250);
-    strategy_ptr = std::make_unique<Simulator::Strategy>(*instr_ptr, *exchange_ptr, balance, 0, 0, 30, 20);
+    strategy_ptr = std::make_unique<Simulator::Strategy>(*instr_ptr, *exchange_ptr, balance, 0, 0, 20);
     adaptor_ptr = std::make_unique<Simulator::EnvAdaptor>(*strategy_ptr, *exchange_ptr, spec.config["depth"_]);
   }
 

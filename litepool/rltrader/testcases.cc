@@ -145,7 +145,7 @@ TEST_CASE("Testing TemporalBuffer with custom class TestData") {
 TEST_CASE("env adaptor test") {
 	Exchange exch("data.csv", 5);
 	InverseInstrument instr("BTC", 0.5, 10.0, 0, 0.0005);
-	Strategy strategy(instr, exch, 1, 0, 0, 30.0, 5);
+	Strategy strategy(instr, exch, 1, 0, 0, 5);
 	EnvAdaptor adaptor = EnvAdaptor(strategy, exch, 5);
 	adaptor.reset(0, 0, 0);
 
@@ -654,11 +654,24 @@ TEST_CASE("testing exchange") {
 	CHECK(unacks.size() == 0);
 }
 
-TEST_CASE("test of strategy") {
+TEST_CASE("test of inverse strategy") {
 	Exchange exch("data.csv", 5);
 	exch.next();
 	InverseInstrument instr("BTC", 0.5, 10.0, 0, 0.0005);
-	Strategy strategy(instr, exch, 0.015, 0, 0, 30.0, 5);
+	Strategy strategy(instr, exch, 0.015, 0, 0, 5);
+	strategy.quote(2, 2, 1, 1);
+	exch.next();
+	const auto& bids = exch.getBidOrders();
+	const auto& asks = exch.getAskOrders();
+	CHECK(bids.size() == 3);
+	CHECK(asks.size() == 3);
+}
+
+TEST_CASE("test of normal strategy") {
+	Exchange exch("data.csv", 5);
+	exch.next();
+	NormalInstrument instr("BTCUSDT", 0.1, .0001, -0.0001, 0.0075);
+	Strategy strategy(instr, exch, 2000, 0, 0, 5);
 	strategy.quote(2, 2, 1, 1);
 	exch.next();
 	const auto& bids = exch.getBidOrders();

@@ -9,7 +9,7 @@ namespace Simulator {
 	public:
 		Strategy(BaseInstrument& instr, Exchange& exch, const double& balance,
 			const double& pos_amount, const double& avg_price,
-			const double& areaFactor, int maxTicks);
+			int maxTicks);
 			
 		void reset(int time_index, const double& position_amount, const double& avg_price);
 
@@ -24,7 +24,6 @@ namespace Simulator {
 		Exchange& exchange;
 		Position position;
 		int order_id;
-		double maxFactor;
 		int max_ticks;
 		void sendGrid(int start_level,
 			          const double& amount,

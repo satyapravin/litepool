@@ -10,10 +10,10 @@ using namespace Simulator;
 
 Strategy::Strategy(BaseInstrument& instr, Exchange& exch, const double& balance,
 	               const double& pos_amount, const double& avg_price,
-	               const double& areaFactor, int maxTicks)
+	               int maxTicks)
 	:instrument(instr), exchange(exch),
 	 position(instr, balance, pos_amount, avg_price),
-	 order_id(0), maxFactor(areaFactor), max_ticks(maxTicks) {
+	 order_id(0), max_ticks(maxTicks) {
 
 	assert(max_ticks >= 5);
 }
