@@ -53,8 +53,8 @@ class RlTraderEnvFns {
     std::vector<int> shape = {1};
     int spread_min = 0;
     int spread_max = 15;
-    int vol_min = 1;
-    int vol_max = 10;
+    int vol_min = 5;
+    int vol_max = 20;
     return MakeDict("action"_.Bind(Spec<int>({4}, {{spread_min, spread_min, vol_min, vol_min},
                                                       {spread_max, spread_max, vol_max, vol_max}})));
   }
