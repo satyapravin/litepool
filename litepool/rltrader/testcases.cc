@@ -278,7 +278,103 @@ TEST_CASE("testing the csv reader") {
 		++counter;
 }
 
-TEST_CASE("testing the position") {
+TEST_CASE("testing the normal position") {
+	NormalInstrument instr("BTCUSDT", 0.1, 0.0001, -0.0001, 0.00075);
+	Position pos(instr, 2000, 0, 0);
+
+	SUBCASE("initial position") {
+		CHECK(pos.getInitialBalance() == Approx(2000));
+		PositionInfo info = pos.getPositionInfo(1000, 1001);
+		TradeInfo& tradeInfo = pos.getTradeInfo();
+		CHECK(info.averagePrice == Approx(0.0));
+		CHECK(info.balance == Approx(2000));
+		CHECK(info.inventoryPnL == Approx(0.0));
+		CHECK(info.leverage == Approx(0.0));
+		CHECK(info.tradingPnL == Approx(0.0));
+		CHECK(tradeInfo.buy_trades == Approx(0.0));
+		CHECK(tradeInfo.sell_trades == Approx(0.0));
+		CHECK(tradeInfo.buy_amount == Approx(0.0));
+		CHECK(tradeInfo.sell_amount == Approx(0.0));
+		CHECK(tradeInfo.average_buy_price == Approx(0.0));
+		CHECK(tradeInfo.average_sell_price == Approx(0.0));
+	}
+
+	SUBCASE("first buy order") {
+		Order order;
+		order.amount = 0.001;
+		order.microSecond = 1;
+		order.orderId = 1;
+		order.price = 1000.0;
+		order.side = OrderSide::BUY;
+		order.state = OrderState::FILLED;
+		pos.onFill(order, true);
+		CHECK(pos.getInitialBalance() == Approx(2000));
+		PositionInfo info = pos.getPositionInfo(1010, 1020);
+		CHECK(info.averagePrice == Approx(1000.0));
+		CHECK(info.balance == Approx(2000));
+		CHECK(info.inventoryPnL == Approx(0.015));
+		CHECK(info.leverage == Approx(0.000507496));
+		CHECK(info.tradingPnL == Approx(0.0));
+		TradeInfo& tradeInfo = pos.getTradeInfo();
+		CHECK(tradeInfo.buy_trades == 1);
+		CHECK(tradeInfo.sell_trades == 0);
+		CHECK(tradeInfo.buy_amount == Approx(0.001));
+		CHECK(tradeInfo.sell_amount == Approx(0.0));
+		CHECK(tradeInfo.average_buy_price == Approx(1000.0));
+		CHECK(tradeInfo.average_sell_price == Approx(0.0));
+	}
+
+	SUBCASE("Three buys and a smaller sell order") {
+		for (int ii = 1; ii <= 3; ++ii) {
+			Order order;
+			order.amount = 0.1;
+			order.microSecond = 1;
+			order.orderId = 1;
+			order.price = 1000.0;
+			order.side = OrderSide::BUY;
+			order.state = OrderState::FILLED;
+			pos.onFill(order, true);
+			CHECK(pos.getInitialBalance() == Approx(2000));
+			PositionInfo info = pos.getPositionInfo(1010, 1020);
+			CHECK(info.averagePrice == Approx(1000.0));
+			CHECK(info.balance == Approx(2000));
+			CHECK(info.inventoryPnL == Approx(1.5 * ii));
+			CHECK(info.tradingPnL == Approx(0.0));
+			TradeInfo& tradeInfo = pos.getTradeInfo();
+			CHECK(tradeInfo.buy_trades == ii);
+			CHECK(tradeInfo.sell_trades == 0);
+			CHECK(tradeInfo.buy_amount == Approx(0.1 * ii));
+			CHECK(tradeInfo.sell_amount == Approx(0.0));
+			CHECK(tradeInfo.average_buy_price == Approx(1000.0));
+			CHECK(tradeInfo.average_sell_price == Approx(0.0));
+		}
+
+		Order order;
+		order.amount = 0.2;
+		order.microSecond = 1;
+		order.orderId = 1;
+		order.price = 1015.0;
+		order.side = OrderSide::SELL;
+		order.state = OrderState::FILLED;
+		pos.onFill(order, true);
+		CHECK(pos.getInitialBalance() == Approx(2000));
+		PositionInfo info = pos.getPositionInfo(1010, 1020);
+		CHECK(info.averagePrice == Approx(1000.0));
+		CHECK(info.balance == Approx(2003));
+		CHECK(info.inventoryPnL == Approx(1.5));
+		CHECK(info.leverage == Approx(0.0506361));
+		CHECK(info.tradingPnL == Approx(3));
+		TradeInfo& tradeInfo = pos.getTradeInfo();
+		CHECK(tradeInfo.sell_trades == 1);
+		CHECK(tradeInfo.buy_trades == 3);
+		CHECK(tradeInfo.buy_amount == Approx(0.3));
+		CHECK(tradeInfo.sell_amount == Approx(0.2));
+		CHECK(tradeInfo.average_buy_price == Approx(1000.0));
+		CHECK(tradeInfo.average_sell_price == Approx(1015));
+	}
+}
+
+TEST_CASE("testing the inverse position") {
 	InverseInstrument instr("BTC", 0.5, 10.0, 0.0, 0.0005);
 	Position pos(instr, 0.1, 0, 0.0);
 
@@ -292,11 +388,11 @@ TEST_CASE("testing the position") {
 		CHECK(info.leverage == Approx(0.0));
 		CHECK(info.tradingPnL == Approx(0.0));
 		CHECK(tradeInfo.buy_trades == Approx(0.0));
-                CHECK(tradeInfo.sell_trades == Approx(0.0));
-        	CHECK(tradeInfo.buy_amount == Approx(0.0));
-                CHECK(tradeInfo.sell_amount == Approx(0.0));
-                CHECK(tradeInfo.average_buy_price == Approx(0.0));
-                CHECK(tradeInfo.average_sell_price == Approx(0.0));
+		CHECK(tradeInfo.sell_trades == Approx(0.0));
+		CHECK(tradeInfo.buy_amount == Approx(0.0));
+		CHECK(tradeInfo.sell_amount == Approx(0.0));
+		CHECK(tradeInfo.average_buy_price == Approx(0.0));
+		CHECK(tradeInfo.average_sell_price == Approx(0.0));
 	}
 
 	SUBCASE("first buy order") {

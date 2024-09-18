@@ -79,7 +79,7 @@ void Position::onFill(const Order& order, bool is_maker)
     double pnl = 0;
     double sideSign = order.side == OrderSide::BUY ? 1.0 : -1.0;
 
-    if (std::abs(netAmount) < 1) {
+    if (std::abs(netAmount) < 0.00000001) {
         averagePrice = order.price;
         netAmount = order.amount * sideSign;
     }
