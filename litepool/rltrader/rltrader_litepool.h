@@ -20,7 +20,7 @@
 #include "litepool/core/async_litepool.h"
 #include "litepool/core/env.h"
 #include "env_adaptor.h"
-#include "inverse_instrument.h"
+#include "normal_instrument.h"
 #include <random>
 
 namespace rltrader {
@@ -92,7 +92,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
 
     }
 
-    instr_ptr = std::make_unique<Simulator::InverseInstrument>("BTCUSDT", 0.1,
+    instr_ptr = std::make_unique<Simulator::NormalInstrument>("BTCUSDT", 2000,
                                                                 0.0001, -0.0001, 0.0075);
     exchange_ptr = std::make_unique<Simulator::Exchange>(filename, 250);
     strategy_ptr = std::make_unique<Simulator::Strategy>(*instr_ptr, *exchange_ptr, balance, 0, 0, 20);
