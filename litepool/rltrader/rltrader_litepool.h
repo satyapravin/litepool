@@ -34,8 +34,7 @@ class RlTraderEnvFns {
   template <typename Config>
   static decltype(auto) StateSpec(const Config& conf) {
     float fmax = std::numeric_limits<float>::max();
-
-    return MakeDict("obs"_.Bind(Spec<float>({62}, {-fmax, fmax})),
+    return MakeDict("obs"_.Bind(Spec<float>(std::vector<int>{62}, std::make_tuple(-fmax, fmax))),
                     "info:mid_price"_.Bind(Spec<float>({})),
                     "info:balance"_.Bind(Spec<float>({})),
                     "info:unrealized_pnl"_.Bind(Spec<float>({})),
