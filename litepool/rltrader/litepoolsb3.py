@@ -162,8 +162,8 @@ env = litepool.make("RlTrader-v0", env_type="gymnasium",
                           num_envs=64, batch_size=64, 
                           num_threads=64,
                           filename="bitmex.csv", 
-                          balance=0.02,
-                          depth=20)
+                          balance=2000,
+                          depth=25)
 env.spec.id = 'RlTrader-v0'
 env = VecAdapter(env)
 env = VecMonitor(env)

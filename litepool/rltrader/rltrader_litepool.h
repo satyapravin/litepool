@@ -76,7 +76,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   double holding_period = 0;
   double previous_fees = 0;
   double previous_leverage = 0;
-  std::unique_ptr<Simulator::InverseInstrument> instr_ptr;
+  std::unique_ptr<Simulator::NormalInstrument> instr_ptr;
   std::unique_ptr<Simulator::Exchange> exchange_ptr;
   std::unique_ptr<Simulator::Strategy> strategy_ptr;
   std::unique_ptr<Simulator::EnvAdaptor> adaptor_ptr;
@@ -92,7 +92,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
 
     }
 
-    instr_ptr = std::make_unique<Simulator::NormalInstrument>("BTCUSDT", 2000,
+    instr_ptr = std::make_unique<Simulator::NormalInstrument>("BTCUSDT", 0.1,
                                                                 0.0001, -0.0001, 0.0075);
     exchange_ptr = std::make_unique<Simulator::Exchange>(filename, 250);
     strategy_ptr = std::make_unique<Simulator::Strategy>(*instr_ptr, *exchange_ptr, balance, 0, 0, 20);
