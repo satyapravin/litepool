@@ -13,7 +13,7 @@ double InverseInstrument::getPositionFromAmount(const double& amount, const doub
 }
 
 double InverseInstrument::getLeverage(const double& amount, const double& equity, const double& price) {
-    return std::abs(amount) / price / equity;
+    return amount / price / equity;
 }
 
 double InverseInstrument::getTradeAmount(const double &amount, const double &refPrice) {

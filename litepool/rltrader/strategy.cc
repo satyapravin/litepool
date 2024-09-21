@@ -28,6 +28,10 @@ void Strategy::quote(int buy_spread, int sell_spread, int buy_percent, int sell_
 	const auto& obs = this->exchange.getObs();
 	exchange.cancelBuys();
 	exchange.cancelSells();
+	auto posInfo = position.getPositionInfo(obs.getBestBidPrice(), obs.getBestAskPrice());
+	auto leverage = posInfo.leverage;
+	buy_spread *= 1.0 + std::min(leverage, 0.0);
+	sell_spread *= 1.0 - std::max(leverage, 0.0);
 	double buy_volume = position.getInitialBalance() * buy_percent / 100.0;
 	double sell_volume = position.getInitialBalance() * sell_percent / 100.0;
 	this->sendGrid(buy_spread, buy_volume, obs, OrderSide::BUY);

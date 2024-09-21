@@ -13,7 +13,7 @@ double NormalInstrument::getPositionFromAmount(const double& amount, const doubl
 }
 
 double NormalInstrument::getLeverage(const double& amount, const double& equity, const double& price) {
-    return std::abs(amount) * price / equity;
+    return amount * price / equity;
 }
 double NormalInstrument::getTradeAmount(const double &amount, const double &refPrice) {
     return std::round(amount / refPrice / minAmount) * minAmount;

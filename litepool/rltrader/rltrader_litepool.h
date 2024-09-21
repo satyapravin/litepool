@@ -150,7 +150,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     double drawdown = info["drawdown"];
     double upnl = info["unrealized_pnl"];
     double rpnl = info["realized_pnl"];
-    double leverage = info["buy_amount"] - info["sell_amount"];
+    double leverage = info["leverage"];
 
     if (isDone)  {
       auto netpnl = (rpnl + upnl) / balance;
@@ -168,10 +168,6 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
                          std::min(0.0, upnl - previous_upnl) / balance - 
                          (info["fees"] - previous_fees) + 
                          0.01 * (std::abs(previous_leverage) - std::abs(leverage));
-      
-      if (std::abs(leverage) >= 2 && std::abs(leverage) >= std::abs(previous_leverage)) {
-        state["reward"_] = -10 * std::abs(leverage);
-      } 
 
       previous_upnl = upnl;
       previous_rpnl = rpnl;
@@ -179,7 +175,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
       previous_leverage = leverage;
       
     } else {
-	state["reward"_] = 0;
+	    state["reward"_] = 0;
     }
 
     for(int ii=0; ii < data.size(); ++ii) {
