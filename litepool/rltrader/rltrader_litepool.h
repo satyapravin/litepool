@@ -53,8 +53,8 @@ class RlTraderEnvFns {
     std::vector<int> shape = {1};
     int spread_min = 0;
     int spread_max = 15;
-    int vol_min = 5;
-    int vol_max = 20;
+    int vol_min = 1;
+    int vol_max = 10;
     return MakeDict("action"_.Bind(Spec<int>({4}, {{spread_min, spread_min, vol_min, vol_min},
                                                       {spread_max, spread_max, vol_max, vol_max}})));
   }
@@ -123,7 +123,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
 
       adaptor_ptr->quote(buy_spread, sell_spread, buy_volume, sell_volume);
       auto info = adaptor_ptr->getInfo();
-      isDone = !adaptor_ptr->next() || info["leverage"] > 25;
+      isDone = !adaptor_ptr->next();
       ++steps;
       WriteState();
   }
@@ -151,36 +151,35 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     double upnl = info["unrealized_pnl"];
     double rpnl = info["realized_pnl"];
     double leverage = info["buy_amount"] - info["sell_amount"];
-    double init_balance = 0.02;
 
-    if (isDone || steps % 200 == 0)  {
-      auto netpnl = (rpnl + upnl) / init_balance;
+    if (isDone)  {
+      auto netpnl = (rpnl + upnl) / balance;
 
       if (netpnl > 0) {
-        state["reward"_] =  netpnl / std::abs(drawdown);
-      }
-      else {
-        state["reward"_] = netpnl + drawdown;
-      }
-
-      if (isDone) return;
-    }
-    else {
-      auto abs_leverage = std::abs(leverage);
-
-      if (std::signbit(leverage) == std::signbit(previous_leverage)) {
-          holding_period += 1;
+        state["reward"_] =  netpnl - std::abs(leverage) * 0.01;
       } else {
-          holding_period = 0;
+        state["reward"_] = netpnl + drawdown - std::abs(leverage) * 0.01;
       }
-      state["reward"_] = -0.001 * holding_period +
-                         std::signbit(holding_period) * (leverage - previous_leverage) +
-                         (rpnl - previous_rpnl) / init_balance +
-                         std::min(0.0, upnl - previous_upnl) / init_balance;
+
+
+      return;
+    } else if (steps % 30 == 0) {
+      state["reward"_] = (rpnl - previous_rpnl) / balance +
+                         std::min(0.0, upnl - previous_upnl) / balance - 
+                         (info["fees"] - previous_fees) + 
+                         0.01 * (std::abs(previous_leverage) - std::abs(leverage));
+      
+      if (std::abs(leverage) >= 2 && std::abs(leverage) >= std::abs(previous_leverage)) {
+        state["reward"_] = -10 * std::abs(leverage);
+      } 
+
       previous_upnl = upnl;
       previous_rpnl = rpnl;
       previous_fees = info["fees"];
       previous_leverage = leverage;
+      
+    } else {
+	state["reward"_] = 0;
     }
 
     for(int ii=0; ii < data.size(); ++ii) {

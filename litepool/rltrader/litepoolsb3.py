@@ -148,7 +148,7 @@ class VecAdapter(VecEnvWrapper):
                   self.sells = [] 
                   self.header = False
                   self.header = dones[i]
-              print("env_id ", i,  " steps ", self.steps, 'balance = ',infos[i]['balance'], "  unreal = ", infos[i]['unrealized_pnl'], 
+                  print("env_id ", i,  " steps ", self.steps, 'balance = ',infos[i]['balance'], "  unreal = ", infos[i]['unrealized_pnl'], 
                     " real = ", infos[i]['realized_pnl'], '    drawdown = ', infos[i]['drawdown'])
       self.steps += 1
       if (np.isnan(obs).any()):
@@ -167,7 +167,7 @@ env = litepool.make("RlTrader-v0", env_type="gymnasium",
 env.spec.id = 'RlTrader-v0'
 env = VecAdapter(env)
 env = VecMonitor(env)
-print(env.action_space)
+
 kwargs = dict(use_sde=True, sde_sample_freq=4)
 
 policy_kwargs = {
@@ -197,7 +197,7 @@ model = PPO(
   max_grad_norm=0.5,
   #target_kl=0.1,
   gae_lambda=0.95,
-  verbose=1,
+  verbose=2,
   seed=10,
   **kwargs
 )
@@ -210,7 +210,7 @@ model = SAC(
     learning_rate=3e-4,
     buffer_size=1000000,
     learning_starts=200,
-    batch_size=4096*8,
+    batch_size=4096,
     tau=0.005,
     gamma=0.99,
     train_freq=1,
@@ -218,7 +218,7 @@ model = SAC(
     ent_coef='auto',
     target_update_interval=1,
     target_entropy='auto',
-    verbose=1,
+    verbose=2,
     device=device,
 )
 
