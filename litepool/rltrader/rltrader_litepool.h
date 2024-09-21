@@ -167,7 +167,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
       state["reward"_] = (rpnl - previous_rpnl) / balance +
                          std::min(0.0, upnl - previous_upnl) / balance - 
                          (info["fees"] - previous_fees) + 
-                         0.01 * (std::abs(previous_leverage) - std::abs(leverage));
+                         0.1 * (std::abs(previous_leverage) - std::abs(leverage));
 
       previous_upnl = upnl;
       previous_rpnl = rpnl;
