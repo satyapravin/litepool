@@ -149,7 +149,8 @@ class VecAdapter(VecEnvWrapper):
                   self.header = False
                   self.header = dones[i]
                   print("env_id ", i,  " steps ", self.steps, 'balance = ',infos[i]['balance'], "  unreal = ", infos[i]['unrealized_pnl'], 
-                    " real = ", infos[i]['realized_pnl'], '    drawdown = ', infos[i]['drawdown'])
+                    " real = ", infos[i]['realized_pnl'], '    drawdown = ', infos[i]['drawdown'], '     fees = ', -infos[i]['fees'], 
+                    '    leverage = ', infos[i]['leverage'])
       self.steps += 1
       if (np.isnan(obs).any()):
           print("NaN in OBS...................")
@@ -159,10 +160,10 @@ import os
 if os.path.exists('temp.csv'):
     os.remove('temp.csv')
 env = litepool.make("RlTrader-v0", env_type="gymnasium", 
-                          num_envs=64, batch_size=64, 
-                          num_threads=64,
+                          num_envs=32, batch_size=32,
+                          num_threads=32,
                           filename="bitmex.csv", 
-                          balance=2000,
+                          balance=10000,
                           depth=20)
 env.spec.id = 'RlTrader-v0'
 env = VecAdapter(env)
@@ -177,7 +178,7 @@ policy_kwargs = {
         'output_size': 32
     },
     'activation_fn': th.nn.ReLU,
-    'net_arch': dict(pi=[64, 128, 32], vf=[64, 128, 32], qf=[64, 128, 32])
+    'net_arch': dict(pi=[32, 32], vf=[32, 32], qf=[32, 32])
 }
 
 import os
@@ -203,23 +204,30 @@ model = PPO(
 )
 '''
 
-model = SAC(
-    "MlpPolicy",
-    env,
-    policy_kwargs=policy_kwargs,
-    learning_rate=3e-4,
-    buffer_size=1000000,
-    learning_starts=200,
-    batch_size=4096,
-    tau=0.005,
-    gamma=0.99,
-    train_freq=1,
-    gradient_steps=1,
-    ent_coef='auto',
-    target_update_interval=1,
-    target_entropy='auto',
-    verbose=2,
-    device=device,
-)
+if os.path.exists("sac_rltrader.zip"):
+    model = SAC.load("sac_rltrader")
+    model.load_replay_buffer("replay_buffer.pkl")
+    model.set_env(env)
+    print("saved model loaded")
+else:
+    model = SAC(
+            "MlpPolicy",
+            env,
+            policy_kwargs=policy_kwargs,
+            learning_rate=1e-3,
+            buffer_size=10000000,
+            learning_starts=64,
+            batch_size=64,
+            tau=0.005,
+            gamma=0.999,
+            train_freq=64,
+            gradient_steps=32,
+            ent_coef='auto',
+            target_entropy='auto',
+            verbose=1,
+            device=device,
+            )
 
-model.learn(200000000)
+model.learn(70000*100*100)
+model.save("sac_rltrader")
+model.save_replay_buffer("replay_buffer.pkl")

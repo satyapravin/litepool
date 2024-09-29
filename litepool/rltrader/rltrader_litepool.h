@@ -52,11 +52,11 @@ class RlTraderEnvFns {
   static decltype(auto) ActionSpec(const Config& conf) {
     std::vector<int> shape = {1};
     int spread_min = 0;
-    int spread_max = 15;
+    int spread_max = 5;
     int vol_min = 1;
-    int vol_max = 10;
+    int vol_max = 5;
     return MakeDict("action"_.Bind(Spec<int>({4}, {{spread_min, spread_min, vol_min, vol_min},
-                                                      {spread_max, spread_max, vol_max, vol_max}})));
+                                                   {spread_max, spread_max, vol_max, vol_max}})));
   }
 };
 
@@ -70,11 +70,9 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   std::string filename;
   double balance = 0;
   long long steps = 0;
-  double previous_upnl = 0;
   double previous_rpnl = 0;
-  double holding_period = 0;
+  double previous_drawdown = 0;
   double previous_fees = 0;
-  double previous_leverage = 0;
   std::unique_ptr<Simulator::NormalInstrument> instr_ptr;
   std::unique_ptr<Simulator::Exchange> exchange_ptr;
   std::unique_ptr<Simulator::Strategy> strategy_ptr;
@@ -102,11 +100,9 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     std::mt19937 rng;
     std::random_device rd;
     steps = 0;
-    previous_upnl = 0;
     previous_rpnl = 0;
-    holding_period = 0;
+    previous_drawdown = 0;
     previous_fees = 0;
-    previous_leverage = 0;
     rng.seed(rd());
     std::uniform_int_distribution<int> dist(10, 72);
     adaptor_ptr->reset(dist(rng), 0, 0);
@@ -147,41 +143,23 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     state["info:fees"_] = static_cast<float>(info["fees"]);
     state["info:buy_amount"_] = static_cast<float>(info["buy_amount"]);
     state["info:sell_amount"_] = static_cast<float>(info["sell_amount"]);
+
+    double balance = info["balance"];
     double drawdown = info["drawdown"];
-    double upnl = info["unrealized_pnl"];
     double rpnl = info["realized_pnl"];
-    double leverage = info["leverage"];
-
-    if (isDone)  {
-      auto netpnl = (rpnl + upnl) / balance;
-
-      if (netpnl > 0) {
-        state["reward"_] =  netpnl - std::abs(leverage) * 0.01;
-      } else {
-        state["reward"_] = netpnl + drawdown - std::abs(leverage) * 0.01;
-      }
-
-
-      return;
-    } else if (steps % 30 == 0) {
-      state["reward"_] = (rpnl - previous_rpnl) / balance +
-                         std::min(0.0, upnl - previous_upnl) / balance - 
-                         (info["fees"] - previous_fees) + 
-                         0.1 * (std::abs(previous_leverage) - std::abs(leverage));
-
-      previous_upnl = upnl;
-      previous_rpnl = rpnl;
-      previous_fees = info["fees"];
-      previous_leverage = leverage;
-      
-    } else {
-	    state["reward"_] = 0;
-    }
+    double stepReward = 0.01 * (previous_fees - info["fees"]) / balance;
+    //stepReward += (rpnl - previous_rpnl) / balance;
+    stepReward += std::min(0.0, 1.0 - std::abs(info["leverage"]));
+    stepReward += info["unrealized_pnl"] / balance;
+    state["reward"_] = stepReward;
+    previous_rpnl = rpnl;
+    previous_drawdown = drawdown;
+    previous_fees = info["fees"];
+    if (isDone) return;
 
     for(int ii=0; ii < data.size(); ++ii) {
       state["obs"_](ii) = static_cast<float>(data[ii]);
     }
-    steps++;
   }
 
   bool IsDone() override { return isDone; }

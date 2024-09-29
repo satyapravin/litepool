@@ -25,9 +25,8 @@ namespace Simulator {
 		Position position;
 		int order_id;
 		int max_ticks;
-		void sendGrid(int start_level,
-			          const double& amount,
-                      const DataRow& obs,
+		void sendGrid(int levels, int start_level,
+			      const double& amount, const DataRow& obs,
 		              OrderSide side);
 	};
 }

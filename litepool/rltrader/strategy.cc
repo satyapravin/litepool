@@ -30,29 +30,41 @@ void Strategy::quote(int buy_spread, int sell_spread, int buy_percent, int sell_
 	exchange.cancelSells();
 	auto posInfo = position.getPositionInfo(obs.getBestBidPrice(), obs.getBestAskPrice());
 	auto leverage = posInfo.leverage;
-	buy_spread *= 1 + 10 * static_cast<int>(std::min(leverage, 0.0));
-	sell_spread *= 1 - 10 * static_cast<int>(std::max(leverage, 0.0));
-	double buy_volume = position.getInitialBalance() * buy_percent / 100.0;
-	double sell_volume = position.getInitialBalance() * sell_percent / 100.0;
-	this->sendGrid(buy_spread, buy_volume, obs, OrderSide::BUY);
-	this->sendGrid(sell_spread, sell_volume, obs, OrderSide::SELL);
+        auto inventoryPnL = posInfo.inventoryPnL;
+        auto initBalance = position.getInitialBalance();
+
+	double buy_volume = initBalance * buy_percent / 100.0;
+	double sell_volume = initBalance * sell_percent / 100.0;
+        int buy_levels = 10;
+        int sell_levels = 10;        
+
+        if (inventoryPnL >= 0.001 * initBalance) {
+            buy_spread = leverage < 0 ? 0 : buy_spread;
+            buy_volume = leverage < 0 ? std::abs(initBalance * leverage) : buy_volume;
+            buy_levels = leverage < 0 ? 1 : buy_levels;
+            sell_spread = leverage > 0 ? 0 : sell_spread;
+            sell_volume = leverage > 0 ? std::abs(initBalance * leverage) : sell_volume;
+            sell_levels = leverage > 0 ? 1 : sell_levels;
+        }
+
+	this->sendGrid(buy_levels, buy_spread, buy_volume, obs, OrderSide::BUY);
+	this->sendGrid(sell_levels, sell_spread, sell_volume, obs, OrderSide::SELL);
 }
 
-void Strategy::sendGrid(int start_level, const double& amount, const DataRow& obs, OrderSide side) {
+void Strategy::sendGrid(int levels, int start_level, const double& amount, const DataRow& obs, OrderSide side) {
 	std::string sideStr = side == OrderSide::BUY ? "bids[" : "asks[";
 	auto refPrice = side == OrderSide::SELL ? obs.getBestAskPrice() : obs.getBestBidPrice();
 	auto trade_amount = instrument.getTradeAmount(amount, refPrice);
 
-	for (int ii = 0; ii < 5; ++ii) {
-		if (trade_amount >= instrument.getMinAmount()) {
-			auto level = ii + start_level;
-			std::string key = sideStr + std::to_string(level) + "].price";
-			if (obs.data.find(key) != obs.data.end()) {
-				double price = obs.data.at(key);
-				this->exchange.quote(++order_id, side, price, trade_amount);
-			}
-		}
-	}
+        for (int ii = 0; ii < levels; ++ii) {
+             if (trade_amount >= instrument.getMinAmount()) {
+	          std::string key = sideStr + std::to_string(start_level + ii) + "].price";
+	          if (obs.data.find(key) != obs.data.end()) {
+	                double price = obs.data.at(key);
+	                this->exchange.quote(++order_id, side, price, trade_amount);
+                  }
+             }
+        }
 }
 
 bool Strategy::next() {
