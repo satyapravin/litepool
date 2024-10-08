@@ -14,7 +14,7 @@ It allows users to create their own environments in C++ for use with popular RL 
 
 Starting capital: 2000$, Max leverage: 5, Period: 10 hours
 
-Strategy: Uses an LSTM and Soft Actor Critic to train agent to quote bid ask spreads with a fixed amount of 1% of starting capital.
+Strategy: Uses an LSTM and Soft Actor Critic to train agent to quote bid ask spreads with a fixed amount of 1% of starting capital once every second.
 
 Data: 1st Sept 24, Bitmex, XBTUSDT contract
 
