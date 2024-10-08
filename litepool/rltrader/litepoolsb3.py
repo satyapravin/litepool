@@ -24,9 +24,19 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+from stable_baselines3.sac.policies import SACPolicy
+from typing import Optional, Type
 from gymnasium import spaces
 
 device = torch.device("cuda")
+
+
+
+class CustomSACPolicy(SACPolicy):
+    def __init__(self, observation_space, action_space, lr_schedule, features_extractor: Optional[BaseFeaturesExtractor] = None, **kwargs):
+        # Pass the features extractor via kwargs to the parent class
+        super().__init__(observation_space, action_space, lr_schedule, **kwargs)
+
 
 class LSTMFeatureExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space: spaces.Box, lstm_hidden_size: int = 16, output_size: int = 32):
@@ -49,7 +59,15 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
             nn.ReLU(),
             nn.Linear(32, output_size)
         )
+   
+    def reset(self):
+        self.hidden = None
 
+    def reset_hidden_state_for_env(self, env_idx: int):
+        if self.hidden is not None:
+            self.hidden[0][:, env_idx, :] = 0  # Reset hidden state (h_0) for environment `env_idx`
+            self.hidden[1][:, env_idx, :] = 0  # Reset cell state (c_0) for environment `env_idx` 
+    
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
         # Split the observations into two parts
         lstm_input = observations[:, :38]
@@ -73,10 +91,12 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
         combined_output = torch.cat((lstm_hidden_state, final_output, remaining_input), dim=1)
         return combined_output 
 
+
 class VecAdapter(VecEnvWrapper):
-  def __init__(self, venv: LitePool):
+  def __init__(self, venv: LitePool, featureExtractor):
     venv.num_envs = venv.spec.config.num_envs
     super().__init__(venv=venv)
+    self.featureExtractor = featureExtractor
     self.mid_prices = []
     self.balances = []
     self.leverages = []
@@ -94,6 +114,7 @@ class VecAdapter(VecEnvWrapper):
 
   def reset(self) -> VecEnvObs:
       self.steps = 0
+      self.featureExtractor.reset()
       return self.venv.reset()[0]
 
   def seed(self, seed: Optional[int] = None) -> None:
@@ -124,8 +145,9 @@ class VecAdapter(VecEnvWrapper):
           if dones[i]:
               infos[i]["terminal_observation"] = obs[i]
               obs[i] = self.venv.reset(np.array([i]))[0]
+              self.featureExtractor.reset_hidden_state_for_env(i)
 
-          if self.steps % 1000 == 0 or dones[i]:
+          if self.steps % 500 == 0 or dones[i]:
               if infos[i]["env_id"] == 0:
                   d = {"mid": self.mid_prices, "balance": self.balances, "upnl" : self.upnl, 
                        "leverage": self.leverages, "trades": self.trades, "fees": self.fees,
@@ -162,47 +184,28 @@ if os.path.exists('temp.csv'):
 env = litepool.make("RlTrader-v0", env_type="gymnasium", 
                           num_envs=32, batch_size=32,
                           num_threads=32,
-                          filename="bitmex.csv", 
-                          balance=10000,
+                          filename="oos.csv", 
+                          balance=20000,
+                          start=600000,
+                          max=30001,
                           depth=20)
 env.spec.id = 'RlTrader-v0'
-env = VecAdapter(env)
+
+feature_extractor = LSTMFeatureExtractor(env.observation_space, lstm_hidden_size=64, output_size=32)
+
+env = VecAdapter(env, feature_extractor)
 env = VecMonitor(env)
 
 kwargs = dict(use_sde=True, sde_sample_freq=4)
 
 policy_kwargs = {
-    'features_extractor_class': LSTMFeatureExtractor,
-    'features_extractor_kwargs': {
-        'lstm_hidden_size': 64,
-        'output_size': 32
-    },
+    'features_extractor': feature_extractor,
     'activation_fn': th.nn.ReLU,
-    'net_arch': dict(pi=[32, 32], vf=[32, 32], qf=[32, 32])
+    'net_arch': dict(pi=[64, 64], vf=[64, 64], qf=[64, 64])
 }
 
 import os
 
-'''
-model = PPO(
-  "MlpPolicy", 
-  env,
-  policy_kwargs=policy_kwargs,
-  learning_rate=1e-4,
-  n_steps=1024, 
-  batch_size=64,
-  gamma=0.99,
-  clip_range=0.1,
-  ent_coef=0.02,
-  vf_coef=0.5,
-  max_grad_norm=0.5,
-  #target_kl=0.1,
-  gae_lambda=0.95,
-  verbose=2,
-  seed=10,
-  **kwargs
-)
-'''
 
 if os.path.exists("sac_rltrader.zip"):
     model = SAC.load("sac_rltrader")
@@ -211,15 +214,15 @@ if os.path.exists("sac_rltrader.zip"):
     print("saved model loaded")
 else:
     model = SAC(
-            "MlpPolicy",
+            CustomSACPolicy,
             env,
             policy_kwargs=policy_kwargs,
-            learning_rate=1e-3,
+            learning_rate=3e-4,
             buffer_size=10000000,
             learning_starts=64,
             batch_size=64,
             tau=0.005,
-            gamma=0.999,
+            gamma=0.99,
             train_freq=64,
             gradient_steps=32,
             ent_coef='auto',
@@ -228,6 +231,6 @@ else:
             device=device,
             )
 
-model.learn(70000*100*100)
+model.learn(700000 * 250)
 model.save("sac_rltrader")
 model.save_replay_buffer("replay_buffer.pkl")

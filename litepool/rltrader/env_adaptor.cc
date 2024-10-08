@@ -32,7 +32,7 @@ void EnvAdaptor::quote(int buy_spread, int sell_spred, int buy_percent, int sell
     this->strategy.quote(buy_spread, sell_spred, buy_percent, sell_percent);
 }
 
-void EnvAdaptor::reset(int time_index, const double& positionAmount, const double& averagePrice) {
+void EnvAdaptor::reset(const double& positionAmount, const double& averagePrice) {
     max_realized_pnl = 0;
     max_unrealized_pnl = 0;
     drawdown = 0;
@@ -42,7 +42,7 @@ void EnvAdaptor::reset(int time_index, const double& positionAmount, const doubl
     position_builder = std::move(position_ptr);
     auto trade_ptr = std::make_unique<TradeSignalBuilder>();
     trade_builder = std::move(trade_ptr);
-    this->strategy.reset(time_index, positionAmount, averagePrice);
+    this->strategy.reset(positionAmount, averagePrice);
     this->next();
 }
 

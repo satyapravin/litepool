@@ -9,12 +9,12 @@ namespace Simulator {
     class Exchange {
     public:
         // Constructor
-        Exchange(const std::string& filename, long delay); // 300 milliseconds delay
+        Exchange(const std::string& filename, long delay, int start_read, int max_read); // 300 milliseconds delay
 
         void setDelay(long delay); // override delay
 
         // Resets the exchange's state
-        void reset(int start_pos);
+        void reset();
 
         // Advances to the next row in the data
         bool next();

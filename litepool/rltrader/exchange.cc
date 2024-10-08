@@ -4,20 +4,20 @@
 
 using namespace Simulator;
 
-Exchange::Exchange(const std::string& filename, long delay) :dataReader(filename), delay(delay) {
+Exchange::Exchange(const std::string& filename, long delay, int start_read, int max_read) :dataReader(filename, start_read, max_read), delay(delay) {
 	bid_quotes.clear();
 	ask_quotes.clear();
 	executions.clear();
 	timed_buffer.clear();
-	dataReader.reset(0);
+	dataReader.reset();
 }
 
 void Exchange::setDelay(long delay) {
 	this->delay = delay;
 }
 
-void Exchange::reset(int startPos) {
-	this->dataReader.reset(startPos);
+void Exchange::reset() {
+	this->dataReader.reset();
 	this->executions.clear();
 	this->bid_quotes.clear();
 	this->ask_quotes.clear();
@@ -26,7 +26,7 @@ void Exchange::reset(int startPos) {
 
 bool Exchange::next() {
 
-	for(int ii =0; ii < 5; ++ii) {
+	for(int ii =0; ii < 10; ++ii) {
 		if (this->dataReader.hasNext()) {
 			this->dataReader.next();
 			this->execute();

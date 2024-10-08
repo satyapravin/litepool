@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
     std::string filename = argv[1];
     std::string output = argv[2];
     std::ofstream ofile(output);
-    Simulator::CsvReader reader(filename);
+    Simulator::CsvReader reader(filename, 1, 36000);
     MarketSignalBuilder builder(5);
     bool header = false;
 

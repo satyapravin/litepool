@@ -28,7 +28,7 @@ namespace rltrader {
 class RlTraderEnvFns {
  public:
   static decltype(auto) DefaultConfig() {
-    return MakeDict("filename"_.Bind(std::string("")), "balance"_.Bind(1.0), "depth"_.Bind<int>(5));
+    return MakeDict("filename"_.Bind(std::string("")), "balance"_.Bind(1.0), "depth"_.Bind<int>(5), "start"_.Bind<int>(0), "max"_.Bind<int>(72000));
   }
 
   template <typename Config>
@@ -54,7 +54,7 @@ class RlTraderEnvFns {
     int spread_min = 0;
     int spread_max = 5;
     int vol_min = 1;
-    int vol_max = 5;
+    int vol_max = 10;
     return MakeDict("action"_.Bind(Spec<int>({4}, {{spread_min, spread_min, vol_min, vol_min},
                                                    {spread_max, spread_max, vol_max, vol_max}})));
   }
@@ -69,10 +69,12 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   bool isDone = true;
   std::string filename;
   double balance = 0;
+  int start_read = 0;
+  int max_read = 0;
   long long steps = 0;
   double previous_rpnl = 0;
-  double previous_drawdown = 0;
   double previous_fees = 0;
+  double previous_leverage = 0;
   std::unique_ptr<Simulator::NormalInstrument> instr_ptr;
   std::unique_ptr<Simulator::Exchange> exchange_ptr;
   std::unique_ptr<Simulator::Strategy> strategy_ptr;
@@ -81,31 +83,23 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
  public:
   RlTraderEnv(const Spec& spec, int env_id) : Env<RlTraderEnvSpec>(spec, env_id),
                                               filename(spec.config["filename"_]),
-                                              balance(spec.config["balance"_])
+                                              balance(spec.config["balance"_]),
+                                              start_read(spec.config["start"_]),
+                                              max_read(spec.config["max"_])
   {
-    seed_ = env_id + 1;
-    if (seed_ < 1) {
-      seed_ = 1;Simulator::CsvReader reader(filename);
-
-    }
-
     instr_ptr = std::make_unique<Simulator::NormalInstrument>("BTCUSDT", 0.1,
-                                                                0.0001, -0.0001, 0.0075);
-    exchange_ptr = std::make_unique<Simulator::Exchange>(filename, 250);
+                                                                0.0001, -0.0001, 0.00075);
+    exchange_ptr = std::make_unique<Simulator::Exchange>(filename, 250, start_read, max_read);
     strategy_ptr = std::make_unique<Simulator::Strategy>(*instr_ptr, *exchange_ptr, balance, 0, 0, 20);
     adaptor_ptr = std::make_unique<Simulator::EnvAdaptor>(*strategy_ptr, *exchange_ptr, spec.config["depth"_]);
   }
 
   void Reset() override {
-    std::mt19937 rng;
-    std::random_device rd;
     steps = 0;
     previous_rpnl = 0;
-    previous_drawdown = 0;
     previous_fees = 0;
-    rng.seed(rd());
-    std::uniform_int_distribution<int> dist(10, 72);
-    adaptor_ptr->reset(dist(rng), 0, 0);
+    previous_leverage = 0;
+    adaptor_ptr->reset(0, 0);
     timestamp = adaptor_ptr->getTime();
     isDone = false;
     WriteState();
@@ -144,18 +138,30 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     state["info:buy_amount"_] = static_cast<float>(info["buy_amount"]);
     state["info:sell_amount"_] = static_cast<float>(info["sell_amount"]);
 
-    double balance = info["balance"];
-    double drawdown = info["drawdown"];
-    double rpnl = info["realized_pnl"];
-    double stepReward = 0.01 * (previous_fees - info["fees"]) / balance;
-    //stepReward += (rpnl - previous_rpnl) / balance;
-    stepReward += std::min(0.0, 1.0 - std::abs(info["leverage"]));
-    stepReward += info["unrealized_pnl"] / balance;
-    state["reward"_] = stepReward;
-    previous_rpnl = rpnl;
-    previous_drawdown = drawdown;
-    previous_fees = info["fees"];
-    if (isDone) return;
+    if (steps % 20 == 0 || isDone) {
+        double rpnl = info["realized_pnl"];
+        state["reward"_] = (rpnl - previous_rpnl) + 0.1 * info["unrealized_pnl"];
+        state["reward"_] += 0.1 * (previous_fees - info["fees"]);
+        previous_fees = info["fees"];
+        previous_rpnl = rpnl;
+        if (isDone) {
+            return;
+        }
+    } else if (steps % 61 == 0) {
+        double leverage = info["leverage"];
+
+        if (leverage > 0 && previous_leverage > 0) {
+            state["reward"_] = (leverage - previous_leverage);
+        } else if (leverage < 0 && previous_leverage < 0) {
+            state["reward"_] = (leverage - previous_leverage);
+        } else {
+            state["reward"_] = 0;
+        }
+
+        previous_leverage = leverage;
+    } else {
+        state["reward"_] = 0.0;
+    }
 
     for(int ii=0; ii < data.size(); ++ii) {
       state["obs"_](ii) = static_cast<float>(data[ii]);

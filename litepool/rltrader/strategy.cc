@@ -18,8 +18,8 @@ Strategy::Strategy(BaseInstrument& instr, Exchange& exch, const double& balance,
 	assert(max_ticks >= 5);
 }
 
-void Strategy::reset(int time_index, const double& position_amount, const double& avg_price) {
-	this->exchange.reset(time_index);
+void Strategy::reset(const double& position_amount, const double& avg_price) {
+	this->exchange.reset();
 	this->position.reset(position_amount, avg_price);
 	this->order_id = 0;
 }
@@ -33,18 +33,26 @@ void Strategy::quote(int buy_spread, int sell_spread, int buy_percent, int sell_
         auto inventoryPnL = posInfo.inventoryPnL;
         auto initBalance = position.getInitialBalance();
 
-	double buy_volume = initBalance * buy_percent / 100.0;
-	double sell_volume = initBalance * sell_percent / 100.0;
-        int buy_levels = 10;
-        int sell_levels = 10;        
+	double buy_volume = initBalance * buy_percent / 500.0;
+	double sell_volume = initBalance * sell_percent / 500.0;
+        int buy_levels = 5;
+        int sell_levels = 5;        
 
-        if (inventoryPnL >= 0.001 * initBalance) {
+        if (inventoryPnL >= 0.0025 * initBalance) {
             buy_spread = leverage < 0 ? 0 : buy_spread;
             buy_volume = leverage < 0 ? std::abs(initBalance * leverage) : buy_volume;
             buy_levels = leverage < 0 ? 1 : buy_levels;
             sell_spread = leverage > 0 ? 0 : sell_spread;
             sell_volume = leverage > 0 ? std::abs(initBalance * leverage) : sell_volume;
             sell_levels = leverage > 0 ? 1 : sell_levels;
+        } else {
+            if (leverage > 0.15) {
+                buy_spread += 2;
+                buy_spread *= 1 + static_cast<int>(4 * leverage);
+            } else if (leverage < -0.15) {
+                sell_spread += 2;
+                sell_spread *= 1 + static_cast<int>(-4 * leverage);
+            }
         }
 
 	this->sendGrid(buy_levels, buy_spread, buy_volume, obs, OrderSide::BUY);

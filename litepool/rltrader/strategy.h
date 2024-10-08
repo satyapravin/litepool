@@ -11,7 +11,7 @@ namespace Simulator {
 			const double& pos_amount, const double& avg_price,
 			int maxTicks);
 			
-		void reset(int time_index, const double& position_amount, const double& avg_price);
+		void reset(const double& position_amount, const double& avg_price);
 
 		void quote(int buy_spread, int sell_spred, int buy_percent, int sell_percent);
 

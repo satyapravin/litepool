@@ -143,11 +143,11 @@ TEST_CASE("Testing TemporalBuffer with custom class TestData") {
 }
 
 TEST_CASE("env adaptor test") {
-	Exchange exch("data.csv", 5);
+	Exchange exch("data.csv", 5, 0, 100);
 	InverseInstrument instr("BTC", 0.5, 10.0, 0, 0.0005);
 	Strategy strategy(instr, exch, 1, 0, 0, 5);
 	EnvAdaptor adaptor = EnvAdaptor(strategy, exch, 5);
-	adaptor.reset(0, 0, 0);
+	adaptor.reset(0, 0);
 
 	int counter = 0;
 	auto state = adaptor.getState();
@@ -258,8 +258,8 @@ TEST_CASE("testing the normal_instrument") {
 }
 
 TEST_CASE("testing the csv reader") {
-	CsvReader reader("data.csv");
-	reader.reset(1);
+	CsvReader reader("data.csv", 0, 1000);
+	reader.reset();
 	int counter = 0;
 	while(reader.hasNext()) {
 		auto& next = reader.next();
@@ -268,12 +268,12 @@ TEST_CASE("testing the csv reader") {
 		counter++;
 	}
 
-	Exchange exch("data.csv", 300);
-	exch.reset(0);
+	Exchange exch("data.csv", 300, 0, 100);
+	exch.reset();
 	counter = 0;
 	while(exch.next())
 		++counter;
-	exch.reset(0);
+	exch.reset();
 	while(exch.next())
 		++counter;
 }
@@ -621,7 +621,7 @@ TEST_CASE("testing the inverse position") {
 }
 
 TEST_CASE("testing exchange") {
-	Exchange exch("data.csv", 5); // 10 microsecond delay is not practical in reality
+	Exchange exch("data.csv", 5, 0, 100); // 10 microsecond delay is not practical in reality
 	exch.next();
 	const auto& row = exch.getObs();
 	CHECK(row.id == 1714348800832252);
@@ -632,13 +632,13 @@ TEST_CASE("testing exchange") {
 		CHECK(exch.next());
 
 	CHECK(exch.next());
-	exch.reset(1);
+	exch.reset();
 	exch.next();
 	auto next = exch.getObs();
 	CHECK(next.id == 1714348800832252);
 	CHECK(next.data.at("bids[0].price") == Approx(63100));
 	CHECK(next.data.at("bids[1].price") == Approx(63099.5));
-	exch.reset(0);
+	exch.reset();
 	exch.quote(1, OrderSide::SELL, 42302, 100);
 	exch.quote(2, OrderSide::SELL, 42305, 500);
 	exch.quote(3, OrderSide::BUY, 40000, 300);
@@ -655,7 +655,7 @@ TEST_CASE("testing exchange") {
 }
 
 TEST_CASE("test of inverse strategy") {
-	Exchange exch("data.csv", 5);
+	Exchange exch("data.csv", 5, 0, 1000);
 	exch.next();
 	InverseInstrument instr("BTC", 0.5, 10.0, 0, 0.0005);
 	Strategy strategy(instr, exch, 0.015, 0, 0, 5);
@@ -668,7 +668,7 @@ TEST_CASE("test of inverse strategy") {
 }
 
 TEST_CASE("test of normal strategy") {
-	Exchange exch("data.csv", 5);
+	Exchange exch("data.csv", 5, 0, 1000);
 	exch.next();
 	NormalInstrument instr("BTCUSDT", 0.1, .0001, -0.0001, 0.0075);
 	Strategy strategy(instr, exch, 2000, 0, 0, 5);

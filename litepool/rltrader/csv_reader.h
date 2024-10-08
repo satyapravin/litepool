@@ -64,8 +64,8 @@ namespace Simulator {
                 return (*rowsPtr)[current];
             }
 
-            void reset(int counter) {
-                this->current = counter;
+            void reset() {
+                this->current = 0;
             }
         };
 
@@ -75,16 +75,18 @@ namespace Simulator {
         std::vector<std::string> headers;
         std::vector<DataRow> rows;
         static std::vector<double> parseLineToDoubles(const std::string& line);
-        void readCSV();
+        void readCSV(int start_line);
         bool more_data;
-
+        int start_read;
+        int max_read;
+        int num_reads;
     public:
-        CsvReader(const std::string& filename);
+        CsvReader(const std::string& filename, int start_read, int max_read);
         bool hasNext();
         const DataRow& next();
         const DataRow& current() const;
         long long getTimeStamp() const;
         double getDouble(const std::string& keyname) const;
-        void reset(int counter);
+        void reset();
     };
 }

@@ -1,11 +1,13 @@
 #include <sstream>
+#include <random>
 #include "csv_reader.h"
-
 
 using namespace Simulator;
 
-CsvReader::CsvReader(const std::string& fname):filestream(fname), filename(fname), more_data(true) {
-    this->readCSV();
+CsvReader::CsvReader(const std::string& fname, int start_read_lines, int max_read_lines):filestream(fname), filename(fname),
+                                                                                         more_data(true), start_read(start_read_lines),
+                                                                                         max_read(max_read_lines), num_reads(0) {
+    this->readCSV(0);
     this->iterator.populate(&rows);
 }
 
@@ -13,7 +15,7 @@ bool CsvReader::hasNext() {
     bool retval = this->iterator.hasNext();
     if (!retval) {
         if (more_data) {
-            this->readCSV();
+            this->readCSV(0);
             this->iterator.populate(&rows);
             return this->iterator.hasNext();
         }
@@ -41,12 +43,17 @@ double CsvReader::getDouble(const std::string& keyName) const {
     return this->iterator.getDouble(keyName);
 }
 
-void CsvReader::reset(int counter) {
+void CsvReader::reset() {
+    num_reads = 0;
     this->headers.clear();
-    this->iterator.reset(0);
+    this->iterator.reset();
     this->filestream.open(filename);
     more_data = true;
-    this->readCSV();
+    std::random_device rd;  
+    std::mt19937 gen(rd()); 
+    std::uniform_int_distribution<> distr(0, start_read);
+    int start_line = distr(gen);
+    this->readCSV(start_line);
     this->iterator.populate(&rows);
 }
 
@@ -63,7 +70,7 @@ std::vector<double> CsvReader::parseLineToDoubles(const std::string& line) {
 }
 
 
-void CsvReader::readCSV() {
+void CsvReader::readCSV(int start_line) {
     if (!filestream.is_open()) {
         throw std::runtime_error("Could not open file");
     }
@@ -80,11 +87,16 @@ void CsvReader::readCSV() {
         while (std::getline(headerStream, header, ',')) {
             headers.push_back(header);
         }
+
+        for(int linenum=0; linenum < start_line; ++linenum) {
+            std::getline(filestream, line); 
+        }
     }
 
     int num_lines = 0;
     rows.clear();
     while (std::getline(filestream, line)) {
+        ++num_reads;
         std::istringstream lineStream(line);
         std::string cell;
         std::getline(lineStream, cell, ','); // Read the ID
@@ -98,8 +110,12 @@ void CsvReader::readCSV() {
 
         DataRow row(id, data);
         this->rows.push_back(row);
-        if (++num_lines >= 400) {
+        if (++num_lines >= 2500) {
             batch_read = true;
+            break;
+        }
+
+        if (num_reads > max_read) {
             break;
         }
     }
