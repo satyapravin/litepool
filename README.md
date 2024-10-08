@@ -12,6 +12,8 @@ It allows users to create their own environments in C++ for use with popular RL 
 
 ## PRELIMINARY RESULTS
 
+Starting capital: 2000$, Max leverage: 5, Period: 10 hours
+
 ### P/L Strategy (Red) vs BTC (Blue)
 ![image](https://github.com/user-attachments/assets/ce2cffb0-723c-49b5-8130-1627c27332b0)
 
