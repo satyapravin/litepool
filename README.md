@@ -21,7 +21,7 @@ Data: 1st Sept 24, Bitmex, XBTUSDT contract
 Assumption: 1bps rebate maker fee
 
 
-### P/L Strategy (Red) vs BTC (Blue)
+### P/L without fees: Strategy (Red) vs BTC (Blue)
 ![image](https://github.com/user-attachments/assets/ce2cffb0-723c-49b5-8130-1627c27332b0)
 
 
