@@ -14,7 +14,7 @@ public:
     bool next();
     std::unordered_map<std::string, double> getInfo();
     std::vector<double> getState();
-    long long getTime();
+    [[nodiscard]] long long getTime() const;
 private:
     int market_depth;
     void computeState();

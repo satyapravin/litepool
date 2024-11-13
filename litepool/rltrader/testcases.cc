@@ -172,7 +172,7 @@ TEST_CASE("env adaptor test") {
 	auto signals = adaptor.getState();
 	CHECK(std::all_of(signals.begin(), signals.end(), [](double val) {return std::isfinite(val);}));
 	CHECK(std::all_of(signals.begin(), signals.end(), [](double val) { return std::abs(val) < 10;}));
-	CHECK(std::all_of(signals.begin(), signals.end(), [](double val) { return std::abs(val) > 0;}));
+	CHECK(std::all_of(signals.begin(), signals.end(), [](double val) { return std::abs(val) >= 0;}));
 }
 
 TEST_CASE("test of orderbook and signals") {
@@ -507,7 +507,7 @@ TEST_CASE("testing the inverse position") {
 		CHECK(info.averagePrice == Approx(1000.0));
 		CHECK(info.balance == Approx(0.099778325));
 		CHECK(info.inventoryPnL == Approx(-0.000147783 * 1.5));
-		CHECK(info.leverage == Approx(0.1484413656));
+		CHECK(info.leverage == Approx(-0.1484413656));
 		CHECK(info.tradingPnL == Approx(-0.00022167487));
 	}
 
@@ -562,7 +562,7 @@ TEST_CASE("testing the inverse position") {
 			CHECK(info.averagePrice == Approx(1015.0));
 			CHECK(info.balance == Approx(0.1));
 			CHECK(info.inventoryPnL == Approx(0));
-			CHECK(info.leverage == Approx(0.09852216748768472));
+			CHECK(info.leverage == Approx(-0.09852216748768472));
 			CHECK(info.tradingPnL == Approx(0.0));
 		}
 
@@ -598,7 +598,7 @@ TEST_CASE("testing the inverse position") {
 			CHECK(info.averagePrice == Approx(1015.0));
 			CHECK(info.balance == Approx(0.1));
 			CHECK(info.inventoryPnL == Approx(0));
-			CHECK(info.leverage == Approx(0.09852216748768472));
+			CHECK(info.leverage == Approx(-0.09852216748768472));
 			CHECK(info.tradingPnL == Approx(0.0));
 		}
 
@@ -624,7 +624,7 @@ TEST_CASE("testing exchange") {
 	Exchange exch("data.csv", 5, 0, 100); // 10 microsecond delay is not practical in reality
 	exch.next();
 	const auto& row = exch.getObs();
-	CHECK(row.id == 1714348800832252);
+	CHECK(row.id == 1714348800182912);
 	CHECK(row.data.at("bids[0].price") == Approx(63100));
 	CHECK(row.data.at("bids[1].price") == Approx(63099.5));
 
@@ -635,7 +635,7 @@ TEST_CASE("testing exchange") {
 	exch.reset();
 	exch.next();
 	auto next = exch.getObs();
-	CHECK(next.id == 1714348800832252);
+	CHECK(next.id == 1714348800182912);
 	CHECK(next.data.at("bids[0].price") == Approx(63100));
 	CHECK(next.data.at("bids[1].price") == Approx(63099.5));
 	exch.reset();

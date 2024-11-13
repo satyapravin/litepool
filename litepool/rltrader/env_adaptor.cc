@@ -56,7 +56,7 @@ void EnvAdaptor::reset(const double& positionAmount, const double& averagePrice)
     this->next();
 }
 
-long long EnvAdaptor::getTime() {
+long long EnvAdaptor::getTime() const {
     return exchange.getTimestamp();
 }
 
