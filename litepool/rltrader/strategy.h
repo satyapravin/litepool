@@ -13,11 +13,11 @@ namespace Simulator {
 			
 		void reset(const double& position_amount, const double& avg_price);
 
-		void quote(int buy_spread, int sell_spred, int buy_percent, int sell_percent);
+		void quote(int buy_spread, int sell_spread, int buy_percent, int sell_percent, int buy_level, int sell_level);
 
 		Position& getPosition() { return position; }
 
-		bool next();
+		void next();
 
 	private:
 		BaseInstrument& instrument;

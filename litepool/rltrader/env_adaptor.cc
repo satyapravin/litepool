@@ -14,22 +14,32 @@ EnvAdaptor::EnvAdaptor(Strategy& strat, Exchange& exch, int depth)
 }
 
 bool EnvAdaptor::next() {
-    if(this->strategy.next()) {
-        state = computeState();
-        return true;
-    }
+    market_state.clear();
+    position_state.clear();
+    trade_state.clear();
 
-    return false;
+    for (int ii=0; ii < 10; ++ii) {
+        if(this->exchange.next()) {
+            this->strategy.next();
+            if (ii % 3 == 0) computeState();
+        } else {
+            return false;
+        }
+    }
+    
+    state.clear();
+    state.insert(state.end(), market_state.begin(), market_state.end());
+    state.insert(state.end(), position_state.begin(), position_state.end());
+    state.insert(state.end(), trade_state.begin(), trade_state.end());
+    return true;
 }
 
 std::vector<double> EnvAdaptor::getState() {
-    auto retval =  std::move(this->state);
-    this->state.clear();
-    return retval;
+    return state;
 }
 
-void EnvAdaptor::quote(int buy_spread, int sell_spred, int buy_percent, int sell_percent) {
-    this->strategy.quote(buy_spread, sell_spred, buy_percent, sell_percent);
+void EnvAdaptor::quote(int buy_spread, int sell_spread, int buy_percent, int sell_percent, int buy_level, int sell_level) {
+    this->strategy.quote(buy_spread, sell_spread, buy_percent, sell_percent, buy_level, sell_level);
 }
 
 void EnvAdaptor::reset(const double& positionAmount, const double& averagePrice) {
@@ -76,7 +86,7 @@ std::unordered_map<std::string, double> EnvAdaptor::getInfo() {
     return retval;
 }
 
-std::vector<double> EnvAdaptor::computeState()
+void EnvAdaptor::computeState()
 {
     auto obs = this->exchange.getObs();
     auto bid_price = obs.getBestBidPrice();
@@ -89,10 +99,7 @@ std::vector<double> EnvAdaptor::computeState()
     auto position_signals = position_builder->add_info(position_info, bid_price, ask_price);
     TradeInfo trade_info = strategy.getPosition().getTradeInfo();
     auto trade_signals = trade_builder->add_trade(trade_info, bid_price, ask_price);
-    std::vector<double> retval;
-    retval.reserve(market_signals.size() + position_signals.size() + trade_signals.size());
-    retval.insert(retval.end(), market_signals.begin(), market_signals.end());
-    retval.insert(retval.end(), position_signals.begin(), position_signals.end());
-    retval.insert(retval.end(), trade_signals.begin(), trade_signals.end());
-    return retval;
+    market_state.insert(market_state.end(), market_signals.begin(), market_signals.end());
+    position_state.insert(position_state.end(), position_signals.begin(), position_signals.end());
+    trade_state.insert(trade_state.end(), trade_signals.begin(), trade_signals.end());
 }

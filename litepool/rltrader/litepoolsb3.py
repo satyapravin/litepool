@@ -10,7 +10,7 @@ from stable_baselines3 import SAC, PPO
 from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.evaluation import evaluate_policy
-from stable_baselines3.common.vec_env import VecEnvWrapper, VecMonitor
+from stable_baselines3.common.vec_env import VecEnvWrapper, VecMonitor, VecNormalize
 from stable_baselines3.common.vec_env.base_vec_env import (
   VecEnvObs,
   VecEnvStepReturn,
@@ -31,7 +31,6 @@ from gymnasium import spaces
 device = torch.device("cuda")
 
 
-
 class CustomSACPolicy(SACPolicy):
     def __init__(self, observation_space, action_space, lr_schedule, features_extractor: Optional[BaseFeaturesExtractor] = None, **kwargs):
         # Pass the features extractor via kwargs to the parent class
@@ -44,21 +43,24 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
         super(LSTMFeatureExtractor, self).__init__(observation_space, features_dim=output_size+lstm_hidden_size+24)
         
         self.lstm_hidden_size = lstm_hidden_size
-        self.n_input_channels = 38
-        self.remaining_input_size = 24 
+        self.n_input_channels = 62*4 
+        self.remaining_input_size = 24*4 
         self.output_size = output_size
         
-        self.lstm = nn.LSTM(self.n_input_channels, lstm_hidden_size, batch_first=True)
+        self.lstm = nn.LSTM(self.n_input_channels, lstm_hidden_size, batch_first=True).to(device)
         
         # This will hold the hidden state and cell state of the LSTM
         self.hidden = None
 
         # Define a sequential layer to process the concatenated output
         self.fc = nn.Sequential(
-            nn.Linear(self.remaining_input_size, 32),
+            nn.Linear(self.remaining_input_size, 128),
             nn.ReLU(),
-            nn.Linear(32, output_size)
-        )
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, output_size),
+            nn.ReLU()
+        ).to(device)
    
     def reset(self):
         self.hidden = None
@@ -70,8 +72,8 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
     
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
         # Split the observations into two parts
-        lstm_input = observations[:, :38]
-        remaining_input = observations[:, 38:]
+        lstm_input = observations
+        remaining_input = observations[:, 38*4:]
 
         # Initialize hidden state and cell state with zeros if they are not already set
         if self.hidden is None or lstm_input.shape[0] != self.hidden[0].shape[1]:
@@ -123,6 +125,15 @@ class VecAdapter(VecEnvWrapper):
 
   def step_wait(self) -> VecEnvStepReturn:
       obs, rewards, terms, truncs, info_dict = self.venv.recv()
+
+     
+      if (np.isnan(obs).any() or np.isinf(obs).any()):
+          print("NaN in OBS...................")
+
+      if (np.isnan(rewards).any() or np.isinf(rewards).any()):
+          print("NaN in REWARDS...................")
+          print(rewards)
+
       dones = terms + truncs
       infos = []
       for i in range(len(info_dict["env_id"])):
@@ -147,7 +158,7 @@ class VecAdapter(VecEnvWrapper):
               obs[i] = self.venv.reset(np.array([i]))[0]
               self.featureExtractor.reset_hidden_state_for_env(i)
 
-          if self.steps % 500 == 0 or dones[i]:
+          if self.steps % 1000 == 0 or dones[i]:
               if infos[i]["env_id"] == 0:
                   d = {"mid": self.mid_prices, "balance": self.balances, "upnl" : self.upnl, 
                        "leverage": self.leverages, "trades": self.trades, "fees": self.fees,
@@ -170,12 +181,10 @@ class VecAdapter(VecEnvWrapper):
                   self.sells = [] 
                   self.header = False
                   self.header = dones[i]
-                  print("env_id ", i,  " steps ", self.steps, 'balance = ',infos[i]['balance'], "  unreal = ", infos[i]['unrealized_pnl'], 
-                    " real = ", infos[i]['realized_pnl'], '    drawdown = ', infos[i]['drawdown'], '     fees = ', -infos[i]['fees'], 
-                    '    leverage = ', infos[i]['leverage'])
+              print("env_id ", i,  " steps ", self.steps, 'balance = ',infos[i]['balance'], "  unreal = ", infos[i]['unrealized_pnl'], 
+                    " real = ", infos[i]['realized_pnl'], '    drawdown = ', infos[i]['drawdown'], '     fees = ', infos[i]['fees'], 
+                    ' leverage = ', infos[i]['leverage'])
       self.steps += 1
-      if (np.isnan(obs).any()):
-          print("NaN in OBS...................")
       return obs, rewards, dones, infos
 
 import os
@@ -184,16 +193,17 @@ if os.path.exists('temp.csv'):
 env = litepool.make("RlTrader-v0", env_type="gymnasium", 
                           num_envs=32, batch_size=32,
                           num_threads=32,
-                          filename="oos.csv", 
-                          balance=20000,
-                          start=600000,
-                          max=30001,
+                          filename="deribit.csv", 
+                          balance=0.02,
+                          start=1,
+                          max=120001,
                           depth=20)
 env.spec.id = 'RlTrader-v0'
 
-feature_extractor = LSTMFeatureExtractor(env.observation_space, lstm_hidden_size=64, output_size=32)
+feature_extractor = LSTMFeatureExtractor(env.observation_space, lstm_hidden_size=32, output_size=32)
 
 env = VecAdapter(env, feature_extractor)
+env = VecNormalize(env, norm_obs=True, norm_reward=True)
 env = VecMonitor(env)
 
 kwargs = dict(use_sde=True, sde_sample_freq=4)
@@ -201,14 +211,15 @@ kwargs = dict(use_sde=True, sde_sample_freq=4)
 policy_kwargs = {
     'features_extractor': feature_extractor,
     'activation_fn': th.nn.ReLU,
-    'net_arch': dict(pi=[64, 64], vf=[64, 64], qf=[64, 64])
+    'net_arch': dict(pi=[32, 32], vf=[32, 32], qf=[32, 32]),
 }
 
 import os
+from stable_baselines3.common.noise import NormalActionNoise
 
 
 if os.path.exists("sac_rltrader.zip"):
-    model = SAC.load("sac_rltrader")
+    model = SAC.load("sac_rltrader", weights_only=True)
     model.load_replay_buffer("replay_buffer.pkl")
     model.set_env(env)
     print("saved model loaded")
@@ -217,12 +228,12 @@ else:
             CustomSACPolicy,
             env,
             policy_kwargs=policy_kwargs,
-            learning_rate=3e-4,
+            learning_rate=3e-5,
             buffer_size=10000000,
             learning_starts=64,
             batch_size=64,
             tau=0.005,
-            gamma=0.99,
+            gamma=0.95,
             train_freq=64,
             gradient_steps=32,
             ent_coef='auto',
@@ -231,6 +242,7 @@ else:
             device=device,
             )
 
-model.learn(700000 * 250)
+
+model.learn(700000 * 30)
 model.save("sac_rltrader")
 model.save_replay_buffer("replay_buffer.pkl")

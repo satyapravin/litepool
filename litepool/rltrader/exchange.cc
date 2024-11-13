@@ -25,17 +25,14 @@ void Exchange::reset() {
 }
 
 bool Exchange::next() {
+    if (this->dataReader.hasNext()) {
+        this->dataReader.next();
+        this->execute();
+    } else {
+        return false;
+    }
 
-	for(int ii =0; ii < 10; ++ii) {
-		if (this->dataReader.hasNext()) {
-			this->dataReader.next();
-			this->execute();
-		} else {
-			return false;
-		}
-	}
-
-	return true;
+    return true;
 }
 
 const std::map<long, Order>& Exchange::getBidOrders() const {
@@ -216,7 +213,7 @@ void Exchange::execute() {
 	std::vector<long> asks_filled;
 
 	for (auto& [order_id, order] : this->bid_quotes) {
-		if (order.side == OrderSide::BUY && order.price >  0.00001 + this->dataReader.getDouble("asks[0].price") || order.is_taker) {
+		if (order.side == OrderSide::BUY && order.price + 0.000000001 >= this->dataReader.getDouble("asks[0].price") || order.is_taker) {
 			order.state = OrderState::FILLED;
 			if (order.is_taker) order.price = this->dataReader.getDouble("asks[0].price");
 			bids_filled.push_back(order_id);
@@ -226,7 +223,7 @@ void Exchange::execute() {
 
 
 	for(auto& [order_id, order] : this->ask_quotes) {
-		if (order.side == OrderSide::SELL && order.price < 0.00001 + this->dataReader.getDouble("bids[0].price") || order.is_taker) {
+		if (order.side == OrderSide::SELL && order.price <= 0.0000001 + this->dataReader.getDouble("bids[0].price") || order.is_taker) {
 			order.state = OrderState::FILLED;
 			if (order.is_taker) order.price = this->dataReader.getDouble("bids[0].price");
 			asks_filled.push_back(order_id);

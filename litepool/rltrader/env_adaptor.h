@@ -9,7 +9,7 @@ namespace Simulator {
 class EnvAdaptor {
 public:
     EnvAdaptor(Strategy& strat, Exchange& exch, int depth);
-    void quote(int buy_spread, int sell_spred, int buy_percent, int sell_percent);
+    void quote(int buy_spread, int sell_spread, int buy_percent, int sell_percent, int buy_level, int sell_level);
     void reset(const double& positionAmount, const double& averagePrice);
     bool next();
     std::unordered_map<std::string, double> getInfo();
@@ -17,7 +17,7 @@ public:
     long long getTime();
 private:
     int market_depth;
-    std::vector<double> computeState();
+    void computeState();
 
     Strategy& strategy;
     Exchange& exchange;
@@ -29,5 +29,8 @@ private:
     std::unique_ptr<PositionSignalBuilder> position_builder;
     std::unique_ptr<TradeSignalBuilder> trade_builder;
     std::vector<double> state;
+    std::vector<double> market_state;
+    std::vector<double> trade_state;
+    std::vector<double> position_state;
 };
 }

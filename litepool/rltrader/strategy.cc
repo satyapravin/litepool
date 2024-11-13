@@ -24,7 +24,7 @@ void Strategy::reset(const double& position_amount, const double& avg_price) {
 	this->order_id = 0;
 }
 
-void Strategy::quote(int buy_spread, int sell_spread, int buy_percent, int sell_percent) {
+void Strategy::quote(int buy_spread, int sell_spread, int buy_percent, int sell_percent, int buy_levels, int sell_levels) {
 	const auto& obs = this->exchange.getObs();
 	exchange.cancelBuys();
 	exchange.cancelSells();
@@ -32,31 +32,14 @@ void Strategy::quote(int buy_spread, int sell_spread, int buy_percent, int sell_
 	auto leverage = posInfo.leverage;
         auto inventoryPnL = posInfo.inventoryPnL;
         auto initBalance = position.getInitialBalance();
+        double buy_denom = leverage < .5 ? 100 : 200 * std::abs(leverage);
+        double sell_denom = leverage > -.5 ? 100 : 200 * std::abs(leverage);
 
-	double buy_volume = initBalance * buy_percent / 500.0;
-	double sell_volume = initBalance * sell_percent / 500.0;
-        int buy_levels = 5;
-        int sell_levels = 5;        
+	double buy_volume = initBalance * buy_percent / buy_denom;
+	double sell_volume = initBalance * sell_percent / sell_denom;
 
-        if (inventoryPnL >= 0.0025 * initBalance) {
-            buy_spread = leverage < 0 ? 0 : buy_spread;
-            buy_volume = leverage < 0 ? std::abs(initBalance * leverage) : buy_volume;
-            buy_levels = leverage < 0 ? 1 : buy_levels;
-            sell_spread = leverage > 0 ? 0 : sell_spread;
-            sell_volume = leverage > 0 ? std::abs(initBalance * leverage) : sell_volume;
-            sell_levels = leverage > 0 ? 1 : sell_levels;
-        } else {
-            if (leverage > 0.15) {
-                buy_spread += 2;
-                buy_spread *= 1 + static_cast<int>(4 * leverage);
-            } else if (leverage < -0.15) {
-                sell_spread += 2;
-                sell_spread *= 1 + static_cast<int>(-4 * leverage);
-            }
-        }
-
-	this->sendGrid(buy_levels, buy_spread, buy_volume, obs, OrderSide::BUY);
-	this->sendGrid(sell_levels, sell_spread, sell_volume, obs, OrderSide::SELL);
+        if (buy_volume > 0) this->sendGrid(buy_levels, buy_spread, buy_volume, obs, OrderSide::BUY);
+        if (sell_volume > 0) this->sendGrid(sell_levels, sell_spread, sell_volume, obs, OrderSide::SELL);
 }
 
 void Strategy::sendGrid(int levels, int start_level, const double& amount, const DataRow& obs, OrderSide side) {
@@ -75,13 +58,9 @@ void Strategy::sendGrid(int levels, int start_level, const double& amount, const
         }
 }
 
-bool Strategy::next() {
-	bool retval = exchange.next();
-	if (retval) {
-		auto fills = exchange.getFills();
-		for(auto order: fills) {
-			position.onFill(order, true);
-		}
-	}
-	return retval;
+void Strategy::next() {
+    auto fills = exchange.getFills();
+    for(auto order: fills) {
+        position.onFill(order, true);
+    }
 }
