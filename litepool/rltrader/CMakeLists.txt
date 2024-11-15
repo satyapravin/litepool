@@ -55,8 +55,6 @@ add_executable(rltradertest rltrader_litepool_test.cc
                                       env_adaptor.h env_adaptor.cc
                                       rl_macros.h)
 target_link_libraries(rltrader_litepool PRIVATE glog stdc++fs)
-target_link_libraries(test_sim PRIVATE stdc++fs)
-target_link_libraries(signal_gen PRIVATE stdc++fs)
 target_link_libraries(rltradertest PRIVATE GTest::GTest GTest::Main gflags gmock glog stdc++fs)
 include(GoogleTest)
 gtest_discover_tests(rltradertest)

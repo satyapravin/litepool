@@ -1,14 +1,11 @@
 #include <sstream>
 #include <random>
-#include <filesystem>
-#include <stdexcept>
-#include <system_error> 
 
 #include "csv_reader.h"
-namespace fs = std::filesystem;
+
 using namespace Simulator;
 
-CsvReader::CsvReader(const std::string& fname, int start_read_lines, int max_read_lines):foldername(fname),
+CsvReader::CsvReader(const std::string& fname, int start_read_lines, int max_read_lines):filename(fname),
                                                                                          more_data(true), start_read(start_read_lines),
                                                                                          max_read(max_read_lines), num_reads(0) {
 }
@@ -45,34 +42,6 @@ double CsvReader::getDouble(const std::string& keyName) const {
     return this->iterator.getDouble(keyName);
 }
 
-std::vector<std::string> read_files(const std::string& foldername) {
-    std::vector<std::string> files;
-
-    try {
-        // Check if the folder exists and is a directory
-        if (!fs::exists(foldername) || !fs::is_directory(foldername)) {
-            std::cerr << "Error: " << foldername << " is not a valid directory." << std::endl;
-            return files; // Return an empty vector
-        }
-
-        // Iterate through directory entries
-        for (const auto& entry : fs::directory_iterator(foldername)) {
-            if (entry.is_regular_file()) {
-                std::string filepath = entry.path().string();
-                std::cout << filepath << std::endl;  // Print the file path
-                files.push_back(filepath);           // Add the file path to the vector
-            }
-        }
-    } catch (const std::filesystem::filesystem_error& e) {
-        // Handle any filesystem-related exceptions
-        std::cerr << "Filesystem error: " << e.what() << std::endl;
-    } catch (const std::exception& e) {
-        // Handle any other exceptions
-        std::cerr << "Error: " << e.what() << std::endl;
-    }
-
-    return files;
-}
 
 void CsvReader::reset() {
     num_reads = 0;
@@ -83,9 +52,8 @@ void CsvReader::reset() {
     std::mt19937 gen(rd()); 
     std::uniform_int_distribution<> distr(0, start_read);
     int start_line = distr(gen);
-    auto files = read_files(this->foldername);
     if (this->filestream.is_open()) this->filestream.close();
-    this->filestream.open(files[start_line % files.size()], std::ios::in);
+    this->filestream.open(filename, std::ios::in);
     this->readCSV(start_line);
     this->iterator.populate(&rows);
 }

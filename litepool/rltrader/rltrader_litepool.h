@@ -22,7 +22,9 @@
 #include "env_adaptor.h"
 #include "normal_instrument.h"
 #include <random>
+#include <filesystem>
 
+namespace fs = std::filesystem;
 namespace rltrader {
 
 class RlTraderEnvFns {
@@ -94,9 +96,29 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   {
     instr_ptr = std::make_unique<Simulator::NormalInstrument>("BTCUSDT", 0.5,
                                                                 0.0002, -0.0001, 0.00075);
-    exchange_ptr = std::make_unique<Simulator::Exchange>(foldername, 250, start_read, max_read);
+    auto files = get_files();
+    int idx = files.size() % (env_id + 1);
+    auto filename = files[idx];
+    exchange_ptr = std::make_unique<Simulator::Exchange>(filename, 250, start_read, max_read);
     strategy_ptr = std::make_unique<Simulator::Strategy>(*instr_ptr, *exchange_ptr, balance, 0, 0, 20);
     adaptor_ptr = std::make_unique<Simulator::EnvAdaptor>(*strategy_ptr, *exchange_ptr, spec.config["depth"_]);
+  }
+
+  std::vector<std::string> get_files() const {
+          std::vector<std::string> files;
+
+    for (const auto& entry : fs::directory_iterator(foldername)) {
+        if (entry.is_regular_file()) {  
+            std::string filename = entry.path().string();
+            files.push_back(filename);  
+        }
+    }
+
+    if (files.empty()) {
+        throw std::runtime_error("No files found in the directory.");
+    }
+
+    return files;
   }
 
   void Reset() override {
