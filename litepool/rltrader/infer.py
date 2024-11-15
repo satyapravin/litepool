@@ -35,16 +35,18 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space: spaces.Box, lstm_hidden_size: int = 16, output_size: int = 32):
         # The feature dimension is the final output size of the sequential layer
         super(LSTMFeatureExtractor, self).__init__(observation_space, features_dim=output_size+lstm_hidden_size+24)
-        
+
         self.lstm_hidden_size = lstm_hidden_size
-        self.n_input_channels = 62*4 
-        self.remaining_input_size = 24*4 
+        self.n_input_channels = 38*4
+        self.remaining_input_size = 24*4
         self.output_size = output_size
-        
-        self.lstm = nn.LSTM(self.n_input_channels, lstm_hidden_size, batch_first=True).to(device)
-        
+
+        self.lstm = nn.LSTM(self.n_input_channels, lstm_hidden_size, batch_first=True, bidirectional=True).to(device)
+
         # This will hold the hidden state and cell state of the LSTM
         self.hidden = None
+
+        self.attention_weights_layer = nn.Linear(lstm_hidden_size * 2, 1, bias=False).to(device)
 
         # Define a sequential layer to process the concatenated output
         self.fc = nn.Sequential(
@@ -55,18 +57,24 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
             nn.Linear(64, output_size),
             nn.ReLU()
         ).to(device)
-   
+
+    def attention_net(self, lstm_output):
+        attention_scores = self.attention_weights_layer(lstm_output)
+        attention_weights = F.softmax(attention_scores, dim=1)
+        context_vector = torch.sum(attention_weights * lstm_output, dim=1)
+        return context_vector
+
     def reset(self):
         self.hidden = None
 
     def reset_hidden_state_for_env(self, env_idx: int):
         if self.hidden is not None:
             self.hidden[0][:, env_idx, :] = 0  # Reset hidden state (h_0) for environment `env_idx`
-            self.hidden[1][:, env_idx, :] = 0  # Reset cell state (c_0) for environment `env_idx` 
-    
+            self.hidden[1][:, env_idx, :] = 0  # Reset cell state (c_0) for environment `env_idx`
+
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
         # Split the observations into two parts
-        lstm_input = observations
+        lstm_input = observations[:, :38*4]
         remaining_input = observations[:, 38*4:]
 
         # Initialize hidden state and cell state with zeros if they are not already set
@@ -76,16 +84,15 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
         else:
             # Detach the hidden state to avoid backpropagating through the entire history
             self.hidden = (self.hidden[0].detach(), self.hidden[1].detach())
-        
+
         # LSTM expects input of shape (batch_size, seq_len, input_size)
         lstm_input = lstm_input.unsqueeze(1)  # Add sequence dimension
         lstm_out, self.hidden = self.lstm(lstm_input, self.hidden)
-        
-        lstm_hidden_state = lstm_out[:, -1, :]
-        
+        context_vector = self.attention_net(lstm_out)
         final_output = self.fc(remaining_input)
-        combined_output = torch.cat((lstm_hidden_state, final_output, remaining_input), dim=1)
-        return combined_output 
+        combined_output = torch.cat((context_vector, final_output), dim=1)
+        return combined_output
+
 
 
 class VecAdapter(VecEnvWrapper):
@@ -185,7 +192,7 @@ import os
 env = litepool.make("RlTrader-v0", env_type="gymnasium", 
                           num_envs=1, batch_size=1,
                           num_threads=1,
-                          filename="oos.csv", 
+                          filename="oos/1.csv", 
                           balance=20000,
                           start=1,
                           max=72000001,
@@ -219,7 +226,6 @@ while not done:
     if dones.any():
         obs = env.reset()
         done = True
-        print(info)
 
     counter += 1
 

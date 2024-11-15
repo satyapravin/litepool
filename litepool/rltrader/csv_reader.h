@@ -70,7 +70,7 @@ namespace Simulator {
         };
 
         std::ifstream filestream;
-        std::string filename;
+        std::string foldername;
         Iterator iterator;
         std::vector<std::string> headers;
         std::vector<DataRow> rows;
@@ -81,7 +81,7 @@ namespace Simulator {
         int max_read;
         int num_reads;
     public:
-        CsvReader(const std::string& filename, int start_read, int max_read);
+        CsvReader(const std::string& foldername, int start_read, int max_read);
         bool hasNext();
         const DataRow& next();
         const DataRow& current() const;

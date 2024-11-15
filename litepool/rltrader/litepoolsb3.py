@@ -43,14 +43,16 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
         super(LSTMFeatureExtractor, self).__init__(observation_space, features_dim=output_size+lstm_hidden_size+24)
         
         self.lstm_hidden_size = lstm_hidden_size
-        self.n_input_channels = 62*4 
+        self.n_input_channels = 38*4 
         self.remaining_input_size = 24*4 
         self.output_size = output_size
         
-        self.lstm = nn.LSTM(self.n_input_channels, lstm_hidden_size, batch_first=True).to(device)
+        self.lstm = nn.LSTM(self.n_input_channels, lstm_hidden_size, batch_first=True, bidirectional=True).to(device)
         
         # This will hold the hidden state and cell state of the LSTM
         self.hidden = None
+        
+        self.attention_weights_layer = nn.Linear(lstm_hidden_size * 2, 1, bias=False).to(device)
 
         # Define a sequential layer to process the concatenated output
         self.fc = nn.Sequential(
@@ -61,6 +63,12 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
             nn.Linear(64, output_size),
             nn.ReLU()
         ).to(device)
+
+    def attention_net(self, lstm_output):
+        attention_scores = self.attention_weights_layer(lstm_output)  
+        attention_weights = F.softmax(attention_scores, dim=1)  
+        context_vector = torch.sum(attention_weights * lstm_output, dim=1)  
+        return context_vector
    
     def reset(self):
         self.hidden = None
@@ -72,7 +80,7 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
     
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
         # Split the observations into two parts
-        lstm_input = observations
+        lstm_input = observations[:, :38*4]
         remaining_input = observations[:, 38*4:]
 
         # Initialize hidden state and cell state with zeros if they are not already set
@@ -86,11 +94,9 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
         # LSTM expects input of shape (batch_size, seq_len, input_size)
         lstm_input = lstm_input.unsqueeze(1)  # Add sequence dimension
         lstm_out, self.hidden = self.lstm(lstm_input, self.hidden)
-        
-        lstm_hidden_state = lstm_out[:, -1, :]
-        
+        context_vector = self.attention_net(lstm_out) 
         final_output = self.fc(remaining_input)
-        combined_output = torch.cat((lstm_hidden_state, final_output, remaining_input), dim=1)
+        combined_output = torch.cat((context_vector, final_output), dim=1)
         return combined_output 
 
 
@@ -193,10 +199,10 @@ if os.path.exists('temp.csv'):
 env = litepool.make("RlTrader-v0", env_type="gymnasium", 
                           num_envs=32, batch_size=32,
                           num_threads=32,
-                          filename="deribit.csv", 
-                          balance=0.02,
+                          foldername="/root/repos/litepool/litepool/rltrader/oos", 
+                          balance=2000,
                           start=1,
-                          max=120001,
+                          max=360001,
                           depth=20)
 env.spec.id = 'RlTrader-v0'
 
@@ -224,25 +230,22 @@ if os.path.exists("sac_rltrader.zip"):
     model.set_env(env)
     print("saved model loaded")
 else:
-    model = SAC(
-            CustomSACPolicy,
-            env,
-            policy_kwargs=policy_kwargs,
-            learning_rate=3e-5,
-            buffer_size=10000000,
-            learning_starts=64,
-            batch_size=64,
-            tau=0.005,
-            gamma=0.95,
-            train_freq=64,
-            gradient_steps=32,
-            ent_coef='auto',
-            target_entropy='auto',
-            verbose=1,
-            device=device,
-            )
+    model = SAC(CustomSACPolicy,
+                env,
+                policy_kwargs=policy_kwargs,
+                learning_rate=1e-5,                 # Lower learning rate for more stable updates
+                buffer_size=1000000,                # Smaller buffer to focus on more relevant recent experiences
+                learning_starts=10000,              # Delay learning to allow for better exploration initially
+                batch_size=256,                     # Larger batch size for more stable gradient updates
+                tau=0.01,                           # Increase target network update rate for faster adaptation
+                gamma=0.99,                         # Higher gamma to focus more on long-term reward
+                train_freq=256,                     # Train less frequently to prevent overfitting to noise
+                gradient_steps=64,                  # Increase gradient steps per update for more efficient learning
+                ent_coef='auto',                    # Keep auto-tuning for entropy, but monitor its value
+                target_entropy='auto',              # Consider manually setting a higher target entropy if needed
+                verbose=1,
+                device=device)
 
-
-model.learn(700000 * 30)
+model.learn(700000 * 90)
 model.save("sac_rltrader")
 model.save_replay_buffer("replay_buffer.pkl")

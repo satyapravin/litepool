@@ -4,7 +4,7 @@
 
 using namespace Simulator;
 
-Exchange::Exchange(const std::string& filename, long delay, int start_read, int max_read) :dataReader(filename, start_read, max_read), delay(delay) {
+Exchange::Exchange(const std::string& foldername, long delay, int start_read, int max_read) :dataReader(foldername, start_read, max_read), delay(delay) {
 	bid_quotes.clear();
 	ask_quotes.clear();
 	executions.clear();
