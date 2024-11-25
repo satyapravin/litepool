@@ -18,10 +18,10 @@ bool EnvAdaptor::next() {
     position_state.clear();
     trade_state.clear();
 
-    for (int ii=0; ii < 10; ++ii) {
+    for (int ii=0; ii < 3; ++ii) {
         if(this->exchange.next()) {
             this->strategy.next();
-            if (ii % 3 == 0) computeState();
+            if (ii % 2 == 0) computeState();
         } else {
             return false;
         }
@@ -38,8 +38,8 @@ std::vector<double> EnvAdaptor::getState() {
     return state;
 }
 
-void EnvAdaptor::quote(int half_spread, int skew, int buy_percent, int sell_percent, int buy_level, int sell_level) {
-    this->strategy.quote(half_spread, skew, buy_percent, sell_percent, buy_level, sell_level);
+void EnvAdaptor::quote(int buy_spread, int sell_spread, int buy_percent, int sell_percent) {
+    this->strategy.quote(buy_spread, sell_spread, buy_percent, sell_percent);
 }
 
 void EnvAdaptor::reset(const double& positionAmount, const double& averagePrice) {

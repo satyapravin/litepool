@@ -24,7 +24,7 @@ void Strategy::reset(const double& position_amount, const double& avg_price) {
 	this->order_id = 0;
 }
 
-void Strategy::quote(int half_spread, int skew, int buy_percent, int sell_percent, int buy_levels, int sell_levels) {
+void Strategy::quote(int buy_spread, int sell_spread, int buy_percent, int sell_percent) {
 	const auto& obs = this->exchange.getObs();
 	exchange.cancelBuys();
 	exchange.cancelSells();
@@ -38,13 +38,15 @@ void Strategy::quote(int half_spread, int skew, int buy_percent, int sell_percen
 	double buy_volume = initBalance * buy_percent / buy_denom;
 	double sell_volume = initBalance * sell_percent / sell_denom;
 
-        int inventory = static_cast<int>(leverage);
+        int skew = static_cast<int>(leverage * 10);
+        buy_spread = std::max(0, buy_spread  - skew);
+        sell_spread = std::max(0, sell_spread - skew);
         
-        int buy_spread = std::max(0, half_spread + skew * inventory);
-        int sell_spread = std::max(0, half_spread - skew * inventory);
-
-        if (buy_volume > 0) this->sendGrid(buy_levels, buy_spread, buy_volume, obs, OrderSide::BUY);
-        if (sell_volume > 0) this->sendGrid(sell_levels, sell_spread, sell_volume, obs, OrderSide::SELL);
+        buy_volume = buy_volume * (1.0 - leverage);
+        sell_volume = sell_volume * (1.0 + leverage);
+        
+        if (buy_volume > 0) this->sendGrid(10, buy_spread, buy_volume, obs, OrderSide::BUY);
+        if (sell_volume > 0) this->sendGrid(10, sell_spread, sell_volume, obs, OrderSide::SELL);
 }
 
 void Strategy::sendGrid(int levels, int start_level, const double& amount, const DataRow& obs, OrderSide side) {

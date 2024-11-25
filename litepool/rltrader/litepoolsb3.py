@@ -43,8 +43,8 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
         super(LSTMFeatureExtractor, self).__init__(observation_space, features_dim=output_size+lstm_hidden_size+24)
         
         self.lstm_hidden_size = lstm_hidden_size
-        self.n_input_channels = 38*4 
-        self.remaining_input_size = 24*4 
+        self.n_input_channels = 38*2 
+        self.remaining_input_size = 24*2 
         self.output_size = output_size
         
         self.lstm = nn.LSTM(self.n_input_channels, lstm_hidden_size, batch_first=True, bidirectional=True).to(device)
@@ -80,8 +80,8 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
     
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
         # Split the observations into two parts
-        lstm_input = observations[:, :38*4]
-        remaining_input = observations[:, 38*4:]
+        lstm_input = observations[:, :38*2]
+        remaining_input = observations[:, 38*2:]
 
         # Initialize hidden state and cell state with zeros if they are not already set
         if self.hidden is None or lstm_input.shape[0] != self.hidden[0].shape[1]:
@@ -199,9 +199,9 @@ if os.path.exists('temp.csv'):
 env = litepool.make("RlTrader-v0", env_type="gymnasium", 
                           num_envs=32, batch_size=32,
                           num_threads=32,
-                          foldername="/root/repos/litepool/litepool/rltrader/oos", 
+                          foldername="./oos/", 
                           balance=2000,
-                          start=1,
+                          start=100000,
                           max=360001,
                           depth=20)
 env.spec.id = 'RlTrader-v0'
@@ -246,6 +246,6 @@ else:
                 verbose=1,
                 device=device)
 
-model.learn(700000 * 90)
+model.learn(700000 * 600)
 model.save("sac_rltrader")
 model.save_replay_buffer("replay_buffer.pkl")

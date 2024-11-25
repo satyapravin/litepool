@@ -97,13 +97,13 @@ std::vector<Order> Exchange::getFills() {
 
 void Exchange::cancel(std::map<long, Order>& quotes) {
 	for (auto it = quotes.begin(); it != quotes.end(); ++it) {
-		assert(it->second.state != OrderState::NEW
-			&& it->second.state != OrderState::FILLED
-			&& it->second.state != OrderState::CANCELLED
-			&& it->second.state != OrderState::CANCELLED_ACK);
-		it->second.state = OrderState::CANCELLED;
-		it->second.microSecond = this->dataReader.getTimeStamp();
-		this->addToBuffer(it->second);
+            if(it->second.state != OrderState::FILLED
+	       && it->second.state != OrderState::CANCELLED
+	       && it->second.state != OrderState::CANCELLED_ACK) {
+	            it->second.state = OrderState::CANCELLED;
+		    it->second.microSecond = this->dataReader.getTimeStamp();
+		    this->addToBuffer(it->second);
+            }
 	}
 }
 
