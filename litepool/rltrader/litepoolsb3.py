@@ -32,7 +32,7 @@ device = torch.device("cuda")
 
 
 class CustomSACPolicy(SACPolicy):
-    def __init__(self, observation_space, action_space, lr_schedule, features_extractor: Optional[BaseFeaturesExtractor] = None, **kwargs):
+    def __init__(self, observation_space, action_space, lr_schedule, **kwargs):
         # Pass the features extractor via kwargs to the parent class
         super().__init__(observation_space, action_space, lr_schedule, **kwargs)
 
@@ -42,8 +42,8 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
         super(LSTMFeatureExtractor, self).__init__(observation_space, features_dim=lstm_hidden_size*2)
         
         self.lstm_hidden_size = lstm_hidden_size
-        self.n_input_channels = 38*10 
-        self.remaining_input_size = 24*10 
+        self.n_input_channels = 38
+        self.remaining_input_size = 24
         
         self.lstm = nn.LSTM(self.n_input_channels, lstm_hidden_size, batch_first=True, bidirectional=True).to(device)
         self.lstm2 = nn.LSTM(self.remaining_input_size, lstm_hidden_size, batch_first=True, bidirectional=True).to(device)      
@@ -67,13 +67,20 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
 
     def reset_hidden_state_for_env(self, env_idx: int):
         if self.hidden is not None:
-            self.hidden[0][:, env_idx, :] = 0  # Reset hidden state (h_0) for environment `env_idx`
-            self.hidden[1][:, env_idx, :] = 0  # Reset cell state (c_0) for environment `env_idx` 
-        
-    
+            self.hidden = (
+                self.hidden[0].detach(),
+                self.hidden[1].detach()
+            )
+            self.hidden[0][:, env_idx, :] = 0  # Reset hidden state (h_0)
+            self.hidden[1][:, env_idx, :] = 0  # Reset cell state (c_0)
+
         if self.hidden2 is not None:
-            self.hidden2[0][:, env_idx, :] = 0  # Reset hidden state (h_0) for environment `env_idx`
-            self.hidden2[1][:, env_idx, :] = 0  # Reset cell state (c_0) for environment `env_idx` 
+            self.hidden2 = (
+                self.hidden2[0].detach(),
+                self.hidden2[1].detach()
+            )
+            self.hidden2[0][:, env_idx, :] = 0  # Reset hidden state (h_0)
+            self.hidden2[1][:, env_idx, :] = 0  # Reset cell state (c_0)
 
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
         lstm_input = observations[:, :38 * 10]  # First 10 sequences of 38 features
@@ -85,16 +92,16 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
 
         if self.hidden is None or lstm_input.shape[0] != self.hidden[0].shape[1]:
             self.hidden = (
-                torch.zeros(1, batch_size, self.lstm_hidden_size).to(observations.device),
-                torch.zeros(1, batch_size, self.lstm_hidden_size).to(observations.device),
+                torch.zeros(2, batch_size, self.lstm_hidden_size).to(observations.device),
+                torch.zeros(2, batch_size, self.lstm_hidden_size).to(observations.device),
             )
         else:
             self.hidden = (self.hidden[0].detach(), self.hidden[1].detach())
 
         if self.hidden2 is None or remaining_input.shape[0] != self.hidden2[0].shape[1]:
             self.hidden2 = (
-                torch.zeros(1, batch_size, self.lstm_hidden_size).to(observations.device),
-                torch.zeros(1, batch_size, self.lstm_hidden_size).to(observations.device),
+                torch.zeros(2, batch_size, self.lstm_hidden_size).to(observations.device),
+                torch.zeros(2, batch_size, self.lstm_hidden_size).to(observations.device),
             )
         else:
             self.hidden2 = (self.hidden2[0].detach(), self.hidden2[1].detach())
@@ -103,7 +110,7 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
 
         context_vector = self.attention_net(lstm_out)  # Shape: (batch_size, attention_dim)
 
-        remaining_out, self.hidden2 = self.lstm3(remaining_input, self.hidden2)  # (batch_size, seq_len, hidden_size)
+        remaining_out, self.hidden2 = self.lstm2(remaining_input, self.hidden2)  # (batch_size, seq_len, hidden_size)
 
         final_output = torch.cat((
             remaining_out[:, -1, :],    # Final output of the second LSTM (last time step)
@@ -113,10 +120,9 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
         return final_output
 
 class VecAdapter(VecEnvWrapper):
-  def __init__(self, venv: LitePool, featureExtractor):
+  def __init__(self, venv: LitePool):
     venv.num_envs = venv.spec.config.num_envs
     super().__init__(venv=venv)
-    self.featureExtractor = featureExtractor
     self.mid_prices = []
     self.balances = []
     self.leverages = []
@@ -134,7 +140,6 @@ class VecAdapter(VecEnvWrapper):
 
   def reset(self) -> VecEnvObs:
       self.steps = 0
-      self.featureExtractor.reset()
       return self.venv.reset()[0]
 
   def seed(self, seed: Optional[int] = None) -> None:
@@ -174,7 +179,6 @@ class VecAdapter(VecEnvWrapper):
           if dones[i]:
               infos[i]["terminal_observation"] = obs[i]
               obs[i] = self.venv.reset(np.array([i]))[0]
-              self.featureExtractor.reset_hidden_state_for_env(i)
 
           if self.steps % 1000 == 0 or dones[i]:
               if infos[i]["env_id"] == 0:
@@ -218,16 +222,15 @@ env = litepool.make("RlTrader-v0", env_type="gymnasium",
                           depth=20)
 env.spec.id = 'RlTrader-v0'
 
-feature_extractor = LSTMFeatureExtractor(env.observation_space, lstm_hidden_size=16)
-
-env = VecAdapter(env, feature_extractor)
+env = VecAdapter(env)
 env = VecNormalize(env, norm_obs=True, norm_reward=True)
 env = VecMonitor(env)
 
 kwargs = dict(use_sde=True, sde_sample_freq=4)
 
 policy_kwargs = {
-    'features_extractor': feature_extractor,
+    'features_extractor_class': LSTMFeatureExtractor,
+    'features_extractor_kwargs': {'lstm_hidden_size': 16},
     'activation_fn': th.nn.ReLU,
     'net_arch': dict(pi=[32, 32], vf=[32, 32], qf=[32, 32]),
 }
@@ -237,7 +240,7 @@ from stable_baselines3.common.noise import NormalActionNoise
 
 
 if os.path.exists("sac_rltrader.zip"):
-    model = SAC.load("sac_rltrader", weights_only=True)
+    model = SAC.load("sac_rltrader")
     model.load_replay_buffer("replay_buffer.pkl")
     model.set_env(env)
     print("saved model loaded")
@@ -246,7 +249,7 @@ else:
                 env,
                 policy_kwargs=policy_kwargs,
                 learning_rate=1e-4,                 # Lower learning rate for more stable updates
-                buffer_size=10000,                  # Smaller buffer to focus on more relevant recent experiences
+                buffer_size=1000000,                # Smaller buffer to focus on more relevant recent experiences
                 learning_starts=100,                # Delay learning to allow for better exploration initially
                 batch_size=256,                     # Larger batch size for more stable gradient updates
                 gamma=0.9,                          # Higher gamma to focus more on long-term reward
