@@ -38,31 +38,22 @@ class CustomSACPolicy(SACPolicy):
 
 
 class LSTMFeatureExtractor(BaseFeaturesExtractor):
-    def __init__(self, observation_space: spaces.Box, lstm_hidden_size: int = 16, output_size: int = 32):
-        # The feature dimension is the final output size of the sequential layer
-        super(LSTMFeatureExtractor, self).__init__(observation_space, features_dim=output_size+lstm_hidden_size+24)
+    def __init__(self, observation_space: spaces.Box, lstm_hidden_size: int = 16):
+        super(LSTMFeatureExtractor, self).__init__(observation_space, features_dim=lstm_hidden_size*2)
         
         self.lstm_hidden_size = lstm_hidden_size
-        self.n_input_channels = 38*2 
-        self.remaining_input_size = 24*2 
-        self.output_size = output_size
+        self.n_input_channels = 38*10 
+        self.remaining_input_size = 24*10 
         
         self.lstm = nn.LSTM(self.n_input_channels, lstm_hidden_size, batch_first=True, bidirectional=True).to(device)
-        
+        self.lstm2 = nn.LSTM(self.remaining_input_size, lstm_hidden_size, batch_first=True, bidirectional=True).to(device)      
+
         # This will hold the hidden state and cell state of the LSTM
         self.hidden = None
+        self.hidden2 = None
         
         self.attention_weights_layer = nn.Linear(lstm_hidden_size * 2, 1, bias=False).to(device)
 
-        # Define a sequential layer to process the concatenated output
-        self.fc = nn.Sequential(
-            nn.Linear(self.remaining_input_size, 128),
-            nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, output_size),
-            nn.ReLU()
-        ).to(device)
 
     def attention_net(self, lstm_output):
         attention_scores = self.attention_weights_layer(lstm_output)  
@@ -72,33 +63,54 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
    
     def reset(self):
         self.hidden = None
+        self.hidden2 = None
 
     def reset_hidden_state_for_env(self, env_idx: int):
         if self.hidden is not None:
             self.hidden[0][:, env_idx, :] = 0  # Reset hidden state (h_0) for environment `env_idx`
             self.hidden[1][:, env_idx, :] = 0  # Reset cell state (c_0) for environment `env_idx` 
-    
-    def forward(self, observations: torch.Tensor) -> torch.Tensor:
-        # Split the observations into two parts
-        lstm_input = observations[:, :38*2]
-        remaining_input = observations[:, 38*2:]
-
-        # Initialize hidden state and cell state with zeros if they are not already set
-        if self.hidden is None or lstm_input.shape[0] != self.hidden[0].shape[1]:
-            self.hidden = (torch.zeros(1, lstm_input.shape[0], self.lstm_hidden_size).to(observations.device),
-                           torch.zeros(1, lstm_input.shape[0], self.lstm_hidden_size).to(observations.device))
-        else:
-            # Detach the hidden state to avoid backpropagating through the entire history
-            self.hidden = (self.hidden[0].detach(), self.hidden[1].detach())
         
-        # LSTM expects input of shape (batch_size, seq_len, input_size)
-        lstm_input = lstm_input.unsqueeze(1)  # Add sequence dimension
-        lstm_out, self.hidden = self.lstm(lstm_input, self.hidden)
-        context_vector = self.attention_net(lstm_out) 
-        final_output = self.fc(remaining_input)
-        combined_output = torch.cat((context_vector, final_output), dim=1)
-        return combined_output 
+    
+        if self.hidden2 is not None:
+            self.hidden2[0][:, env_idx, :] = 0  # Reset hidden state (h_0) for environment `env_idx`
+            self.hidden2[1][:, env_idx, :] = 0  # Reset cell state (c_0) for environment `env_idx` 
 
+    def forward(self, observations: torch.Tensor) -> torch.Tensor:
+        lstm_input = observations[:, :38 * 10]  # First 10 sequences of 38 features
+        remaining_input = observations[:, 38 * 10:]  # Remaining input for the second LSTM
+
+        batch_size = observations.shape[0]
+        lstm_input = lstm_input.view(batch_size, 10, 38)  # (batch_size, seq_len, input_size)
+        remaining_input = remaining_input.view(batch_size, 10, 24)
+
+        if self.hidden is None or lstm_input.shape[0] != self.hidden[0].shape[1]:
+            self.hidden = (
+                torch.zeros(1, batch_size, self.lstm_hidden_size).to(observations.device),
+                torch.zeros(1, batch_size, self.lstm_hidden_size).to(observations.device),
+            )
+        else:
+            self.hidden = (self.hidden[0].detach(), self.hidden[1].detach())
+
+        if self.hidden2 is None or remaining_input.shape[0] != self.hidden2[0].shape[1]:
+            self.hidden2 = (
+                torch.zeros(1, batch_size, self.lstm_hidden_size).to(observations.device),
+                torch.zeros(1, batch_size, self.lstm_hidden_size).to(observations.device),
+            )
+        else:
+            self.hidden2 = (self.hidden2[0].detach(), self.hidden2[1].detach())
+
+        lstm_out, self.hidden = self.lstm(lstm_input, self.hidden)  # (batch_size, seq_len, hidden_size)
+
+        context_vector = self.attention_net(lstm_out)  # Shape: (batch_size, attention_dim)
+
+        remaining_out, self.hidden2 = self.lstm3(remaining_input, self.hidden2)  # (batch_size, seq_len, hidden_size)
+
+        final_output = torch.cat((
+            remaining_out[:, -1, :],    # Final output of the second LSTM (last time step)
+            context_vector              # Attention context vector
+        ), dim=1)  # Concatenate along the feature dimension
+
+        return final_output
 
 class VecAdapter(VecEnvWrapper):
   def __init__(self, venv: LitePool, featureExtractor):
@@ -200,13 +212,13 @@ env = litepool.make("RlTrader-v0", env_type="gymnasium",
                           num_envs=32, batch_size=32,
                           num_threads=32,
                           foldername="./oos/", 
-                          balance=2000,
-                          start=100000,
+                          balance=8000,
+                          start=10000,
                           max=360001,
                           depth=20)
 env.spec.id = 'RlTrader-v0'
 
-feature_extractor = LSTMFeatureExtractor(env.observation_space, lstm_hidden_size=32, output_size=32)
+feature_extractor = LSTMFeatureExtractor(env.observation_space, lstm_hidden_size=16)
 
 env = VecAdapter(env, feature_extractor)
 env = VecNormalize(env, norm_obs=True, norm_reward=True)
@@ -233,19 +245,19 @@ else:
     model = SAC(CustomSACPolicy,
                 env,
                 policy_kwargs=policy_kwargs,
-                learning_rate=1e-5,                 # Lower learning rate for more stable updates
-                buffer_size=1000000,                # Smaller buffer to focus on more relevant recent experiences
-                learning_starts=10000,              # Delay learning to allow for better exploration initially
+                learning_rate=1e-4,                 # Lower learning rate for more stable updates
+                buffer_size=10000,                  # Smaller buffer to focus on more relevant recent experiences
+                learning_starts=100,                # Delay learning to allow for better exploration initially
                 batch_size=256,                     # Larger batch size for more stable gradient updates
-                tau=0.01,                           # Increase target network update rate for faster adaptation
-                gamma=0.99,                         # Higher gamma to focus more on long-term reward
+                gamma=0.9,                          # Higher gamma to focus more on long-term reward
                 train_freq=256,                     # Train less frequently to prevent overfitting to noise
                 gradient_steps=64,                  # Increase gradient steps per update for more efficient learning
+                tau=0.01,                           # speed of main to target network
                 ent_coef='auto',                    # Keep auto-tuning for entropy, but monitor its value
                 target_entropy='auto',              # Consider manually setting a higher target entropy if needed
                 verbose=1,
                 device=device)
 
-model.learn(700000 * 600)
+model.learn(700000 * 100)
 model.save("sac_rltrader")
 model.save_replay_buffer("replay_buffer.pkl")

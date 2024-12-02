@@ -18,10 +18,10 @@ bool EnvAdaptor::next() {
     position_state.clear();
     trade_state.clear();
 
-    for (int ii=0; ii < 3; ++ii) {
+    for (int ii=0; ii < 10; ++ii) {
         if(this->exchange.next()) {
             this->strategy.next();
-            if (ii % 2 == 0) computeState();
+            computeState();
         } else {
             return false;
         }

@@ -36,7 +36,7 @@ class RlTraderEnvFns {
   template <typename Config>
   static decltype(auto) StateSpec(const Config& conf) {
     float fmax = std::numeric_limits<float>::max();
-    return MakeDict("obs"_.Bind(Spec<float>(std::vector<int>{62*2}, std::make_tuple(-fmax, fmax))),
+    return MakeDict("obs"_.Bind(Spec<float>(std::vector<int>{62*10}, std::make_tuple(-fmax, fmax))),
                     "info:mid_price"_.Bind(Spec<float>({})),
                     "info:balance"_.Bind(Spec<float>({})),
                     "info:unrealized_pnl"_.Bind(Spec<float>({})),
@@ -52,7 +52,6 @@ class RlTraderEnvFns {
 
   template <typename Config>
   static decltype(auto) ActionSpec(const Config& conf) {
-    std::vector<int> shape = {1};
     int spread_min = 0;
     int spread_max = 10;
 
@@ -76,6 +75,10 @@ public:
         mean += delta / count;       
         double delta2 = value - mean;  
         m2 += delta * delta2;        
+    }
+
+    double avg() const {
+        return mean;
     }
 
     double sdev() const {
@@ -153,7 +156,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
       auto buy_spread = action["action"_][0];
       auto sell_spread = action["action"_][1];
 
-      adaptor_ptr->quote(buy_spread, sell_spread, 1, 1);
+      adaptor_ptr->quote(buy_spread, sell_spread, 10, 10);
       auto info = adaptor_ptr->getInfo();
       isDone = !adaptor_ptr->next();
       ++steps;
@@ -165,7 +168,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     State state = Allocate(1);
 
     if (!isDone) {
-      assert(data.size() == 62*2);
+      assert(data.size() == 62*10);
     }
 
     auto info = adaptor_ptr->getInfo();
@@ -180,16 +183,21 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     state["info:buy_amount"_] = static_cast<float>(info["buy_amount"]);
     state["info:sell_amount"_] = static_cast<float>(info["sell_amount"]);
 
-    auto pnl = (info["unrealized_pnl"] - previous_upnl) + (info["realized_pnl"] - previous_rpnl); 
+    auto pnl = info["realized_pnl"] - previous_rpnl; 
 
-    pnl_sd.add(pnl);
     lev_sd.add(info["leverage"]);
 
-    state["reward"_] = (previous_fees - info["fees"]); 
-    state["reward"_] += pnl;
-    state["reward"_] -= 0.04 * std::abs(info["leverage"]);
-    state["reward"_] -= 10.0 * pnl_sd.sdev();
-    state["reward"_] += 0.1 * lev_sd.sdev();
+    state["reward"_] = (previous_fees - info["fees"] - 0.000005) + pnl; 
+
+    state["reward"_] -= std::abs(lev_sd.avg());
+
+    auto upnl = info["unrealized_pnl"];
+    
+    pnl_sd.add(upnl);
+
+    state["reward"_] += upnl - previous_upnl;
+    state["reward"_] -= pnl_sd.sdev();
+
     if (isDone) return;
     previous_rpnl = info["realized_pnl"];
     previous_upnl = info["unrealized_pnl"];

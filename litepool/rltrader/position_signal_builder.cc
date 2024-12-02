@@ -41,7 +41,7 @@ void PositionSignalBuilder::compute_signals(const PositionInfo& info, const doub
     repo.realized_pnl_drawdown = repo.realized_pnl_drawdown / info.balance;
     repo.total_pnl = repo.total_pnl / info.balance;
     repo.total_drawdown = repo.total_drawdown / info.balance;
-    repo.leverage = std::abs(repo.net_position);
+    repo.leverage = info.leverage;
 
     auto& spread_repo = *raw_spread_signals;
     spread_repo.inventory_pnl = repo.inventory_pnl - previous_repo.inventory_pnl;
