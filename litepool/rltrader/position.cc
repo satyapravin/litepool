@@ -103,5 +103,4 @@ void Position::onFill(const Order& order, bool is_maker)
     totalFee += instrument.fees(order.amount, order.price, !order.is_taker);
     numOfTrades++;
     balance += pnl;
-    if (order.is_taker) std::cout << "pnl " << pnl << std::endl;
 }

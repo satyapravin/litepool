@@ -31,75 +31,98 @@ from gymnasium import spaces
 device = torch.device("cuda")
 
 
+class CustomSACPolicy(SACPolicy):
+    def __init__(self, observation_space, action_space, lr_schedule, **kwargs):
+        # Pass the features extractor via kwargs to the parent class
+        super().__init__(observation_space, action_space, lr_schedule, **kwargs)
+
+
 class LSTMFeatureExtractor(BaseFeaturesExtractor):
-    def __init__(self, observation_space: spaces.Box, lstm_hidden_size: int = 16, output_size: int = 32):
-        # The feature dimension is the final output size of the sequential layer
-        super(LSTMFeatureExtractor, self).__init__(observation_space, features_dim=output_size+lstm_hidden_size+24)
-
+    def __init__(self, observation_space: spaces.Box, lstm_hidden_size: int = 16):
+        super(LSTMFeatureExtractor, self).__init__(observation_space, features_dim=lstm_hidden_size*4)
+        
         self.lstm_hidden_size = lstm_hidden_size
-        self.n_input_channels = 38*4
-        self.remaining_input_size = 24*4
-        self.output_size = output_size
-
+        self.n_input_channels = 38
+        self.remaining_input_size = 24
+        
         self.lstm = nn.LSTM(self.n_input_channels, lstm_hidden_size, batch_first=True, bidirectional=True).to(device)
+        self.lstm2 = nn.LSTM(self.remaining_input_size, lstm_hidden_size, batch_first=True, bidirectional=True).to(device)      
 
         # This will hold the hidden state and cell state of the LSTM
         self.hidden = None
-
+        self.hidden2 = None
+        
         self.attention_weights_layer = nn.Linear(lstm_hidden_size * 2, 1, bias=False).to(device)
 
-        # Define a sequential layer to process the concatenated output
-        self.fc = nn.Sequential(
-            nn.Linear(self.remaining_input_size, 128),
-            nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, output_size),
-            nn.ReLU()
-        ).to(device)
 
     def attention_net(self, lstm_output):
-        attention_scores = self.attention_weights_layer(lstm_output)
-        attention_weights = F.softmax(attention_scores, dim=1)
-        context_vector = torch.sum(attention_weights * lstm_output, dim=1)
+        attention_scores = self.attention_weights_layer(lstm_output)  
+        attention_weights = F.softmax(attention_scores, dim=1)  
+        context_vector = torch.sum(attention_weights * lstm_output, dim=1)  
         return context_vector
-
+   
     def reset(self):
         self.hidden = None
+        self.hidden2 = None
 
     def reset_hidden_state_for_env(self, env_idx: int):
         if self.hidden is not None:
-            self.hidden[0][:, env_idx, :] = 0  # Reset hidden state (h_0) for environment `env_idx`
-            self.hidden[1][:, env_idx, :] = 0  # Reset cell state (c_0) for environment `env_idx`
+            self.hidden = (
+                self.hidden[0].detach(),
+                self.hidden[1].detach()
+            )
+            self.hidden[0][:, env_idx, :] = 0  # Reset hidden state (h_0)
+            self.hidden[1][:, env_idx, :] = 0  # Reset cell state (c_0)
+
+        if self.hidden2 is not None:
+            self.hidden2 = (
+                self.hidden2[0].detach(),
+                self.hidden2[1].detach()
+            )
+            self.hidden2[0][:, env_idx, :] = 0  # Reset hidden state (h_0)
+            self.hidden2[1][:, env_idx, :] = 0  # Reset cell state (c_0)
 
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
-        # Split the observations into two parts
-        lstm_input = observations[:, :38*4]
-        remaining_input = observations[:, 38*4:]
+        lstm_input = observations[:, :38 * 10]  # First 10 sequences of 38 features
+        remaining_input = observations[:, 38 * 10:]  # Remaining input for the second LSTM
 
-        # Initialize hidden state and cell state with zeros if they are not already set
+        batch_size = observations.shape[0]
+        lstm_input = lstm_input.view(batch_size, 10, 38)  # (batch_size, seq_len, input_size)
+        remaining_input = remaining_input.view(batch_size, 10, 24)
+
         if self.hidden is None or lstm_input.shape[0] != self.hidden[0].shape[1]:
-            self.hidden = (torch.zeros(1, lstm_input.shape[0], self.lstm_hidden_size).to(observations.device),
-                           torch.zeros(1, lstm_input.shape[0], self.lstm_hidden_size).to(observations.device))
+            self.hidden = (
+                torch.zeros(2, batch_size, self.lstm_hidden_size).to(observations.device),
+                torch.zeros(2, batch_size, self.lstm_hidden_size).to(observations.device),
+            )
         else:
-            # Detach the hidden state to avoid backpropagating through the entire history
             self.hidden = (self.hidden[0].detach(), self.hidden[1].detach())
 
-        # LSTM expects input of shape (batch_size, seq_len, input_size)
-        lstm_input = lstm_input.unsqueeze(1)  # Add sequence dimension
-        lstm_out, self.hidden = self.lstm(lstm_input, self.hidden)
-        context_vector = self.attention_net(lstm_out)
-        final_output = self.fc(remaining_input)
-        combined_output = torch.cat((context_vector, final_output), dim=1)
-        return combined_output
+        if self.hidden2 is None or remaining_input.shape[0] != self.hidden2[0].shape[1]:
+            self.hidden2 = (
+                torch.zeros(2, batch_size, self.lstm_hidden_size).to(observations.device),
+                torch.zeros(2, batch_size, self.lstm_hidden_size).to(observations.device),
+            )
+        else:
+            self.hidden2 = (self.hidden2[0].detach(), self.hidden2[1].detach())
 
+        lstm_out, self.hidden = self.lstm(lstm_input, self.hidden)  # (batch_size, seq_len, hidden_size)
 
+        context_vector = self.attention_net(lstm_out)  # Shape: (batch_size, attention_dim)
+
+        remaining_out, self.hidden2 = self.lstm2(remaining_input, self.hidden2)  # (batch_size, seq_len, hidden_size)
+
+        final_output = torch.cat((
+            remaining_out[:, -1, :],    # Final output of the second LSTM (last time step)
+            context_vector              # Attention context vector
+        ), dim=1)  # Concatenate along the feature dimension
+
+        return final_output
 
 class VecAdapter(VecEnvWrapper):
-  def __init__(self, venv: LitePool, featureExtractor):
+  def __init__(self, venv: LitePool):
     venv.num_envs = venv.spec.config.num_envs
     super().__init__(venv=venv)
-    self.featureExtractor = featureExtractor
     self.mid_prices = []
     self.balances = []
     self.leverages = []
@@ -117,7 +140,6 @@ class VecAdapter(VecEnvWrapper):
 
   def reset(self) -> VecEnvObs:
       self.steps = 0
-      self.featureExtractor.reset()
       return self.venv.reset()[0]
 
   def seed(self, seed: Optional[int] = None) -> None:
@@ -157,7 +179,6 @@ class VecAdapter(VecEnvWrapper):
           if dones[i]:
               infos[i]["terminal_observation"] = obs[i]
               obs[i] = self.venv.reset(np.array([i]))[0]
-              self.featureExtractor.reset_hidden_state_for_env(i)
 
           if self.steps % 1000 == 0 or dones[i]:
               if infos[i]["env_id"] == 0:
@@ -183,51 +204,59 @@ class VecAdapter(VecEnvWrapper):
                   self.header = False
                   self.header = dones[i]
               print("env_id ", i,  " steps ", self.steps, 'balance = ',infos[i]['balance'], "  unreal = ", infos[i]['unrealized_pnl'], 
-                    " real = ", infos[i]['realized_pnl'], '    drawdown = ', infos[i]['drawdown'], '     fees = ', -infos[i]['fees'], 
+                    " real = ", infos[i]['realized_pnl'], '    drawdown = ', infos[i]['drawdown'], '     fees = ', infos[i]['fees'], 
                     ' leverage = ', infos[i]['leverage'])
       self.steps += 1
       return obs, rewards, dones, infos
 
 import os
+if os.path.exists('temp.csv'):
+    os.remove('temp.csv')
 env = litepool.make("RlTrader-v0", env_type="gymnasium", 
                           num_envs=1, batch_size=1,
                           num_threads=1,
-                          filename="oos/1.csv", 
-                          balance=20000,
+                          foldername="./oos/", 
+                          balance=8000,
                           start=1,
-                          max=72000001,
+                          max=36000001,
                           depth=20)
 env.spec.id = 'RlTrader-v0'
 
-feature_extractor = LSTMFeatureExtractor(env.observation_space, lstm_hidden_size=32, output_size=32)
-
-env = VecAdapter(env, feature_extractor)
+env = VecAdapter(env)
 env = VecNormalize(env, norm_obs=True, norm_reward=True)
 env = VecMonitor(env)
-env = VecNormalize(env)
+
+kwargs = dict(use_sde=True, sde_sample_freq=4)
+
+policy_kwargs = {
+    'features_extractor_class': LSTMFeatureExtractor,
+    'features_extractor_kwargs': {'lstm_hidden_size': 16},
+    'activation_fn': th.nn.ReLU,
+    'net_arch': dict(pi=[64, 64], vf=[64, 64], qf=[64, 64]),
+}
+
+import os
+from stable_baselines3.common.noise import NormalActionNoise
 
 
 if os.path.exists("sac_rltrader.zip"):
     model = SAC.load("sac_rltrader", env)
     print("saved model loaded")
-else:
-    print("saved model not found")
 
+    obs = env.reset()
+    done = False
 
-obs = env.reset()
-done = False
+    counter = 0
 
-counter = 0
+    while not done:
+        action, _states = model.predict(obs, deterministic=True)
+        obs, reward, dones, info = env.step(action)
 
-while not done:
-    action, _states = model.predict(obs, deterministic=True)
-    obs, reward, dones, info = env.step(action)
+        if dones.any():
+            obs = env.reset()
+            done = True
 
-    if dones.any():
-        obs = env.reset()
-        done = True
+        counter += 1
 
-    counter += 1
-
-env.close()
+    env.close()
 

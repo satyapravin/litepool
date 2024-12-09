@@ -39,7 +39,7 @@ class CustomSACPolicy(SACPolicy):
 
 class LSTMFeatureExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space: spaces.Box, lstm_hidden_size: int = 16):
-        super(LSTMFeatureExtractor, self).__init__(observation_space, features_dim=lstm_hidden_size*2)
+        super(LSTMFeatureExtractor, self).__init__(observation_space, features_dim=lstm_hidden_size*4)
         
         self.lstm_hidden_size = lstm_hidden_size
         self.n_input_channels = 38
@@ -83,7 +83,7 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
             self.hidden2[1][:, env_idx, :] = 0  # Reset cell state (c_0)
 
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
-        lstm_input = observations[:, :38 * 10]  # First 10 sequences of 38 features
+        lstm_input = observations[:, :38 * 10]  # First 3 sequences of 38 features
         remaining_input = observations[:, 38 * 10:]  # Remaining input for the second LSTM
 
         batch_size = observations.shape[0]
@@ -216,9 +216,9 @@ env = litepool.make("RlTrader-v0", env_type="gymnasium",
                           num_envs=32, batch_size=32,
                           num_threads=32,
                           foldername="./oos/", 
-                          balance=8000,
-                          start=10000,
-                          max=360001,
+                          balance=20000,
+                          start=300000,
+                          max=36001,
                           depth=20)
 env.spec.id = 'RlTrader-v0'
 
@@ -232,7 +232,7 @@ policy_kwargs = {
     'features_extractor_class': LSTMFeatureExtractor,
     'features_extractor_kwargs': {'lstm_hidden_size': 16},
     'activation_fn': th.nn.ReLU,
-    'net_arch': dict(pi=[32, 32], vf=[32, 32], qf=[32, 32]),
+    'net_arch': dict(pi=[64, 64], vf=[64, 64], qf=[64, 64]),
 }
 
 import os
@@ -248,11 +248,11 @@ else:
     model = SAC(CustomSACPolicy,
                 env,
                 policy_kwargs=policy_kwargs,
-                learning_rate=1e-4,                 # Lower learning rate for more stable updates
+                learning_rate=5e-5,                 # Lower learning rate for more stable updates
                 buffer_size=1000000,                # Smaller buffer to focus on more relevant recent experiences
                 learning_starts=100,                # Delay learning to allow for better exploration initially
                 batch_size=256,                     # Larger batch size for more stable gradient updates
-                gamma=0.9,                          # Higher gamma to focus more on long-term reward
+                gamma=0.99,                         # Higher gamma to focus more on long-term reward
                 train_freq=256,                     # Train less frequently to prevent overfitting to noise
                 gradient_steps=64,                  # Increase gradient steps per update for more efficient learning
                 tau=0.01,                           # speed of main to target network

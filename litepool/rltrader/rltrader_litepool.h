@@ -128,7 +128,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
                                               max_read(spec.config["max"_])
   {
     instr_ptr = std::make_unique<Simulator::NormalInstrument>("BTCUSDT", 0.5,
-                                                                0.0002, -0.00005, 0.00075);
+                                                                0.0002, -0.00005, 0.0005);
     int idx = env_id % 9;
     std::string filename = foldername + std::to_string(idx + 1) + ".csv";
     std::cout << filename << std::endl;
@@ -155,8 +155,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   void Step(const Action& action) override {
       auto buy_spread = action["action"_][0];
       auto sell_spread = action["action"_][1];
-
-      adaptor_ptr->quote(buy_spread, sell_spread, 10, 10);
+      adaptor_ptr->quote(buy_spread, sell_spread, 2, 2);
       auto info = adaptor_ptr->getInfo();
       isDone = !adaptor_ptr->next();
       ++steps;
@@ -184,17 +183,9 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     state["info:sell_amount"_] = static_cast<float>(info["sell_amount"]);
 
     auto pnl = info["realized_pnl"] - previous_rpnl; 
-
-    lev_sd.add(info["leverage"]);
-
-    state["reward"_] = (previous_fees - info["fees"] - 0.000005) + pnl; 
-
-    state["reward"_] -= std::abs(lev_sd.avg());
-
+    state["reward"_] = (previous_fees - info["fees"]) + pnl; 
     auto upnl = info["unrealized_pnl"];
-    
-    pnl_sd.add(upnl);
-
+    pnl_sd.add(upnl + pnl);
     state["reward"_] += upnl - previous_upnl;
     state["reward"_] -= pnl_sd.sdev();
 

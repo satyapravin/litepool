@@ -33,6 +33,7 @@ namespace Simulator {
         double balance = 0.0;
         TradeInfo trade_info;
 
+
     public:
         Position(BaseInstrument& instr, const double& aBalance, const double& initialQty, const double& initialAvgprice);
         void reset(const double& initialQty, const double& initialAvgprice);

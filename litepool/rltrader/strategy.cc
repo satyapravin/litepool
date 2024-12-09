@@ -32,14 +32,15 @@ void Strategy::quote(int buy_spread, int sell_spread, int buy_percent, int sell_
 	auto leverage = posInfo.leverage;
         auto inventoryPnL = posInfo.inventoryPnL;
         auto initBalance = position.getInitialBalance();
-        double buy_denom = 500;
-        double sell_denom = 500;
+        double buy_denom = 100;
+        double sell_denom = 100;
 
 	double buy_volume = initBalance * buy_percent / buy_denom;
 	double sell_volume = initBalance * sell_percent / sell_denom;
-        int skew = static_cast<int>(0.5 * leverage);
+        int skew = static_cast<int>(3 * leverage);
         buy_spread = std::max(0, buy_spread + skew);
         sell_spread = std::max(0, sell_spread - skew);
+
         if (buy_volume > 0) this->sendGrid(1, buy_spread, buy_volume, obs, OrderSide::BUY);
         if (sell_volume > 0) this->sendGrid(1, sell_spread, sell_volume, obs, OrderSide::SELL);
 }
