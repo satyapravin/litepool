@@ -27,6 +27,9 @@
 namespace fs = std::filesystem;
 namespace rltrader {
 
+static int spread_min = 0;
+static int spread_max = 5;
+
 class RlTraderEnvFns {
  public:
   static decltype(auto) DefaultConfig() {
@@ -36,7 +39,7 @@ class RlTraderEnvFns {
   template <typename Config>
   static decltype(auto) StateSpec(const Config& conf) {
     float fmax = std::numeric_limits<float>::max();
-    return MakeDict("obs"_.Bind(Spec<float>(std::vector<int>{62*10}, std::make_tuple(-fmax, fmax))),
+    return MakeDict("obs"_.Bind(Spec<float>(std::vector<int>{62}, std::make_tuple(-fmax, fmax))),
                     "info:mid_price"_.Bind(Spec<float>({})),
                     "info:balance"_.Bind(Spec<float>({})),
                     "info:unrealized_pnl"_.Bind(Spec<float>({})),
@@ -52,11 +55,8 @@ class RlTraderEnvFns {
 
   template <typename Config>
   static decltype(auto) ActionSpec(const Config& conf) {
-    int spread_min = 0;
-    int spread_max = 10;
-
-    return MakeDict("action"_.Bind(Spec<int>({2}, {{spread_min, spread_min},
-                                                   {spread_max, spread_max}})));
+    int num_actions = (spread_max - spread_min + 1) * (spread_max - spread_min + 1) - 1;
+    return MakeDict("action"_.Bind(Spec<int>(std::vector<int>{-1}, std::make_tuple<int>(0, num_actions))));
   }
 };
 
@@ -153,9 +153,10 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   }
 
   void Step(const Action& action) override {
-      auto buy_spread = action["action"_][0];
-      auto sell_spread = action["action"_][1];
-      adaptor_ptr->quote(buy_spread, sell_spread, 2, 2);
+      auto num_action = action["action"_][0];
+      auto buy_spread = num_action / spread_max;
+      auto sell_spread = num_action % spread_max;
+      adaptor_ptr->quote(buy_spread, sell_spread, 10, 10);
       auto info = adaptor_ptr->getInfo();
       isDone = !adaptor_ptr->next();
       ++steps;
@@ -167,7 +168,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     State state = Allocate(1);
 
     if (!isDone) {
-      assert(data.size() == 62*10);
+      assert(data.size() == 62);
     }
 
     auto info = adaptor_ptr->getInfo();
@@ -183,11 +184,8 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     state["info:sell_amount"_] = static_cast<float>(info["sell_amount"]);
 
     auto pnl = info["realized_pnl"] - previous_rpnl; 
-    state["reward"_] = (previous_fees - info["fees"]) + pnl; 
-    auto upnl = info["unrealized_pnl"];
-    pnl_sd.add(upnl + pnl);
-    state["reward"_] += upnl - previous_upnl;
-    state["reward"_] -= pnl_sd.sdev();
+    auto upnl = info["unrealized_pnl"]- previous_upnl;
+    state["reward"_] = (previous_fees - info["fees"]) + pnl + upnl; 
 
     if (isDone) return;
     previous_rpnl = info["realized_pnl"];

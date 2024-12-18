@@ -21,62 +21,6 @@ import os
 
 device = th.device("cuda")
 
-class CustomRecurrentFeatureExtractor(BaseFeaturesExtractor):
-    """
-    Custom LSTM Feature Extractor for RecurrentPPO.
-    This processes observations and applies LSTMs with attention.
-    """
-    def __init__(self, observation_space: spaces.Box, lstm_hidden_size: int = 16):
-        super(CustomRecurrentFeatureExtractor, self).__init__(observation_space, features_dim=lstm_hidden_size * 4)
-
-        self.lstm_hidden_size = lstm_hidden_size
-        self.n_input_channels = 38
-        self.remaining_input_size = 24
-
-        # Two LSTMs for different input splits
-        self.lstm = nn.LSTM(self.n_input_channels, lstm_hidden_size, batch_first=True, bidirectional=True)
-        self.lstm2 = nn.LSTM(self.remaining_input_size, lstm_hidden_size, batch_first=True, bidirectional=True)
-
-        # Attention mechanism
-        self.attention_weights_layer = nn.Linear(lstm_hidden_size * 2, 1, bias=False)
-
-    def attention_net(self, lstm_output: th.Tensor) -> th.Tensor:
-        """
-        Apply attention mechanism to LSTM outputs.
-        """
-        attention_scores = self.attention_weights_layer(lstm_output)  # (batch_size, seq_len, 1)
-        attention_weights = th.softmax(attention_scores, dim=1)  # Normalize over the sequence dimension
-        context_vector = th.sum(attention_weights * lstm_output, dim=1)  # Weighted sum over the sequence
-        return context_vector
-
-    def forward(self, observations: th.Tensor) -> th.Tensor:
-        """
-        Forward pass for the custom feature extractor.
-
-        Args:
-            observations: Tensor of shape (batch_size, seq_len, obs_dim).
-
-        Returns:
-            Encoded features for the policy/value networks.
-        """
-        lstm_input = observations[:, :38 * 10]  # First 10 sequences of 38 features
-        remaining_input = observations[:, 38 * 10:]  # Remaining input for the second LSTM
-
-        batch_size = observations.shape[0]
-        lstm_input = lstm_input.view(batch_size, 10, 38)  # (batch_size, seq_len, lstm_input_dim)
-        remaining_input = remaining_input.view(batch_size, 10, 24)  # (batch_size, seq_len, remaining_input_dim)
-
-        # Process inputs through both LSTMs
-        lstm_out, _ = self.lstm(lstm_input)
-        context_vector = self.attention_net(lstm_out)
-
-        remaining_out, _ = self.lstm2(remaining_input)
-        final_output = th.cat(
-            (remaining_out[:, -1, :], context_vector), dim=1
-        )  # Concatenate final LSTM output and attention vector
-
-        return final_output
-
 class VecAdapter(VecEnvWrapper):
   def __init__(self, venv: LitePool):
     venv.num_envs = venv.spec.config.num_envs
@@ -138,7 +82,7 @@ class VecAdapter(VecEnvWrapper):
               infos[i]["terminal_observation"] = obs[i]
               obs[i] = self.venv.reset(np.array([i]))[0]
 
-          if self.steps % 1000 == 0 or dones[i]:
+          if self.steps % 6000 == 0 or dones[i]:
               if infos[i]["env_id"] == 0:
                   d = {"mid": self.mid_prices, "balance": self.balances, "upnl" : self.upnl, 
                        "leverage": self.leverages, "trades": self.trades, "fees": self.fees,
@@ -176,13 +120,13 @@ if os.path.exists("temp.csv"):
 env = litepool.make(
     "RlTrader-v0",
     env_type="gymnasium",
-    num_envs=32,
-    batch_size=32,
-    num_threads=32,
+    num_envs=64,
+    batch_size=64,
+    num_threads=64,
     foldername="./oos/",
-    balance=8000,
-    start=60000,
-    max=360001,
+    balance=2000,
+    start=100000,
+    max=45001,
     depth=20,
 )
 env.spec.id = "RlTrader-v0"
@@ -193,31 +137,33 @@ env = VecMonitor(env)
 
 # RecurrentPPO-specific policy arguments
 policy_kwargs = {
-    "features_extractor_class": CustomRecurrentFeatureExtractor,
-    "features_extractor_kwargs": {"lstm_hidden_size": 16},
-    "activation_fn": th.nn.ReLU,
-    "net_arch": [32, 32],  # Smaller network for policy/value heads
+    "net_arch": [128, 128],  
 }
 
-# Initialize RecurrentPPO model
-model = RecurrentPPO(
-    "MlpLstmPolicy",
-    env,
-    policy_kwargs=policy_kwargs,
-    learning_rate=1e-4,  # Lower learning rate for more stable updates
-    n_steps=512,  # Rollout length per environment
-    batch_size=64,  # Minibatch size for backpropagation
-    n_epochs=4,  # Number of training epochs per update
-    gamma=0.99,  # Discount factor
-    gae_lambda=0.95,  # GAE parameter
-    clip_range=0.2,  # PPO clipping range
-    ent_coef=0.01,  # Entropy coefficient
-    vf_coef=0.5,  # Value function coefficient
-    max_grad_norm=0.5,  # Gradient clipping
-    verbose=1,
-    device=device,
-)
+if os.path.exists("recurrent_ppo_rltrader.zip"):
+    model = RecurrentPPO.load("recurrent_ppo_rltrader")
+    model.set_env(env)
+    print("saved model loaded")
+else:
+    model = RecurrentPPO(
+        "MlpLstmPolicy",
+        env,
+        policy_kwargs=policy_kwargs,
+        learning_rate=3e-5,  # Lower learning rate for more stable updates
+        n_steps=1800,    # Rollout length per environment
+        batch_size=64,   # Minibatch size for backpropagation
+        n_epochs=10,     # Number of training epochs per update
+        gamma=0.98,      # Discount factor
+        gae_lambda=0.95, # GAE parameter
+        clip_range=0.2,  # PPO clipping range
+        ent_coef=0.02,   # Entropy coefficient
+        vf_coef=0.5,     # Value function coefficient
+        max_grad_norm=0.5, # Gradient clipping
+        normalize_advantage=True,
+        verbose=1,
+        device=device,
+    )
 
-# Train the model
+print(model.policy.action_dist)
 model.learn(total_timesteps=700_000 * 100)
 model.save("recurrent_ppo_rltrader")

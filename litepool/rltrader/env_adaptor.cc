@@ -18,7 +18,7 @@ bool EnvAdaptor::next() {
     position_state.clear();
     trade_state.clear();
 
-    for (int ii=0; ii < 10; ++ii) {
+    for (int ii=0; ii < 1; ++ii) {
         if(this->exchange.next()) {
             this->strategy.next();
             computeState();
