@@ -52,15 +52,6 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
         self.hidden = None
         self.hidden2 = None
         
-        self.attention_weights_layer = nn.Linear(lstm_hidden_size * 2, 1, bias=False).to(device)
-
-
-    def attention_net(self, lstm_output):
-        attention_scores = self.attention_weights_layer(lstm_output)  
-        attention_weights = F.softmax(attention_scores, dim=1)  
-        context_vector = torch.sum(attention_weights * lstm_output, dim=1)  
-        return context_vector
-   
     def reset(self):
         self.hidden = None
         self.hidden2 = None
@@ -107,14 +98,11 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
             self.hidden2 = (self.hidden2[0].detach(), self.hidden2[1].detach())
 
         lstm_out, self.hidden = self.lstm(lstm_input, self.hidden)  # (batch_size, seq_len, hidden_size)
-
-        context_vector = self.attention_net(lstm_out)  # Shape: (batch_size, attention_dim)
-
         remaining_out, self.hidden2 = self.lstm2(remaining_input, self.hidden2)  # (batch_size, seq_len, hidden_size)
 
         final_output = torch.cat((
             remaining_out[:, -1, :],    # Final output of the second LSTM (last time step)
-            context_vector              # Attention context vector
+            lstm_out[:, -1, :]
         ), dim=1)  # Concatenate along the feature dimension
 
         return final_output
