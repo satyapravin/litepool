@@ -16,6 +16,10 @@
 #define LITEPOOL_RLTRADER_RLTRADER_LITEPOOL_H_
 
 #include <memory>
+#include <vector>
+#include <cmath>
+#include <algorithm>
+#include <numeric>
 
 #include "litepool/core/async_litepool.h"
 #include "litepool/core/env.h"
@@ -28,7 +32,8 @@ namespace fs = std::filesystem;
 namespace rltrader {
 
 static int spread_min = 0;
-static int spread_max = 5;
+static int spread_max = 10;
+static int num_actions = (spread_max - spread_min + 1) * (spread_max - spread_min + 1);
 
 class RlTraderEnvFns {
  public:
@@ -55,10 +60,64 @@ class RlTraderEnvFns {
 
   template <typename Config>
   static decltype(auto) ActionSpec(const Config& conf) {
-    int num_actions = (spread_max - spread_min + 1) * (spread_max - spread_min + 1) - 1;
-    return MakeDict("action"_.Bind(Spec<int>(std::vector<int>{-1}, std::make_tuple<int>(0, num_actions))));
+    return MakeDict("action"_.Bind(Spec<float>({2}, {{0., 0.01}, {1., 1.}})));
   }
 };
+
+
+class ContinuousToSoftDiscrete {
+public:
+    ContinuousToSoftDiscrete(int n_discrete, double low, double high)
+        : n_discrete(n_discrete), low(low), high(high) {
+        generateDiscreteActions();
+    }
+
+    int mapToDiscrete(double mean, double std) {
+        std::vector<double> logits(n_discrete);
+        for (int i = 0; i < n_discrete; ++i) {
+            double x = discrete_actions[i];
+            logits[i] = computeLogit(x, mean, std);
+        }
+
+        std::vector<double> probs = softmax(logits);
+        return std::distance(probs.begin(), std::max_element(probs.begin(), probs.end()));
+    }
+
+private:
+    int n_discrete;
+    double low, high;
+    std::vector<double> discrete_actions;
+
+    void generateDiscreteActions() {
+        discrete_actions.resize(n_discrete);
+        double step = (high - low) / (n_discrete - 1);
+        for (int i = 0; i < n_discrete; ++i) {
+            discrete_actions[i] = low + i * step;
+        }
+    }
+
+    double computeLogit(double x, double mean, double std) {
+        double diff = x - mean;
+        return -((diff * diff) / (2.0 * std * std));
+    }
+
+    std::vector<double> softmax(const std::vector<double>& logits) {
+        std::vector<double> probs(logits.size());
+        double max_logit = *std::max_element(logits.begin(), logits.end());
+        double sum_exp = 0.0;
+        for (size_t i = 0; i < logits.size(); ++i) {
+            probs[i] = std::exp(logits[i] - max_logit);
+            sum_exp += probs[i];
+        }
+
+        for (size_t i = 0; i < probs.size(); ++i) {
+            probs[i] /= sum_exp;
+        }
+
+        return probs;
+    }
+};
+
 
 class RollingSD {
 private:
@@ -119,13 +178,14 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   std::unique_ptr<Simulator::Exchange> exchange_ptr;
   std::unique_ptr<Simulator::Strategy> strategy_ptr;
   std::unique_ptr<Simulator::EnvAdaptor> adaptor_ptr;
-
+  ContinuousToSoftDiscrete discretizer;
  public:
   RlTraderEnv(const Spec& spec, int env_id) : Env<RlTraderEnvSpec>(spec, env_id),
                                               foldername(spec.config["foldername"_]),
                                               balance(spec.config["balance"_]),
                                               start_read(spec.config["start"_]),
-                                              max_read(spec.config["max"_])
+                                              max_read(spec.config["max"_]),
+                                              discretizer(num_actions, 0, num_actions - 1)
   {
     instr_ptr = std::make_unique<Simulator::NormalInstrument>("BTCUSDT", 0.5,
                                                                 0.0002, -0.00005, 0.0005);
@@ -153,9 +213,11 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   }
 
   void Step(const Action& action) override {
-      auto num_action = action["action"_][0];
-      auto buy_spread = num_action / spread_max;
-      auto sell_spread = num_action % spread_max;
+      auto mean = action["action"_][0];
+      auto std = action["action"_][1];
+      auto action_select = discretizer.mapToDiscrete(mean, std);
+      auto buy_spread = action_select / spread_max;
+      auto sell_spread = action_select % spread_max;
       adaptor_ptr->quote(buy_spread, sell_spread, 10, 10);
       auto info = adaptor_ptr->getInfo();
       isDone = !adaptor_ptr->next();
