@@ -31,10 +31,6 @@
 namespace fs = std::filesystem;
 namespace rltrader {
 
-static int spread_min = 0;
-static int spread_max = 10;
-static int num_actions = (spread_max - spread_min + 1) * (spread_max - spread_min + 1);
-
 class RlTraderEnvFns {
  public:
   static decltype(auto) DefaultConfig() {
@@ -43,8 +39,7 @@ class RlTraderEnvFns {
 
   template <typename Config>
   static decltype(auto) StateSpec(const Config& conf) {
-    float fmax = std::numeric_limits<float>::max();
-    return MakeDict("obs"_.Bind(Spec<float>(std::vector<int>{62}, std::make_tuple(-fmax, fmax))),
+    return MakeDict("obs"_.Bind(Spec<float>({980*2})),
                     "info:mid_price"_.Bind(Spec<float>({})),
                     "info:balance"_.Bind(Spec<float>({})),
                     "info:unrealized_pnl"_.Bind(Spec<float>({})),
@@ -60,7 +55,7 @@ class RlTraderEnvFns {
 
   template <typename Config>
   static decltype(auto) ActionSpec(const Config& conf) {
-    return MakeDict("action"_.Bind(Spec<float>({2}, {{0., 0.01}, {1., 1.}})));
+    return MakeDict("action"_.Bind(Spec<float>({4}, {{0., 0., 0.1, 0.1},{1., 1., 1., 1.}})));
   }
 };
 
@@ -170,26 +165,24 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   double previous_rpnl = 0;
   double previous_upnl = 0;
   double previous_fees = 0;
-  double previous_leverage = 0;
-  double previous_drawdown = 0;
-  RollingSD pnl_sd;
-  RollingSD lev_sd;
+  ContinuousToSoftDiscrete bidder;
+  ContinuousToSoftDiscrete asker;
   std::unique_ptr<Simulator::NormalInstrument> instr_ptr;
   std::unique_ptr<Simulator::Exchange> exchange_ptr;
   std::unique_ptr<Simulator::Strategy> strategy_ptr;
   std::unique_ptr<Simulator::EnvAdaptor> adaptor_ptr;
-  ContinuousToSoftDiscrete discretizer;
  public:
   RlTraderEnv(const Spec& spec, int env_id) : Env<RlTraderEnvSpec>(spec, env_id),
                                               foldername(spec.config["foldername"_]),
                                               balance(spec.config["balance"_]),
                                               start_read(spec.config["start"_]),
                                               max_read(spec.config["max"_]),
-                                              discretizer(num_actions, 0, num_actions - 1)
+                                              bidder(10, 0, 9),
+                                              asker(10, 0, 9)
   {
     instr_ptr = std::make_unique<Simulator::NormalInstrument>("BTCUSDT", 0.5,
-                                                                0.0002, -0.00005, 0.0005);
-    int idx = env_id % 9;
+                                                                0.00002, -0.0001, 0.0005);
+    int idx = env_id % 45;
     std::string filename = foldername + std::to_string(idx + 1) + ".csv";
     std::cout << filename << std::endl;
     exchange_ptr = std::make_unique<Simulator::Exchange>(filename, 250, start_read, max_read);
@@ -202,10 +195,6 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     previous_rpnl = 0;
     previous_upnl = 0;
     previous_fees = 0;
-    previous_leverage = 0;
-    previous_drawdown = 0;
-    pnl_sd.reset();
-    lev_sd.reset();
     adaptor_ptr->reset(0, 0);
     timestamp = adaptor_ptr->getTime();
     isDone = false;
@@ -213,12 +202,13 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   }
 
   void Step(const Action& action) override {
-      auto mean = action["action"_][0];
-      auto std = action["action"_][1];
-      auto action_select = discretizer.mapToDiscrete(mean, std);
-      auto buy_spread = action_select / spread_max;
-      auto sell_spread = action_select % spread_max;
-      adaptor_ptr->quote(buy_spread, sell_spread, 10, 10);
+      double buy_mean = action["action"_][0];
+      double buy_std = action["action"_][1];
+      double sell_mean = action["action"_][2];
+      double sell_std = action["action"_][3];
+      int buy_spread = bidder.mapToDiscrete(buy_mean, buy_std);
+      int sell_spread = asker.mapToDiscrete(sell_mean, sell_std);
+      adaptor_ptr->quote(buy_spread, sell_spread, 5, 5);
       auto info = adaptor_ptr->getInfo();
       isDone = !adaptor_ptr->next();
       ++steps;
@@ -230,7 +220,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     State state = Allocate(1);
 
     if (!isDone) {
-      assert(data.size() == 62);
+      assert(data.size() == 980*2);
     }
 
     auto info = adaptor_ptr->getInfo();
@@ -253,8 +243,6 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     previous_rpnl = info["realized_pnl"];
     previous_upnl = info["unrealized_pnl"];
     previous_fees = info["fees"];
-    previous_drawdown = info["drawdown"];
-    previous_leverage = info["leverage"];
        
     for(int ii=0; ii < data.size(); ++ii) {
       state["obs"_](ii) = static_cast<float>(data[ii]);

@@ -12,9 +12,12 @@ MarketSignalBuilder::MarketSignalBuilder(int depth)
                previous_ask_prices(30, depth),
                previous_bid_amounts(30, depth),
                previous_ask_amounts(30, depth),
+               previous_price_signal{},
+               raw_price_diff_signals(std::make_unique<price_signal_repository>()),                      // price
                raw_spread_signals(std::make_unique<spread_signal_repository>()),                         // spread
                raw_volume_signals(std::make_unique<volume_signal_repository>())                          // volume
 {
+    
 }
 
 
@@ -61,8 +64,10 @@ std::vector<double> MarketSignalBuilder::add_book(Orderbook& book) {
     compute_signals(book);
 
     std::vector<double> retval;
+    insert_signals(retval, *raw_price_diff_signals);
     insert_signals(retval, *raw_spread_signals);
     insert_signals(retval, *raw_volume_signals);
+    
     previous_bid_prices.addRow(book.bid_prices);
     previous_ask_prices.addRow(book.ask_prices);
     previous_bid_amounts.addRow(book.bid_sizes);
@@ -283,4 +288,49 @@ void MarketSignalBuilder::compute_price_signals(price_signal_repository& raw_pri
     raw_price_repo.ask_fill_price_signal_2 = fill_price(current_ask_prices, current_ask_sizes, cum_bid_sizes[2]);
     raw_price_repo.ask_fill_price_signal_3 = fill_price(current_ask_prices, current_ask_sizes, cum_bid_sizes[3]);
     raw_price_repo.ask_fill_price_signal_4 = fill_price(current_ask_prices, current_ask_sizes, cum_bid_sizes[4]);
+
+    raw_price_diff_signals->mid_price_signal = raw_price_repo.mid_price_signal - previous_price_signal.mid_price_signal;
+    raw_price_diff_signals->vwap_bid_price_signal_0 = raw_price_repo.vwap_bid_price_signal_0 - previous_price_signal.vwap_bid_price_signal_0;
+    raw_price_diff_signals->vwap_bid_price_signal_1 = raw_price_repo.vwap_bid_price_signal_1 - previous_price_signal.vwap_bid_price_signal_1;
+    raw_price_diff_signals->vwap_bid_price_signal_2 = raw_price_repo.vwap_bid_price_signal_2 - previous_price_signal.vwap_bid_price_signal_2;
+    raw_price_diff_signals->vwap_bid_price_signal_3 = raw_price_repo.vwap_bid_price_signal_3 - previous_price_signal.vwap_bid_price_signal_3;
+    raw_price_diff_signals->vwap_bid_price_signal_4 = raw_price_repo.vwap_bid_price_signal_4 - previous_price_signal.vwap_bid_price_signal_4;
+
+    raw_price_diff_signals->vwap_ask_price_signal_0 = raw_price_repo.vwap_ask_price_signal_0 - previous_price_signal.vwap_ask_price_signal_0;
+    raw_price_diff_signals->vwap_ask_price_signal_1 = raw_price_repo.vwap_ask_price_signal_1 - previous_price_signal.vwap_ask_price_signal_1;
+    raw_price_diff_signals->vwap_ask_price_signal_2 = raw_price_repo.vwap_ask_price_signal_2 - previous_price_signal.vwap_ask_price_signal_2;
+    raw_price_diff_signals->vwap_ask_price_signal_3 = raw_price_repo.vwap_ask_price_signal_3 - previous_price_signal.vwap_ask_price_signal_3;
+    raw_price_diff_signals->vwap_ask_price_signal_4 = raw_price_repo.vwap_ask_price_signal_4 - previous_price_signal.vwap_ask_price_signal_4;
+
+    raw_price_diff_signals->norm_vwap_bid_price_signal_0 = raw_price_repo.norm_vwap_bid_price_signal_0 - previous_price_signal.norm_vwap_bid_price_signal_0;
+    raw_price_diff_signals->norm_vwap_bid_price_signal_1 = raw_price_repo.norm_vwap_bid_price_signal_1 - previous_price_signal.norm_vwap_bid_price_signal_1;
+    raw_price_diff_signals->norm_vwap_bid_price_signal_2 = raw_price_repo.norm_vwap_bid_price_signal_2 - previous_price_signal.norm_vwap_bid_price_signal_2;
+    raw_price_diff_signals->norm_vwap_bid_price_signal_3 = raw_price_repo.norm_vwap_bid_price_signal_3 - previous_price_signal.norm_vwap_bid_price_signal_3;
+    raw_price_diff_signals->norm_vwap_bid_price_signal_4 = raw_price_repo.norm_vwap_bid_price_signal_4 - previous_price_signal.norm_vwap_bid_price_signal_4;
+
+    raw_price_diff_signals->norm_vwap_ask_price_signal_0 = raw_price_repo.norm_vwap_ask_price_signal_0 - previous_price_signal.norm_vwap_ask_price_signal_0;
+    raw_price_diff_signals->norm_vwap_ask_price_signal_1 = raw_price_repo.norm_vwap_ask_price_signal_1 - previous_price_signal.norm_vwap_ask_price_signal_1;
+    raw_price_diff_signals->norm_vwap_ask_price_signal_2 = raw_price_repo.norm_vwap_ask_price_signal_2 - previous_price_signal.norm_vwap_ask_price_signal_2;
+    raw_price_diff_signals->norm_vwap_ask_price_signal_3 = raw_price_repo.norm_vwap_ask_price_signal_3 - previous_price_signal.norm_vwap_ask_price_signal_3;
+    raw_price_diff_signals->norm_vwap_ask_price_signal_4 = raw_price_repo.norm_vwap_ask_price_signal_4 - previous_price_signal.norm_vwap_ask_price_signal_4;
+
+    raw_price_diff_signals->micro_price_signal_0 = raw_price_repo.micro_price_signal_0 - previous_price_signal.micro_price_signal_0;
+    raw_price_diff_signals->micro_price_signal_1 = raw_price_repo.micro_price_signal_1 - previous_price_signal.micro_price_signal_1;
+    raw_price_diff_signals->micro_price_signal_2 = raw_price_repo.micro_price_signal_2 - previous_price_signal.micro_price_signal_2;
+    raw_price_diff_signals->micro_price_signal_3 = raw_price_repo.micro_price_signal_3 - previous_price_signal.micro_price_signal_3;
+    raw_price_diff_signals->micro_price_signal_4 = raw_price_repo.micro_price_signal_4 - previous_price_signal.micro_price_signal_4;
+
+    raw_price_diff_signals->bid_fill_price_signal_0 = raw_price_repo.bid_fill_price_signal_0 - previous_price_signal.bid_fill_price_signal_0;
+    raw_price_diff_signals->bid_fill_price_signal_1 = raw_price_repo.bid_fill_price_signal_1 - previous_price_signal.bid_fill_price_signal_1;
+    raw_price_diff_signals->bid_fill_price_signal_2 = raw_price_repo.bid_fill_price_signal_2 - previous_price_signal.bid_fill_price_signal_2;
+    raw_price_diff_signals->bid_fill_price_signal_3 = raw_price_repo.bid_fill_price_signal_3 - previous_price_signal.bid_fill_price_signal_3;
+    raw_price_diff_signals->bid_fill_price_signal_4 = raw_price_repo.bid_fill_price_signal_4 - previous_price_signal.bid_fill_price_signal_4;
+
+    raw_price_diff_signals->ask_fill_price_signal_0 = raw_price_repo.ask_fill_price_signal_0 - previous_price_signal.ask_fill_price_signal_0;
+    raw_price_diff_signals->ask_fill_price_signal_1 = raw_price_repo.ask_fill_price_signal_1 - previous_price_signal.ask_fill_price_signal_1;
+    raw_price_diff_signals->ask_fill_price_signal_2 = raw_price_repo.ask_fill_price_signal_2 - previous_price_signal.ask_fill_price_signal_2;
+    raw_price_diff_signals->ask_fill_price_signal_3 = raw_price_repo.ask_fill_price_signal_3 - previous_price_signal.ask_fill_price_signal_3;
+    raw_price_diff_signals->ask_fill_price_signal_4 = raw_price_repo.ask_fill_price_signal_4 - previous_price_signal.ask_fill_price_signal_4;
+
+    previous_price_signal = raw_price_repo;
 }

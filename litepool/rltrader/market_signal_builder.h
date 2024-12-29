@@ -124,15 +124,15 @@ private:
                                              const std::vector<double>& cum_ask_sizes,
                                              int lag);
 
-    static void compute_price_signals( price_signal_repository& repo,
-                                      const std::vector<double>& current_bid_prices,
-                                      const std::vector<double>& current_ask_prices,
-                                      const std::vector<double>& current_bid_sizes,
-                                      const std::vector<double>& current_ask_sizes,
-                                      const std::vector<double>& cum_bid_sizes,
-                                      const std::vector<double>& cum_ask_sizes,
-                                      const std::vector<double>& cum_bid_amounts,
-                                      const std::vector<double>& cum_ask_amounts);
+    void compute_price_signals( price_signal_repository& repo,
+                                const std::vector<double>& current_bid_prices,
+                                const std::vector<double>& current_ask_prices,
+                                const std::vector<double>& current_bid_sizes,
+                                const std::vector<double>& current_ask_sizes,
+                                const std::vector<double>& cum_bid_sizes,
+                                const std::vector<double>& cum_ask_sizes,
+                                const std::vector<double>& cum_bid_amounts,
+                                const std::vector<double>& cum_ask_amounts);
 
     void compute_spread_signals(const price_signal_repository& repo) const;
 
@@ -146,6 +146,8 @@ private:
     TemporalTable previous_ask_prices;
     TemporalTable previous_bid_amounts;
     TemporalTable previous_ask_amounts;
+    price_signal_repository previous_price_signal;
+    std::unique_ptr<price_signal_repository> raw_price_diff_signals;
     std::unique_ptr<spread_signal_repository> raw_spread_signals;
     std::unique_ptr<volume_signal_repository> raw_volume_signals;
 };

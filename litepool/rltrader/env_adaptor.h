@@ -29,8 +29,5 @@ private:
     std::unique_ptr<PositionSignalBuilder> position_builder;
     std::unique_ptr<TradeSignalBuilder> trade_builder;
     std::vector<double> state;
-    std::vector<double> market_state;
-    std::vector<double> trade_state;
-    std::vector<double> position_state;
 };
 }

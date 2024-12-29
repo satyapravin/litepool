@@ -14,11 +14,9 @@ EnvAdaptor::EnvAdaptor(Strategy& strat, Exchange& exch, int depth)
 }
 
 bool EnvAdaptor::next() {
-    market_state.clear();
-    position_state.clear();
-    trade_state.clear();
+    state.clear();
 
-    for (int ii=0; ii < 1; ++ii) {
+    for (int ii=0; ii < 20; ++ii) {
         if(this->exchange.next()) {
             this->strategy.next();
             computeState();
@@ -27,10 +25,6 @@ bool EnvAdaptor::next() {
         }
     }
     
-    state.clear();
-    state.insert(state.end(), market_state.begin(), market_state.end());
-    state.insert(state.end(), position_state.begin(), position_state.end());
-    state.insert(state.end(), trade_state.begin(), trade_state.end());
     return true;
 }
 
@@ -99,7 +93,7 @@ void EnvAdaptor::computeState()
     auto position_signals = position_builder->add_info(position_info, bid_price, ask_price);
     TradeInfo trade_info = strategy.getPosition().getTradeInfo();
     auto trade_signals = trade_builder->add_trade(trade_info, bid_price, ask_price);
-    market_state.insert(market_state.end(), market_signals.begin(), market_signals.end());
-    position_state.insert(position_state.end(), position_signals.begin(), position_signals.end());
-    trade_state.insert(trade_state.end(), trade_signals.begin(), trade_signals.end());
+    state.insert(state.end(), market_signals.begin(), market_signals.end());
+    state.insert(state.end(), position_signals.begin(), position_signals.end());
+    state.insert(state.end(), trade_signals.begin(), trade_signals.end());
 }

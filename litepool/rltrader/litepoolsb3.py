@@ -41,34 +41,20 @@ class ResetHiddenStateCallback(BaseCallback):
         dones = self.locals["dones"]  
         for env_index, done in enumerate(dones):
             if done:  
-                self.model.policy.features_extractor.reset_hidden_state_for_env(env_index)
+                self.model.actor.features_extractor.reset_hidden_state_for_env(env_index)
         return True
-
-
-class CustomSACPolicy(SACPolicy):
-    def __init__(self, observation_space, action_space, lr_schedule, **kwargs):
-        # Pass the features extractor via kwargs to the parent class
-        super().__init__(observation_space, action_space, lr_schedule, **kwargs)
 
 
 class LSTMFeatureExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space: spaces.Box, lstm_hidden_size: int = 16):
-        super(LSTMFeatureExtractor, self).__init__(observation_space, features_dim=lstm_hidden_size*2)
-        
+        super(LSTMFeatureExtractor, self).__init__(observation_space, features_dim=lstm_hidden_size)
         self.lstm_hidden_size = lstm_hidden_size
-        self.n_input_channels = 38
-        self.remaining_input_size = 24
-        
+        self.n_input_channels = 98
         self.lstm = nn.LSTM(self.n_input_channels, lstm_hidden_size, batch_first=True, bidirectional=False).to(device)
-        self.lstm2 = nn.LSTM(self.remaining_input_size, lstm_hidden_size, batch_first=True, bidirectional=False).to(device)      
-
-        # This will hold the hidden state and cell state of the LSTM
         self.hidden = None
-        self.hidden2 = None
         
     def reset(self):
         self.hidden = None
-        self.hidden2 = None
 
     def reset_hidden_state_for_env(self, env_idx: int):
         if self.hidden is not None:
@@ -79,22 +65,11 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
             self.hidden[0][:, env_idx, :] = 0  # Reset hidden state (h_0)
             self.hidden[1][:, env_idx, :] = 0  # Reset cell state (c_0)
 
-        if self.hidden2 is not None:
-            self.hidden2 = (
-                self.hidden2[0].detach(),
-                self.hidden2[1].detach()
-            )
-            self.hidden2[0][:, env_idx, :] = 0  # Reset hidden state (h_0)
-            self.hidden2[1][:, env_idx, :] = 0  # Reset cell state (c_0)
 
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
-        lstm_input = observations[:, :38]  # First 3 sequences of 38 features
-        remaining_input = observations[:, 38:]  # Remaining input for the second LSTM
-
+        lstm_input = observations  
         batch_size = observations.shape[0]
-        lstm_input = lstm_input.view(batch_size, 1, 38)  # (batch_size, seq_len, input_size)
-        remaining_input = remaining_input.view(batch_size, 1, 24)
-
+        lstm_input = lstm_input.view(batch_size, 20, 98)  
         if self.hidden is None or lstm_input.shape[0] != self.hidden[0].shape[1]:
             self.hidden = (
                 torch.zeros(1, batch_size, self.lstm_hidden_size).to(observations.device),
@@ -103,21 +78,8 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
         else:
             self.hidden = (self.hidden[0].detach(), self.hidden[1].detach())
 
-        if self.hidden2 is None or remaining_input.shape[0] != self.hidden2[0].shape[1]:
-            self.hidden2 = (
-                torch.zeros(1, batch_size, self.lstm_hidden_size).to(observations.device),
-                torch.zeros(1, batch_size, self.lstm_hidden_size).to(observations.device),
-            )
-        else:
-            self.hidden2 = (self.hidden2[0].detach(), self.hidden2[1].detach())
-
         lstm_out, self.hidden = self.lstm(lstm_input, self.hidden)  # (batch_size, seq_len, hidden_size)
-        remaining_out, self.hidden2 = self.lstm2(remaining_input, self.hidden2)  # (batch_size, seq_len, hidden_size)
-
-        final_output = torch.cat((
-            remaining_out[:, -1, :],    # Final output of the second LSTM (last time step)
-            lstm_out[:, -1, :]
-        ), dim=1)  # Concatenate along the feature dimension
+        final_output = lstm_out[:, -1, :]
         return final_output
 
 class VecAdapter(VecEnvWrapper):
@@ -181,7 +143,7 @@ class VecAdapter(VecEnvWrapper):
               infos[i]["terminal_observation"] = obs[i]
               obs[i] = self.venv.reset(np.array([i]))[0]
 
-          if self.steps % 1000 == 0 or dones[i]:
+          if self.steps % 1800 == 0 or dones[i]:
               if infos[i]["env_id"] == 0:
                   d = {"mid": self.mid_prices, "balance": self.balances, "upnl" : self.upnl, 
                        "leverage": self.leverages, "trades": self.trades, "fees": self.fees,
@@ -217,9 +179,9 @@ env = litepool.make("RlTrader-v0", env_type="gymnasium",
                           num_envs=32, batch_size=32,
                           num_threads=32,
                           foldername="./oos/", 
-                          balance=2000,
+                          balance=500,
                           start=1,
-                          max=3601,
+                          max=7200001,
                           depth=20)
 env.spec.id = 'RlTrader-v0'
 
@@ -232,6 +194,7 @@ kwargs = dict(use_sde=True, sde_sample_freq=4)
 policy_kwargs = {
     'features_extractor_class': LSTMFeatureExtractor,
     'features_extractor_kwargs': {'lstm_hidden_size': 64},
+    'share_features_extractor': True,
     'activation_fn': th.nn.ReLU,
     'net_arch': dict(pi=[64, 64], vf=[64, 64], qf=[64, 64]),
 }
@@ -246,14 +209,14 @@ if os.path.exists("sac_rltrader.zip"):
     model.set_env(env)
     print("saved model loaded")
 else:
-    model = SAC(CustomSACPolicy,
+    model = SAC("MlpPolicy",
                 env,
                 policy_kwargs=policy_kwargs,
-                learning_rate=5e-5,                 # Lower learning rate for more stable updates
+                learning_rate=5e-4,                 # Lower learning rate for more stable updates
                 buffer_size=1000000,                # Smaller buffer to focus on more relevant recent experiences
                 learning_starts=100,                # Delay learning to allow for better exploration initially
-                batch_size=256,                     # Larger batch size for more stable gradient updates
-                gamma=0.95,                         # Higher gamma to focus more on long-term reward
+                batch_size=512,                     # Larger batch size for more stable gradient updates
+                gamma=0.99,                         # Higher gamma to focus more on long-term reward
                 train_freq=256,                     # Train less frequently to prevent overfitting to noise
                 gradient_steps=64,                  # Increase gradient steps per update for more efficient learning
                 tau=0.01,                           # speed of main to target network
