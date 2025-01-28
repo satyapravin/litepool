@@ -69,7 +69,7 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
         lstm_input = observations  
         batch_size = observations.shape[0]
-        lstm_input = lstm_input.view(batch_size, 20, 98)  
+        lstm_input = lstm_input.view(batch_size, 5, 98)  
         if self.hidden is None or lstm_input.shape[0] != self.hidden[0].shape[1]:
             self.hidden = (
                 torch.zeros(1, batch_size, self.lstm_hidden_size).to(observations.device),
@@ -166,7 +166,7 @@ class VecAdapter(VecEnvWrapper):
                   self.sells = [] 
                   self.header = False
                   self.header = dones[i]
-              print("env_id ", i,  " steps ", self.steps, 'balance = ',infos[i]['balance'], "  unreal = ", infos[i]['unrealized_pnl'], 
+              print("env_id ", i,  " steps ", self.steps, 'balance = ',infos[i]['balance'] - infos[i]['fees'], "  unreal = ", infos[i]['unrealized_pnl'], 
                     " real = ", infos[i]['realized_pnl'], '    drawdown = ', infos[i]['drawdown'], '     fees = ', infos[i]['fees'], 
                     ' leverage = ', infos[i]['leverage'])
       self.steps += 1
@@ -179,7 +179,7 @@ env = litepool.make("RlTrader-v0", env_type="gymnasium",
                           num_envs=32, batch_size=32,
                           num_threads=32,
                           foldername="./oos/", 
-                          balance=500,
+                          balance=1000,
                           start=1,
                           max=7200001,
                           depth=20)

@@ -16,7 +16,7 @@ EnvAdaptor::EnvAdaptor(Strategy& strat, Exchange& exch, int depth)
 bool EnvAdaptor::next() {
     state.clear();
 
-    for (int ii=0; ii < 20; ++ii) {
+    for (int ii=0; ii < 5; ++ii) {
         if(this->exchange.next()) {
             this->strategy.next();
             computeState();

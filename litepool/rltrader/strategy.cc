@@ -37,12 +37,12 @@ void Strategy::quote(int buy_spread, int sell_spread, int buy_percent, int sell_
 
 	double buy_volume = initBalance * buy_percent / buy_denom;
 	double sell_volume = initBalance * sell_percent / sell_denom;
-        int skew = static_cast<int>(0.33 * leverage);
+        int skew = static_cast<int>(2 * leverage);
         buy_spread = std::max(0, buy_spread + skew);
         sell_spread = std::max(0, sell_spread - skew);
 
-        if (buy_volume > 0) this->sendGrid(5, buy_spread, buy_volume, obs, OrderSide::BUY);
-        if (sell_volume > 0) this->sendGrid(5, sell_spread, sell_volume, obs, OrderSide::SELL);
+        if (buy_volume > 0 && buy_spread >= 0) this->sendGrid(1, buy_spread, buy_volume, obs, OrderSide::BUY);
+        if (sell_volume > 0 && sell_spread >= 0) this->sendGrid(1, sell_spread, sell_volume, obs, OrderSide::SELL);
 }
 
 void Strategy::sendGrid(int levels, int start_level, const double& amount, const DataRow& obs, OrderSide side) {
@@ -50,9 +50,9 @@ void Strategy::sendGrid(int levels, int start_level, const double& amount, const
 	auto refPrice = side == OrderSide::SELL ? obs.getBestAskPrice() : obs.getBestBidPrice();
 
         for (int ii = 0; ii < levels; ++ii) {
-	     auto trade_amount = instrument.getTradeAmount(amount * (1 + ii), refPrice);
+	     auto trade_amount = instrument.getTradeAmount(amount, refPrice);
              if (trade_amount >= instrument.getMinAmount()) {
-	          std::string key = sideStr + std::to_string(start_level + ii * 2) + "].price";
+	          std::string key = sideStr + std::to_string(start_level + ii) + "].price";
 	          if (obs.data.find(key) != obs.data.end()) {
 	                double price = obs.data.at(key);
 	                this->exchange.quote(++order_id, side, price, trade_amount);

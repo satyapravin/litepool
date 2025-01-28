@@ -45,43 +45,6 @@ class ResetHiddenStateCallback(BaseCallback):
         return True
 
 
-class LSTMFeatureExtractor(BaseFeaturesExtractor):
-    def __init__(self, observation_space: spaces.Box, lstm_hidden_size: int = 16):
-        super(LSTMFeatureExtractor, self).__init__(observation_space, features_dim=lstm_hidden_size)
-        self.lstm_hidden_size = lstm_hidden_size
-        self.n_input_channels = 98
-        self.lstm = nn.LSTM(self.n_input_channels, lstm_hidden_size, batch_first=True, bidirectional=False).to(device)
-        self.hidden = None
-        
-    def reset(self):
-        self.hidden = None
-
-    def reset_hidden_state_for_env(self, env_idx: int):
-        if self.hidden is not None:
-            self.hidden = (
-                self.hidden[0].detach(),
-                self.hidden[1].detach()
-            )
-            self.hidden[0][:, env_idx, :] = 0  # Reset hidden state (h_0)
-            self.hidden[1][:, env_idx, :] = 0  # Reset cell state (c_0)
-
-
-    def forward(self, observations: torch.Tensor) -> torch.Tensor:
-        lstm_input = observations  
-        batch_size = observations.shape[0]
-        lstm_input = lstm_input.view(batch_size, 20, 98)  
-        if self.hidden is None or lstm_input.shape[0] != self.hidden[0].shape[1]:
-            self.hidden = (
-                torch.zeros(1, batch_size, self.lstm_hidden_size).to(observations.device),
-                torch.zeros(1, batch_size, self.lstm_hidden_size).to(observations.device),
-            )
-        else:
-            self.hidden = (self.hidden[0].detach(), self.hidden[1].detach())
-
-        lstm_out, self.hidden = self.lstm(lstm_input, self.hidden)  # (batch_size, seq_len, hidden_size)
-        final_output = lstm_out[:, -1, :]
-        return final_output
-
 class VecAdapter(VecEnvWrapper):
   def __init__(self, venv: LitePool):
     venv.num_envs = venv.spec.config.num_envs
@@ -180,7 +143,7 @@ env = litepool.make("RlTrader-v0", env_type="gymnasium",
                           num_envs=1, batch_size=1,
                           num_threads=1,
                           foldername="./testfiles/", 
-                          balance=500,
+                          balance=5000,
                           start=1,
                           max=72000001,
                           depth=20)
