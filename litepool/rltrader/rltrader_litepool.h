@@ -20,7 +20,7 @@
 #include <cmath>
 #include <algorithm>
 #include <numeric>
-
+#include <iostream>
 #include "litepool/core/async_litepool.h"
 #include "litepool/core/env.h"
 #include "env_adaptor.h"
