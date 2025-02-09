@@ -51,7 +51,7 @@ void Strategy::sendGrid(int levels, int start_level, const double& amount, const
         for (int ii = 0; ii < levels; ++ii) {
 	     auto trade_amount = instrument.getTradeAmount(amount, refPrices[0]);
              if (trade_amount >= instrument.getMinAmount()) {
-             	this->exchange.quote(++order_id, side, refPrices[ii], trade_amount);
+             	this->exchange.quote(++order_id, side, refPrices[ii + start_level], trade_amount);
              }
         }
 }
