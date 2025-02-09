@@ -46,8 +46,10 @@ add_executable(rltradertest rltrader_litepool_test.cc
                                       position_signal_builder.h position_signal_builder.cc
                                       trade_signal_builder.h trade_signal_builder.cc
                                       base_adaptor.h env_adaptor.h env_adaptor.cc
-                                      rl_macros.h prod_adaptor.h
+                                      rl_macros.h
         base_exchange.h
+        ccapi_exchange.cc
+        ccapi_exchange.h
 )
 target_link_libraries(rltrader_litepool PRIVATE glog -lstdc++fs)
 target_link_libraries(rltradertest PRIVATE GTest::GTest GTest::Main gflags gmock glog -lstdc++fs)

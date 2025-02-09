@@ -1,17 +1,17 @@
 #pragma once
 
 #include <memory>
-#include "sim_exchange.h"
+
+#include "base_exchange.h"
+#include "orderbook.h"
 #include "position.h"
 
 namespace Simulator {
 	class Strategy {
 	public:
-		Strategy(BaseInstrument& instr, SimExchange& exch, const double& balance,
-			const double& pos_amount, const double& avg_price,
-			int maxTicks);
+		Strategy(BaseInstrument& instr, BaseExchange& exch, const double& balance, int maxTicks);
 			
-		void reset(const double& position_amount, const double& avg_price);
+		void reset();
 
 		void quote(int buy_spread, int sell_spread, int buy_percent, int sell_percent);
 
@@ -21,7 +21,7 @@ namespace Simulator {
 
 	private:
 		BaseInstrument& instrument;
-		SimExchange& exchange;
+		BaseExchange& exchange;
 		Position position;
 		int order_id;
 		int max_ticks;

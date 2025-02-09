@@ -8,19 +8,20 @@
 
 using namespace Simulator;
 
-Strategy::Strategy(BaseInstrument& instr, SimExchange& exch, const double& balance,
-	               const double& pos_amount, const double& avg_price,
-	               int maxTicks)
+Strategy::Strategy(BaseInstrument& instr, BaseExchange& exch, const double& balance, int maxTicks)
 	:instrument(instr), exchange(exch),
-	 position(instr, balance, pos_amount, avg_price),
+	 position(instr, balance, 0, 0),
 	 order_id(0), max_ticks(maxTicks) {
 
 	assert(max_ticks >= 5);
 }
 
-void Strategy::reset(const double& position_amount, const double& avg_price) {
+void Strategy::reset() {
 	this->exchange.reset();
-	this->position.reset(position_amount, avg_price);
+	double initQty = 0;
+	double avgPrice = 0;
+	this->exchange.fetchPosition(instrument.getName(), initQty, avgPrice);
+	this->position.reset(initQty, avgPrice);
 	this->order_id = 0;
 }
 

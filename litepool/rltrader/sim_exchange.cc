@@ -32,7 +32,7 @@ bool SimExchange::initialize() {
 	return true;
 }
 
-Orderbook SimExchange::orderbook(std::unordered_map<std::string, double> lob){
+Orderbook SimExchange::orderbook(std::unordered_map<std::string, double> lob) const {
 	Orderbook book;
 	int ii = 0;
 	for(const auto & bid_price_label : bid_price_labels) {
@@ -93,6 +93,11 @@ std::vector<Order> SimExchange::getUnackedOrders() const {
 	return retval;
 }
 
+void SimExchange::fetchPosition(const std::string &symbol, double &posAmount, double &avgPrice) {
+	posAmount = 0;
+	avgPrice = 0;
+}
+
 void SimExchange::quote(int order_id, OrderSide side, const double& price, const double& amount) {
 	Order order{};
 	order.is_taker = false;
@@ -118,7 +123,7 @@ void SimExchange::market(int order_id, OrderSide side, const double &price, cons
 }
 
 Orderbook SimExchange::getBook() const {
-	return SimExchange::orderbook(this->dataReader.current().data);
+	return orderbook(this->dataReader.current().data);
 }
 
 

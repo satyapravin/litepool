@@ -2,12 +2,14 @@
 #include <string>
 #include <map>
 #include <vector>
+
+#include "base_exchange.h"
 #include "order.h"
 #include "csv_reader.h"
 #include "orderbook.h"
 
 namespace Simulator {
-    class SimExchange {
+    class SimExchange final : public BaseExchange {
     public:
         // initialized labels
         static bool initialize();
@@ -16,36 +18,38 @@ namespace Simulator {
         SimExchange(const std::string& filename, long delay, int start_read, int max_read); // 300 milliseconds delay
 
         // Generates an orderbook
-        static Orderbook  orderbook(std::unordered_map<std::string, double> lob);
+        Orderbook orderbook(std::unordered_map<std::string, double> lob) const override;
 
         // Resets the exchange's state
-        void reset();
+        void reset() override;
 
         // Advances to the next row in the data
-        bool next();
+        bool next() override;
+
+        // fetch dummy zero positions
+        void fetchPosition(const std::string& symbol, double& posAmount, double& avgPrice) override;
 
         // Retrieves the current row of the DataFrame
-        Orderbook getBook() const;
+        Orderbook getBook() const override;
 
         // Returns executed orders and clears them
-        std::vector<Order> getFills();
+        std::vector<Order> getFills() override;
 
         // Processes order cancellation for buy orders
-        void cancelBuys();
+        void cancelBuys() override;
 
         // Processes order cancellation for sell orders
-        void cancelSells();
+        void cancelSells() override;
 
-         const std::map<long, Order>& getBidOrders() const;
+         const std::map<long, Order>& getBidOrders() const override;
 
-         const std::map<long, Order>& getAskOrders() const;
+         const std::map<long, Order>& getAskOrders() const override;
 
-         std::vector<Order> getUnackedOrders() const;
+         std::vector<Order> getUnackedOrders() const override;
 
-        // Adds a new order to the quote
-        void quote(int order_id, OrderSide side, const double& price, const double& amount);
+         void quote(int order_id, OrderSide side, const double& price, const double& amount) override;
 
-        void market(int order_id, OrderSide side, const double& price, const double& amount);
+         void market(int order_id, OrderSide side, const double& price, const double& amount) override;
 
     private:
         CsvReader dataReader; // reader

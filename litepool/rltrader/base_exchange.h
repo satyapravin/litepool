@@ -1,31 +1,47 @@
 #pragma once
 #include <map>
 #include <vector>
-#include "csv_reader.h"
 #include "order.h"
+#include "orderbook.h"
 
 namespace Simulator {
     class BaseExchange {
     public:
         // Constructor
-        virtual ~BaseExchange() = 0;
+        virtual ~BaseExchange() = default;
+
+        // Resets the exchange's state
         virtual void reset() = 0;
-        virtual bool next();
-        virtual const DataRow& getObs() const = 0;
-        double getDouble(const std::string& name) const;
-        std::vector<Order> getFills();
 
-        void cancelBuys();
-        void cancelSells();
+        // Advances to the next row in the data
+        virtual bool next() = 0;
 
-         const std::map<long, Order>& getBidOrders() const;
+        // build order book from labeled data
+        virtual Orderbook orderbook(std::unordered_map<std::string, double> lob) const = 0;
 
-         const std::map<long, Order>& getAskOrders() const;
+        // fetches the current position from exchange
+        virtual void fetchPosition(const std::string& symbol, double& posAmount, double& avgPrice) = 0;
 
-         std::vector<Order> getUnackedOrders() const;
+        // Retrieves the current row of the DataFrame
+        [[nodiscard]] virtual Orderbook getBook() const = 0;
 
-        // Adds a new order to the quote
-        void quote(int order_id, OrderSide side, const double& price, const double& amount);
-        void market(int order_id, OrderSide side, const double& price, const double& amount);
+        // Returns executed orders and clears them
+        virtual std::vector<Order> getFills() = 0;
+
+        // Processes order cancellation for buy orders
+        virtual void cancelBuys() = 0;
+
+        // Processes order cancellation for sell orders
+        virtual void cancelSells() = 0;
+
+        [[nodiscard]] virtual const std::map<long, Order>& getBidOrders() const = 0;
+
+        [[nodiscard]] virtual const std::map<long, Order>& getAskOrders() const = 0;
+
+        [[nodiscard]] virtual std::vector<Order> getUnackedOrders() const = 0;
+
+        virtual void quote(int order_id, OrderSide side, const double& price, const double& amount) = 0;
+
+        virtual void market(int order_id, OrderSide side, const double& price, const double& amount) = 0;
     };
 }

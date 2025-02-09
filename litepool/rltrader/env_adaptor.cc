@@ -4,7 +4,7 @@
 
 using namespace Simulator;
 
-EnvAdaptor::EnvAdaptor(Strategy& strat, SimExchange& exch, int depth)
+EnvAdaptor::EnvAdaptor(Strategy& strat, BaseExchange& exch, int depth)
            :market_depth(depth),
             strategy(strat),
             exchange(exch),
@@ -36,7 +36,7 @@ void EnvAdaptor::quote(int buy_spread, int sell_spread, int buy_percent, int sel
     this->strategy.quote(buy_spread, sell_spread, buy_percent, sell_percent);
 }
 
-void EnvAdaptor::reset(const double& positionAmount, const double& averagePrice) {
+void EnvAdaptor::reset() {
     max_realized_pnl = 0;
     max_unrealized_pnl = 0;
     drawdown = 0;
@@ -46,7 +46,9 @@ void EnvAdaptor::reset(const double& positionAmount, const double& averagePrice)
     position_builder = std::move(position_ptr);
     auto trade_ptr = std::make_unique<TradeSignalBuilder>();
     trade_builder = std::move(trade_ptr);
-    this->strategy.reset(positionAmount, averagePrice);
+    double init_qty = 0;
+    double avg_price = 0;
+    this->strategy.reset();
     this->next();
 }
 

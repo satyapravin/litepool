@@ -1,7 +1,7 @@
 #pragma once
 #include "base_adaptor.h"
 #include "strategy.h"
-#include "sim_exchange.h"
+#include "base_exchange.h"
 #include "market_signal_builder.h"
 #include "position_signal_builder.h"
 #include "trade_signal_builder.h"
@@ -9,10 +9,10 @@
 namespace Simulator {
 class EnvAdaptor final: public BaseAdaptor{
 public:
-    EnvAdaptor(Strategy& strat, SimExchange& exch, int depth);
+    EnvAdaptor(Strategy& strat, BaseExchange& exch, int depth);
     ~EnvAdaptor() override = default;
     void quote(int buy_spread, int sell_spread, int buy_percent, int sell_percent) override;
-    void reset(const double& positionAmount, const double& averagePrice) override;
+    void reset() override;
     bool next() override;
     std::unordered_map<std::string, double> getInfo() override;
     std::vector<double> getState() override;
@@ -21,7 +21,7 @@ private:
     void computeState();
 
     Strategy& strategy;
-    SimExchange& exchange;
+    BaseExchange& exchange;
     double max_unrealized_pnl = 0;
     double max_realized_pnl = 0;
     double drawdown = 0;
