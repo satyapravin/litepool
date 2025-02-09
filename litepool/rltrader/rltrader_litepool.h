@@ -67,7 +67,6 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
  protected:
   double spreads[4] = {0, 2, 4, 10};
   int state_{0};
-  long long timestamp = 0;
   bool isDone = true;
   std::string foldername;
   double balance = 0;
@@ -78,7 +77,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   double previous_upnl = 0;
   double previous_fees = 0;
   std::unique_ptr<Simulator::NormalInstrument> instr_ptr;
-  std::unique_ptr<Simulator::Exchange> exchange_ptr;
+  std::unique_ptr<Simulator::SimExchange> exchange_ptr;
   std::unique_ptr<Simulator::Strategy> strategy_ptr;
   std::unique_ptr<Simulator::EnvAdaptor> adaptor_ptr;
  public:
@@ -93,7 +92,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     int idx = env_id % 45;
     std::string filename = foldername + std::to_string(idx + 1) + ".csv";
     std::cout << filename << std::endl;
-    exchange_ptr = std::make_unique<Simulator::Exchange>(filename, 250, start_read, max_read);
+    exchange_ptr = std::make_unique<Simulator::SimExchange>(filename, 250, start_read, max_read);
     strategy_ptr = std::make_unique<Simulator::Strategy>(*instr_ptr, *exchange_ptr, balance, 0, 0, 20);
     adaptor_ptr = std::make_unique<Simulator::EnvAdaptor>(*strategy_ptr, *exchange_ptr, spec.config["depth"_]);
   }
@@ -104,7 +103,6 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     previous_upnl = 0;
     previous_fees = 0;
     adaptor_ptr->reset(0, 0);
-    timestamp = adaptor_ptr->getTime();
     isDone = false;
     WriteState();
   }

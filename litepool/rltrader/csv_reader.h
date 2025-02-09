@@ -1,20 +1,19 @@
 #pragma once
 #include <vector>
 #include <string>
-#include <unordered_map>
 #include <stdexcept>
 #include <fstream>
-#include <iostream>
+#include <unordered_map>
 
 namespace Simulator {
     struct DataRow {
-        DataRow(long long anId, std::unordered_map<std::string, double>& dataMap) {
+        DataRow(long long anId, const std::unordered_map<std::string, double>& dataMap) {
             this->id = anId;
             this->data = dataMap;
         }
 
         long long id = 0;
-        std::unordered_map<std::string, double> data;
+        std::unordered_map<std::string, double> data{};
 
         double getBestBidPrice() const {
             return data.find("bids[0].price")->second;
@@ -33,14 +32,14 @@ namespace Simulator {
             size_t current = -1;
 
         public:
-            Iterator():rowsPtr(0), current(0) {}
+            Iterator():rowsPtr(nullptr), current(0) {}
 
-            void populate(std::vector<DataRow>* ptr) {
+            void populate(const std::vector<DataRow>* ptr) {
                 rowsPtr = ptr;
                 current = -1;
             }
 
-            bool hasNext() const {
+            [[nodiscard]] bool hasNext() const {
                 return (current + 1) < rowsPtr->size();
             }
 
@@ -51,15 +50,15 @@ namespace Simulator {
                 return (*rowsPtr)[++current];
             }
 
-            long long getTimeStamp() const {
+            [[nodiscard]] long long getTimeStamp() const {
                 return (*rowsPtr)[current].id;
             }
 
-            double getDouble(const std::string& key) const {
+            [[nodiscard]] double getDouble(const std::string& key) const {
                 return (*rowsPtr)[current].data.at(key);
             }
 
-            const DataRow& currentRow() const {
+            [[nodiscard]] const DataRow& currentRow() const {
                 if (current < 0) throw std::runtime_error("Invalid current row");
                 return (*rowsPtr)[current];
             }

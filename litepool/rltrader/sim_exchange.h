@@ -4,14 +4,19 @@
 #include <vector>
 #include "order.h"
 #include "csv_reader.h"
+#include "orderbook.h"
 
 namespace Simulator {
-    class Exchange {
+    class SimExchange {
     public:
-        // Constructor
-        Exchange(const std::string& filename, long delay, int start_read, int max_read); // 300 milliseconds delay
+        // initialized labels
+        static bool initialize();
 
-        void setDelay(long delay); // override delay
+        // Constructor
+        SimExchange(const std::string& filename, long delay, int start_read, int max_read); // 300 milliseconds delay
+
+        // Generates an orderbook
+        static Orderbook  orderbook(std::unordered_map<std::string, double> lob);
 
         // Resets the exchange's state
         void reset();
@@ -20,11 +25,7 @@ namespace Simulator {
         bool next();
 
         // Retrieves the current row of the DataFrame
-        const DataRow& getObs() const;
-
-        long long getTimestamp() const;
-
-        double getDouble(const std::string& name) const;
+        Orderbook getBook() const;
 
         // Returns executed orders and clears them
         std::vector<Order> getFills();
@@ -65,5 +66,11 @@ namespace Simulator {
 
         // Processes orders that are pending based on their timestamps
         void processPending(const DataRow& obs);
+
+        static std::vector<std::string> ask_price_labels;
+        static std::vector<std::string> bid_price_labels;
+        static std::vector<std::string> ask_size_labels;
+        static std::vector<std::string> bid_size_labels;
+        static bool init;
     };
 }

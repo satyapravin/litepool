@@ -4,7 +4,7 @@
 
 using namespace Simulator;
 
-EnvAdaptor::EnvAdaptor(Strategy& strat, Exchange& exch, int depth)
+EnvAdaptor::EnvAdaptor(Strategy& strat, SimExchange& exch, int depth)
            :market_depth(depth),
             strategy(strat),
             exchange(exch),
@@ -50,14 +50,11 @@ void EnvAdaptor::reset(const double& positionAmount, const double& averagePrice)
     this->next();
 }
 
-long long EnvAdaptor::getTime() const {
-    return exchange.getTimestamp();
-}
 
 std::unordered_map<std::string, double> EnvAdaptor::getInfo() {
-    auto obs = exchange.getObs();
-    auto bid_price = obs.getBestBidPrice();
-    auto ask_price = obs.getBestAskPrice();
+    auto book = exchange.getBook();
+    auto bid_price = book.bid_prices[0];
+    auto ask_price = book.ask_prices[0];
     PositionInfo posInfo =  strategy.getPosition().getPositionInfo(bid_price, ask_price);
     auto tradeInfo = strategy.getPosition().getTradeInfo();
     std::unordered_map<std::string, double> retval;
@@ -70,7 +67,7 @@ std::unordered_map<std::string, double> EnvAdaptor::getInfo() {
     retval["unrealized_pnl"] = posInfo.inventoryPnL;
     retval["realized_pnl"] = posInfo.tradingPnL;
     retval["leverage"] = posInfo.leverage;
-    retval["trade_count"] = tradeInfo.buy_trades + tradeInfo.sell_trades;
+    retval["trade_count"] = (double)(tradeInfo.buy_trades + tradeInfo.sell_trades);
     retval["drawdown"] = drawdown;
     retval["buy_amount"] = tradeInfo.buy_amount;
     retval["sell_amount"] = tradeInfo.sell_amount;
@@ -82,12 +79,11 @@ std::unordered_map<std::string, double> EnvAdaptor::getInfo() {
 
 void EnvAdaptor::computeState()
 {
-    auto obs = this->exchange.getObs();
-    auto bid_price = obs.getBestBidPrice();
-    auto ask_price = obs.getBestAskPrice();
-    auto book = Orderbook(obs.data);
+    auto book = this->exchange.getBook();
+    auto bid_price = book.bid_prices[0];
+    auto ask_price = book.ask_prices[0];
     auto market_signals = market_builder->add_book(book);
-    PositionInfo position_info = strategy.getPosition().getPositionInfo(obs.getBestBidPrice(), obs.getBestAskPrice());
+    PositionInfo position_info = strategy.getPosition().getPositionInfo(book.bid_prices[0], book.ask_prices[0]);
     if (position_info.inventoryPnL > max_unrealized_pnl) max_unrealized_pnl = position_info.inventoryPnL;
     if (position_info.tradingPnL > max_realized_pnl) max_realized_pnl = position_info.tradingPnL;
     auto position_signals = position_builder->add_info(position_info, bid_price, ask_price);

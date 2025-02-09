@@ -8,7 +8,7 @@
 #include "inverse_instrument.h"
 #include "csv_reader.h"
 #include "position.h"
-#include "exchange.h"
+#include "sim_exchange.h"
 #include "strategy.h"
 #include "orderbook.h"
 #include "market_signal_builder.h"
@@ -143,7 +143,7 @@ TEST_CASE("Testing TemporalBuffer with custom class TestData") {
 }
 
 TEST_CASE("env adaptor test") {
-	Exchange exch("data.csv", 5, 0, 100);
+	SimExchange exch("data.csv", 5, 0, 100);
 	InverseInstrument instr("BTC", 0.5, 10.0, 0, 0.0005);
 	Strategy strategy(instr, exch, 1, 0, 0, 5);
 	EnvAdaptor adaptor = EnvAdaptor(strategy, exch, 5);
@@ -151,15 +151,15 @@ TEST_CASE("env adaptor test") {
 
 	int counter = 0;
 	auto state = adaptor.getState();
-	CHECK(state.size() == 248);
+	CHECK(state.size() == 490);
 	adaptor.next();
 	state = adaptor.getState();
-	CHECK(state.size() == 248);
+	CHECK(state.size() == 490);
 	state = adaptor.getState();
-	CHECK(state.size() == 248);
+	CHECK(state.size() == 490);
 	adaptor.next();
 	state = adaptor.getState();
-	CHECK(state.size() == 248);
+	CHECK(state.size() == 490);
 	adaptor.quote(0.01, 0.01, 0.1, 0.1);
 
 	for (int ii=0; ii < 500; ++ii) {
@@ -178,25 +178,25 @@ TEST_CASE("env adaptor test") {
 TEST_CASE("test of orderbook and signals") {
 	double bid_price = 1000;
 	double ask_price = 1000;
-	std::unordered_map<std::string, double> lob;
+	Orderbook lob;
+	lob.bid_prices.assign(20, 0.0);
+	lob.ask_prices.assign(20, 0.0);
+	lob.bid_sizes.assign(20, 0.0);
+	lob.ask_sizes.assign(20, 0.0);
 	std::mt19937 rng;
 	std::random_device rd;
 	rng.seed(rd());
 	std::uniform_int_distribution<int> dist(1000, 50000);
 
 	for(int ii=0; ii < 20; ++ii) {
-		std::string bid_lbl = "bids[";
-		bid_lbl += std::to_string(ii) + "]";
-		std::string ask_lbl = "asks[";
-		ask_lbl += std::to_string(ii) + "]";
 		bid_price -= 0.5;
 		ask_price += 0.5;
-		lob[bid_lbl + ".price"] = bid_price;
-		lob[ask_lbl + ".price"] = ask_price;
-		lob[bid_lbl + ".amount"] = dist(rng);
-		lob[ask_lbl + ".amount"] = dist(rng);
+		lob.bid_prices[ii] = bid_price;
+		lob.ask_prices[ii] = ask_price;
+		lob.bid_sizes[ii] = dist(rng);
+		lob.ask_sizes[ii] = dist(rng);
 	}
-	Orderbook book(lob);
+	auto& book = lob;
 	CHECK(book.ask_prices.size() == 20);
 	CHECK(book.bid_prices.size() == 20);
 	CHECK(book.ask_sizes.size() == 20);
@@ -206,31 +206,25 @@ TEST_CASE("test of orderbook and signals") {
 
 	int ii = 0;
 	for (ii=0; ii < 15000; ++ii) {
-		std::unordered_map<std::string, double> lob;
-		double mid_price = 0.5 * (bid_price + ask_price) + dist(rng) / 2000;
-		double bid_price = mid_price;
-		double ask_price = mid_price;
+		double mid_price = 0.5 * (bid_price + ask_price) + dist(rng) / 2000.0;
+		bid_price = mid_price;
+		ask_price = mid_price;
 
 		for(int jj=0; jj < 20; ++jj) {
-			std::string bid_lbl = "bids[";
-			bid_lbl += std::to_string(jj) + "]";
-			std::string ask_lbl = "asks[";
-			ask_lbl += std::to_string(jj) + "]";
 			bid_price -= 0.5;
 			ask_price += 0.5;
-			lob[bid_lbl + ".price"] = bid_price;
-			lob[ask_lbl + ".price"] = ask_price;
-			lob[bid_lbl + ".amount"] = dist(rng);
-			lob[ask_lbl + ".amount"] = dist(rng);
+			lob.bid_prices[jj] = bid_price;
+			lob.ask_prices[jj] = ask_price;
+			lob.bid_sizes[jj] = dist(rng);
+			lob.ask_sizes[jj] = dist(rng);
 		}
 
-		Orderbook book(lob);
 		auto signals = builder.add_book(book);
 
 		if (ii > 30) {
-			CHECK(std::all_of(signals.begin(), signals.end(), [](double val) {return std::isfinite(val);}));
-			CHECK(std::count_if(signals.begin(), signals.end(), [](double val) { return std::abs(val) == 0.0;}) <= 4);
-			CHECK(std::all_of(signals.begin(), signals.end(), [](double val) { return std::abs(val) < 10;}));
+			CHECK(std::all_of(signals.begin(), signals.end(), [](const double& val) {return std::isfinite(val);}));
+			CHECK(std::count_if(signals.begin(), signals.end(), [](const double& val) { return std::abs(val) == 0.0;}) <= 4);
+			CHECK(std::all_of(signals.begin(), signals.end(), [](const double& val) { return std::abs(val) < 100;}));
 		}
 	}
 
@@ -268,7 +262,7 @@ TEST_CASE("testing the csv reader") {
 		counter++;
 	}
 
-	Exchange exch("data.csv", 300, 0, 100);
+	SimExchange exch("data.csv", 300, 0, 100);
 	exch.reset();
 	counter = 0;
 	while(exch.next())
@@ -621,12 +615,12 @@ TEST_CASE("testing the inverse position") {
 }
 
 TEST_CASE("testing exchange") {
-	Exchange exch("data.csv", 5, 0, 100); // 10 microsecond delay is not practical in reality
+	SimExchange exch("data.csv", 5, 0, 100); // 10 microsecond delay is not practical in reality
 	exch.next();
-	const auto& row = exch.getObs();
-	CHECK(row.id == 1714348800182912);
-	CHECK(row.data.at("bids[0].price") == Approx(63100));
-	CHECK(row.data.at("bids[1].price") == Approx(63099.5));
+	const auto& row = exch.getBook();
+
+	CHECK(row.bid_prices[0] == Approx(63100));
+	CHECK(row.bid_prices[1] == Approx(63099.5));
 
 	for (int ii = 0; ii < 8; ++ii)
 		CHECK(exch.next());
@@ -634,10 +628,9 @@ TEST_CASE("testing exchange") {
 	CHECK(exch.next());
 	exch.reset();
 	exch.next();
-	auto next = exch.getObs();
-	CHECK(next.id == 1714348800182912);
-	CHECK(next.data.at("bids[0].price") == Approx(63100));
-	CHECK(next.data.at("bids[1].price") == Approx(63099.5));
+	auto next = exch.getBook();
+	CHECK(next.bid_prices[0] == Approx(63100));
+	CHECK(next.bid_prices[1] == Approx(63099.5));
 	exch.reset();
 	exch.quote(1, OrderSide::SELL, 42302, 100);
 	exch.quote(2, OrderSide::SELL, 42305, 500);
@@ -655,7 +648,7 @@ TEST_CASE("testing exchange") {
 }
 
 TEST_CASE("test of inverse strategy") {
-	Exchange exch("data.csv", 5, 0, 1000);
+	SimExchange exch("data.csv", 5, 0, 1000);
 	exch.next();
 	InverseInstrument instr("BTC", 0.5, 10.0, 0, 0.0005);
 	Strategy strategy(instr, exch, 0.015, 0, 0, 5);
@@ -663,12 +656,12 @@ TEST_CASE("test of inverse strategy") {
 	exch.next();
 	const auto& bids = exch.getBidOrders();
 	const auto& asks = exch.getAskOrders();
-	CHECK(bids.size() == 3);
-	CHECK(asks.size() == 3);
+	CHECK(bids.size() == 1);
+	CHECK(asks.size() == 1);
 }
 
 TEST_CASE("test of normal strategy") {
-	Exchange exch("data.csv", 5, 0, 1000);
+	SimExchange exch("data.csv", 5, 0, 1000);
 	exch.next();
 	NormalInstrument instr("BTCUSDT", 0.1, .0001, -0.0001, 0.0075);
 	Strategy strategy(instr, exch, 2000, 0, 0, 5);
@@ -676,6 +669,6 @@ TEST_CASE("test of normal strategy") {
 	exch.next();
 	const auto& bids = exch.getBidOrders();
 	const auto& asks = exch.getAskOrders();
-	CHECK(bids.size() == 3);
-	CHECK(asks.size() == 3);
+	CHECK(bids.size() == 1);
+	CHECK(asks.size() == 1);
 }

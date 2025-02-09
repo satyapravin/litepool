@@ -1,13 +1,13 @@
 #pragma once
 
 #include <memory>
-#include "exchange.h"
+#include "sim_exchange.h"
 #include "position.h"
 
 namespace Simulator {
 	class Strategy {
 	public:
-		Strategy(BaseInstrument& instr, Exchange& exch, const double& balance,
+		Strategy(BaseInstrument& instr, SimExchange& exch, const double& balance,
 			const double& pos_amount, const double& avg_price,
 			int maxTicks);
 			
@@ -21,12 +21,12 @@ namespace Simulator {
 
 	private:
 		BaseInstrument& instrument;
-		Exchange& exchange;
+		SimExchange& exchange;
 		Position position;
 		int order_id;
 		int max_ticks;
 		void sendGrid(int levels, int start_level,
-			      const double& amount, const DataRow& obs,
+			      const double& amount, const Orderbook& book,
 		              OrderSide side);
 	};
 }

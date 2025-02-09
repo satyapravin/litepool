@@ -1,10 +1,53 @@
-#include "exchange.h"
+#include "sim_exchange.h"
 #include <vector>
 #include <cassert>
 
+#include "orderbook.h"
+
 using namespace Simulator;
 
-Exchange::Exchange(const std::string& filename, long delay, int start_read, int max_read) :dataReader(filename, start_read, max_read), delay(delay) {
+std::vector<std::string> SimExchange::bid_price_labels(0);
+std::vector<std::string> SimExchange::ask_price_labels(0);
+std::vector<std::string> SimExchange::bid_size_labels(0);
+std::vector<std::string> SimExchange::ask_size_labels(0);
+bool SimExchange::init = SimExchange::initialize();
+
+bool SimExchange::initialize() {
+	for (int ii = 0; ii < 20; ++ii) {
+		std::ostringstream bid_price_lbl;
+		bid_price_lbl << "bids[" << ii << "].price";
+		std::ostringstream ask_price_lbl;
+		ask_price_lbl << "asks[" << ii << "].price";
+		std::ostringstream bid_amount_lbl;
+		bid_amount_lbl << "bids[" << ii << "].amount";
+		std::ostringstream ask_amount_lbl;
+		ask_amount_lbl << "asks[" << ii << "].amount";
+
+		SimExchange::bid_price_labels.push_back(bid_price_lbl.str());
+		SimExchange::ask_price_labels.push_back(ask_price_lbl.str());
+		SimExchange::bid_size_labels.push_back(bid_amount_lbl.str());
+		SimExchange::ask_size_labels.push_back(ask_amount_lbl.str());
+	}
+
+	return true;
+}
+
+Orderbook SimExchange::orderbook(std::unordered_map<std::string, double> lob){
+	Orderbook book;
+	int ii = 0;
+	for(const auto & bid_price_label : bid_price_labels) {
+		if (lob.find(bid_price_label) != lob.end()) {
+			book.bid_prices.push_back(lob[SimExchange::bid_price_labels[ii]]);
+			book.ask_prices.push_back(lob[SimExchange::ask_price_labels[ii]]);
+			book.bid_sizes.push_back(lob[SimExchange::bid_size_labels[ii]]);
+			book.ask_sizes.push_back(lob[SimExchange::ask_size_labels[ii]]);
+		}
+		ii++;
+	}
+	return book;
+}
+
+SimExchange::SimExchange(const std::string& filename, long delay, int start_read, int max_read) :dataReader(filename, start_read, max_read), delay(delay) {
 	bid_quotes.clear();
 	ask_quotes.clear();
 	executions.clear();
@@ -12,11 +55,8 @@ Exchange::Exchange(const std::string& filename, long delay, int start_read, int 
 	dataReader.reset();
 }
 
-void Exchange::setDelay(long delay) {
-	this->delay = delay;
-}
 
-void Exchange::reset() {
+void SimExchange::reset() {
 	this->dataReader.reset();
 	this->executions.clear();
 	this->bid_quotes.clear();
@@ -24,7 +64,7 @@ void Exchange::reset() {
 	this->timed_buffer.clear();
 }
 
-bool Exchange::next() {
+bool SimExchange::next() {
     if (this->dataReader.hasNext()) {
         this->dataReader.next();
         this->execute();
@@ -35,15 +75,15 @@ bool Exchange::next() {
     return true;
 }
 
-const std::map<long, Order>& Exchange::getBidOrders() const {
+const std::map<long, Order>& SimExchange::getBidOrders() const {
 	return this->bid_quotes;
 }
 
-const std::map<long, Order>& Exchange::getAskOrders() const {
+const std::map<long, Order>& SimExchange::getAskOrders() const {
 	return this->ask_quotes;
 }
 
-std::vector<Order> Exchange::getUnackedOrders() const {
+std::vector<Order> SimExchange::getUnackedOrders() const {
 	std::vector<Order> retval;
 	
 	for (auto& [timestamp, orders] : this->timed_buffer) {
@@ -53,8 +93,8 @@ std::vector<Order> Exchange::getUnackedOrders() const {
 	return retval;
 }
 
-void Exchange::quote(int order_id, OrderSide side, const double& price, const double& amount) {
-	Order order;
+void SimExchange::quote(int order_id, OrderSide side, const double& price, const double& amount) {
+	Order order{};
 	order.is_taker = false;
 	order.microSecond = this->dataReader.getTimeStamp();
 	order.amount = amount;
@@ -65,8 +105,8 @@ void Exchange::quote(int order_id, OrderSide side, const double& price, const do
 	this->addToBuffer(order);
 }
 
-void Exchange::market(int order_id, OrderSide side, const double &price, const double &amount) {
-	Order order;
+void SimExchange::market(int order_id, OrderSide side, const double &price, const double &amount) {
+	Order order{};
 	order.is_taker = true;
 	order.microSecond = this->dataReader.getTimeStamp();
 	order.amount = amount;
@@ -77,37 +117,30 @@ void Exchange::market(int order_id, OrderSide side, const double &price, const d
 	this->addToBuffer(order);
 }
 
-const DataRow& Exchange::getObs() const {
-	return this->dataReader.current();
+Orderbook SimExchange::getBook() const {
+	return SimExchange::orderbook(this->dataReader.current().data);
 }
 
-long long Exchange::getTimestamp() const {
-	return this->dataReader.getTimeStamp();
-}
 
-double Exchange::getDouble(const std::string& name) const {
-	return this->dataReader.getDouble(name);
-}
-
-std::vector<Order> Exchange::getFills() {
+std::vector<Order> SimExchange::getFills() {
 	std::vector<Order> retval(this->executions);
 	this->executions.clear();
 	return retval;
 }
 
-void Exchange::cancel(std::map<long, Order>& quotes) {
-	for (auto it = quotes.begin(); it != quotes.end(); ++it) {
-            if(it->second.state != OrderState::FILLED
-	       && it->second.state != OrderState::CANCELLED
-	       && it->second.state != OrderState::CANCELLED_ACK) {
-	            it->second.state = OrderState::CANCELLED;
-		    it->second.microSecond = this->dataReader.getTimeStamp();
-		    this->addToBuffer(it->second);
+void SimExchange::cancel(std::map<long, Order>& quotes) {
+	for (auto & quote : quotes) {
+            if(quote.second.state != OrderState::FILLED
+	       && quote.second.state != OrderState::CANCELLED
+	       && quote.second.state != OrderState::CANCELLED_ACK) {
+	            quote.second.state = OrderState::CANCELLED;
+		    quote.second.microSecond = this->dataReader.getTimeStamp();
+		    this->addToBuffer(quote.second);
             }
 	}
 }
 
-void Exchange::processPending(const DataRow& obs) {
+void SimExchange::processPending(const DataRow& obs) {
 	std::vector<long long> delete_stamps;
 	std::vector<Order> bids;
 	std::vector<Order> asks;
@@ -189,15 +222,15 @@ void Exchange::processPending(const DataRow& obs) {
 	}
 }
 
-void Exchange::cancelBuys() {
+void SimExchange::cancelBuys() {
 	this->cancel(this->bid_quotes);
 }
 
-void Exchange::cancelSells() {
+void SimExchange::cancelSells() {
 	this->cancel(this->ask_quotes);
 }
 
-void Exchange::addToBuffer(const Order& order) {
+void SimExchange::addToBuffer(const Order& order) {
 	if (this->timed_buffer.find(order.microSecond) == this->timed_buffer.end()) {
 		this->timed_buffer[order.microSecond] = std::vector<Order>();
 	}
@@ -205,7 +238,7 @@ void Exchange::addToBuffer(const Order& order) {
 	this->timed_buffer[order.microSecond].push_back(order);
 }
 
-void Exchange::execute() {
+void SimExchange::execute() {
 	const DataRow& obs = this->dataReader.current();
 	this->processPending(obs);
 
