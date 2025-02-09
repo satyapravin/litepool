@@ -88,7 +88,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
                                               max_read(spec.config["max"_])
   {
     instr_ptr = std::make_unique<Simulator::NormalInstrument>("BTCUSDT", 0.5,
-                                                                0.0002, -0.0001, 0.0005);
+                                                                0.001, -0.00005, 0.0005);
     int idx = env_id % 45;
     std::string filename = foldername + std::to_string(idx + 1) + ".csv";
     std::cout << filename << std::endl;
@@ -130,7 +130,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
       auto sell_action = select_action(sellActionLogits);
       auto buy_spread = spreads[buy_action];
       auto sell_spread = spreads[sell_action];
-      adaptor_ptr->quote(buy_spread, sell_spread, 5, 5);
+      adaptor_ptr->quote(buy_spread, sell_spread, 50, 50);
       auto info = adaptor_ptr->getInfo();
       isDone = !adaptor_ptr->next();
       ++steps;
