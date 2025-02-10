@@ -44,6 +44,8 @@ add_executable(rltradertest rltrader_litepool_test.cc
                                       csv_reader.h csv_reader.cc
                                       base_exchange.h
                                       sim_exchange.h sim_exchange.cc
+                                      deribit_exchange.h deribit_exchange.cc
+                                      deribit_client.h deribit_client.cc
                                       inverse_instrument.h inverse_instrument.cc
                                       normal_instrument.h normal_instrument.cc
                                       order.h position.h position.cc
@@ -53,12 +55,14 @@ add_executable(rltradertest rltrader_litepool_test.cc
                                       position_signal_builder.h position_signal_builder.cc
                                       trade_signal_builder.h trade_signal_builder.cc
                                       base_adaptor.h env_adaptor.h env_adaptor.cc
+                                      orderbook_manager.h orderbook_manager.cc norm_macro.h rl_macros.h
                                       rl_macros.h
                                       norm_macro.h
 )
 
 target_link_libraries(rltrader_litepool PUBLIC OpenSSL::SSL OpenSSL::Crypto Boost::system Threads::Threads
                                         PRIVATE glog -lstdc++fs)
-target_link_libraries(rltradertest PRIVATE GTest::GTest GTest::Main gflags gmock glog -lstdc++fs)
+target_link_libraries(rltradertest PUBLIC OpenSSL::SSL OpenSSL::Crypto Boost::system Threads::Threads
+                                   PRIVATE GTest::GTest GTest::Main gflags gmock glog -lstdc++fs)
 include(GoogleTest)
 gtest_discover_tests(rltradertest)

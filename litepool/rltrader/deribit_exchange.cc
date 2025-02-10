@@ -101,3 +101,13 @@ std::vector<Order> DeribitExchange::getFills() {
     this->executions.clear();
     return fills;
 }
+
+void DeribitExchange::quote(std::string order_id, OrderSide side, const double& price, const double& amount) {
+    std::string sidestr = side == OrderSide::BUY ? "buy" : "sell";
+    this->db_client.place_order(sidestr, price, amount, "limit");
+}
+
+void DeribitExchange::market(std::string order_id, OrderSide side, const double& price, const double& amount) {
+    std::string sidestr = side == OrderSide::BUY ? "buy" : "sell";
+    this->db_client.place_order(sidestr, price, amount, "market");
+}

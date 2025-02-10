@@ -19,7 +19,7 @@ void TradeSignalBuilder::compute_trade_signals(const TradeInfo& info, const doub
     repo.sell_amount_ratio = gross_amount > 0 ? info.sell_amount / gross_amount: 0;
     repo.relative_buy_price = info.average_buy_price / ask_price;
     repo.relative_sell_price = info.average_sell_price / bid_price;
-    repo.buy_num_trade_ratio = gross_trade > 0 ? info.buy_trades * / gross_trade : 0.0;
+    repo.buy_num_trade_ratio = gross_trade > 0 ? info.buy_trades / gross_trade : 0.0;
     repo.sell_num_trade_ratio = gross_trade > 0 ? info.sell_trades / gross_trade : 0.0;
 
     raw_spread_signals->buy_amount_ratio = repo.buy_amount_ratio - previous_repo.buy_amount_ratio;
