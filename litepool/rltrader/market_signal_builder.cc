@@ -1,8 +1,5 @@
 #include "market_signal_builder.h"
 #include <numeric>
-#include <cmath>
-
-#include "order.h"
 #include "rl_macros.h"
 
 using namespace RLTrader;
@@ -75,7 +72,7 @@ std::vector<double> MarketSignalBuilder::add_book(Orderbook& book) {
     return retval;
 }
 
-void MarketSignalBuilder::compute_signals(Orderbook& book) {
+void MarketSignalBuilder::compute_signals(const Orderbook& book) {
     auto current_bid_prices = book.bid_prices;
     auto current_ask_prices = book.ask_prices;
     auto current_bid_sizes = book.bid_sizes;

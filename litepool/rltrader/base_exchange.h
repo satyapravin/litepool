@@ -31,14 +31,14 @@ namespace RLTrader {
         // Processes order cancellation
         virtual void cancelOrders() = 0;
 
-        [[nodiscard]] virtual const std::map<long, Order>& getBidOrders() const = 0;
+        [[nodiscard]] virtual const std::map<std::string, Order>& getBidOrders() const = 0;
 
-        [[nodiscard]] virtual const std::map<long, Order>& getAskOrders() const = 0;
+        [[nodiscard]] virtual const std::map<std::string, Order>& getAskOrders() const = 0;
 
         [[nodiscard]] virtual std::vector<Order> getUnackedOrders() const = 0;
 
-        virtual void quote(int order_id, OrderSide side, const double& price, const double& amount) = 0;
+        virtual void quote(std::string order_id, OrderSide side, const double& price, const double& amount) = 0;
 
-        virtual void market(int order_id, OrderSide side, const double& price, const double& amount) = 0;
+        virtual void market(std::string order_id, OrderSide side, const double& price, const double& amount) = 0;
     };
 }

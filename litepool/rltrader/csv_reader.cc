@@ -5,7 +5,7 @@
 
 using namespace RLTrader;
 
-CsvReader::CsvReader(const std::string& fname, int start_read_lines, int max_read_lines):filename(fname),
+CsvReader::CsvReader(const std::string& fname, int start_read_lines, int max_read_lines):filename(fname), // NOLINT(*-pass-by-value)
                                                                                          more_data(true), start_read(start_read_lines),
                                                                                          max_read(max_read_lines), num_reads(0) {
 }

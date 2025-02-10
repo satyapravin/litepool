@@ -52,7 +52,7 @@ double Position::inventoryPnL(const double& price) const {
     return this->instrument.pnl(netAmount, averagePrice, price);
 }
 
-void Position::onFill(const Order& order, bool is_maker)
+void Position::onFill(const Order& order)
 {
     if (order.state != OrderState::FILLED) {
         throw std::runtime_error("Order state not filled");

@@ -1,5 +1,4 @@
 #pragma once
-#include <cstring>
 #include <stdexcept>
 #include <vector>
 
@@ -19,13 +18,13 @@ public:
         std::copy(row.begin(), row.end(), buffer[currentRow].begin());
     }
 
-    int get_lagged_row(u_int lag) {
+    [[nodiscard]] u_int get_lagged_row(u_int lag) const {
         if (lag >= NUM_ROWS) throw std::runtime_error("lag greater than available books");
         return (currentRow + NUM_ROWS - lag) % NUM_ROWS;
     }
 
-    const std::vector<double>& get(u_int lag) {
-        auto idx = get_lagged_row(lag);
+    const std::vector<double>& get(const u_int lag) {
+        const auto idx = get_lagged_row(lag);
         return buffer[idx];
     }
 

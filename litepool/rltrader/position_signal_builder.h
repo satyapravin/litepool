@@ -1,6 +1,5 @@
 #pragma once
 
-#include <circ_buffer.h>
 #include <vector>
 #include <memory>
 #include "position.h"

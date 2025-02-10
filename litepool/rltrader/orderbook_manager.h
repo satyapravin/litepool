@@ -28,10 +28,10 @@ namespace RLTrader {
 
         void wait_for_update();
 
-        void update(const std::vector<double>& new_bid_prices,
-                    const std::vector<double>& new_ask_prices,
-                    const std::vector<double>& new_bid_sizes,
-                    const std::vector<double>& new_ask_sizes);
+        void update(std::vector<double> new_bid_prices,
+                    std::vector<double> new_ask_prices,
+                    std::vector<double> new_bid_sizes,
+                    std::vector<double> new_ask_sizes);
 
         bool has_update() const;
     };

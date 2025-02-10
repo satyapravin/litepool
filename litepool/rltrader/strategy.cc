@@ -4,7 +4,6 @@
 #include <cassert>
 #include "orderbook.h"
 #include "position_signal_builder.h"
-#include "trade_signal_builder.h"
 
 using namespace RLTrader;
 
@@ -30,10 +29,9 @@ void Strategy::quote(int buy_spread, int sell_spread, int buy_percent, int sell_
 	exchange.cancelOrders();
 	auto posInfo = position.getPositionInfo(book.bid_prices[0], book.ask_prices[0]);
 	auto leverage = posInfo.leverage;
-        auto inventoryPnL = posInfo.inventoryPnL;
-        auto initBalance = position.getInitialBalance();
-        double buy_denom = 100;
-        double sell_denom = 100;
+    auto initBalance = position.getInitialBalance();
+    double buy_denom = 100;
+    double sell_denom = 100;
 
 	double buy_volume = initBalance * buy_percent / buy_denom;
 	double sell_volume = initBalance * sell_percent / sell_denom;
@@ -51,14 +49,14 @@ void Strategy::sendGrid(int levels, int start_level, const double& amount, const
         for (int ii = 0; ii < levels; ++ii) {
 	     auto trade_amount = instrument.getTradeAmount(amount, refPrices[0]);
              if (trade_amount >= instrument.getMinAmount()) {
-             	this->exchange.quote(++order_id, side, refPrices[ii + start_level], trade_amount);
+             	this->exchange.quote(std::to_string(++order_id), side, refPrices[ii + start_level], trade_amount);
              }
         }
 }
 
 void Strategy::next() {
     auto fills = exchange.getFills();
-    for(auto order: fills) {
-        position.onFill(order, true);
+    for(const auto& order: fills) {
+        position.onFill(order);
     }
 }

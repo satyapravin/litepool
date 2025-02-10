@@ -1,4 +1,5 @@
 #pragma once
+#include <mutex>
 #include "base_exchange.h"
 #include "deribit_client.h"
 #include "orderbook_manager.h"
@@ -30,11 +31,11 @@ namespace RLTrader {
         // Processes order cancellation
         void cancelOrders() override;
 
-        [[nodiscard]] const std::map<long, Order>& getBidOrders() const override {
+        [[nodiscard]] const std::map<std::string, Order>& getBidOrders() const override {
             throw std::runtime_error("Unimplemented");
         }
 
-        [[nodiscard]] const std::map<long, Order>& getAskOrders() const override {
+        [[nodiscard]] const std::map<std::string, Order>& getAskOrders() const override {
             throw std::runtime_error("Unimplemented");
         }
 
@@ -42,9 +43,10 @@ namespace RLTrader {
             throw std::runtime_error("Unimplemented");
         }
 
-        void quote(int order_id, OrderSide side, const double& price, const double& amount) override;
+        void quote(std::string order_id, OrderSide side, const double& price, const double& amount) override;
 
-        void market(int order_id, OrderSide side, const double& price, const double& amount) override;
+        void market(std::string order_id, OrderSide side, const double& price, const double& amount) override;
+
     private:
         void set_callbacks();
         void handle_private_trade_updates (const json& data);
@@ -53,13 +55,14 @@ namespace RLTrader {
         void handle_position_updates (const json& data);
 
         DeribitClient db_client;
-        std::map<long, Order> bid_quotes;
-        std::map<long, Order> ask_quotes;
         std::vector<Order> executions;
 
         double position_amount = 0;
         double position_avg_price = 0;
         OrderbookManager book_manager;
+        std::string symbol;
+        std::mutex fill_mutex;
+        std::atomic<long> orders_count;
     };
 
 } // RLTrader

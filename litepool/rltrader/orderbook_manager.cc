@@ -22,18 +22,16 @@ void OrderbookManager::wait_for_update() {  // removed const
     changed.store(false);
 }
 
-void OrderbookManager::update(const std::vector<double>& new_bid_prices,
-    const std::vector<double>& new_ask_prices,
-    const std::vector<double>& new_bid_sizes,
-    const std::vector<double>& new_ask_sizes) {
+void OrderbookManager::update(std::vector<double> new_bid_prices, std::vector<double> new_ask_prices,
+                              std::vector<double> new_bid_sizes, std::vector<double> new_ask_sizes) {
 
     Orderbook* curr = current.load();
     Orderbook* next = (curr == &book1) ? &book2 : &book1;
 
-    next->bid_prices = new_bid_prices;
-    next->ask_prices = new_ask_prices;
-    next->bid_sizes = new_bid_sizes;
-    next->ask_sizes = new_ask_sizes;
+    next->bid_prices = std::move(new_bid_prices);
+    next->ask_prices = std::move(new_ask_prices);
+    next->bid_sizes = std::move(new_bid_sizes);
+    next->ask_sizes = std::move(new_ask_sizes);
 
     current.store(next);
     changed.store(true);

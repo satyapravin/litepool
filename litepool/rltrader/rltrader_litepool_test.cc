@@ -14,14 +14,13 @@
 
 #include "litepool/rltrader/rltrader_litepool.h"
 
-#include <glog/logging.h>
 #include <gtest/gtest.h>
 
 #include <random>
 #include <vector>
 
-using RlTraderAction = typename rltrader::RlTraderEnv::Action;
-using RlTraderState = typename rltrader::RlTraderEnv::State;
+using RlTraderAction = rltrader::RlTraderEnv::Action;
+using RlTraderState = rltrader::RlTraderEnv::State;
 
 TEST(RlTraderLitePoolTest, SplitZeroAction) {
   auto config = rltrader::RlTraderEnvSpec::kDefaultConfig;
@@ -88,6 +87,7 @@ void Runner(int num_envs, int batch, int seed, int total_iter, int num_threads) 
 
   std::vector<int> length;
 
+  length.reserve(num_envs);
   for (int i = 0; i < num_envs; ++i) {
     length.push_back(seed + i);
   }
@@ -100,7 +100,7 @@ void Runner(int num_envs, int batch, int seed, int total_iter, int num_threads) 
   litepool.Reset(all_env_ids);
 
   auto start = std::chrono::system_clock::now();
-  for (int i = 0; i < total_iter; ++i) {
+  for (int ii = 0; ii < total_iter; ++ii) {
     // recv
     RlTraderState state(litepool.Recv());
     // check state

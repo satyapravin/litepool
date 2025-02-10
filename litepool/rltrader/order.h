@@ -21,7 +21,7 @@ namespace RLTrader {
     struct Order
     {
         bool is_taker;
-        int orderId;
+        std::string orderId;
         OrderSide side;
         double price;
         double amount;

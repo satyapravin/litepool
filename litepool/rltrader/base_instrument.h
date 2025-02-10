@@ -4,7 +4,7 @@
 namespace RLTrader {
     class BaseInstrument {
     public:
-        BaseInstrument(const std::string& aSymbol, const double& aTickSize,
+        BaseInstrument(const std::string& aSymbol, const double& aTickSize, // NOLINT(*-pass-by-value)
             const double& aMinAmount, const double& aMakerFee, const double& aTakerFee)
             :symbol(aSymbol), tickSize(aTickSize), minAmount(aMinAmount), 
             makerFee(aMakerFee), takerFee(aTakerFee)

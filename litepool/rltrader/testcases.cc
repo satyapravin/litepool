@@ -1,7 +1,7 @@
 ﻿#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 #include <algorithm>
-#include <unordered_map>
+
 #include <string>
 #include <random>
 #include <chrono>
@@ -14,7 +14,7 @@
 #include "market_signal_builder.h"
 #include "circ_buffer.h"
 #include "env_adaptor.h"
-#include <iostream>
+
 
 #include "normal_instrument.h"
 
@@ -160,12 +160,12 @@ TEST_CASE("env adaptor test") {
 	adaptor.next();
 	state = adaptor.getState();
 	CHECK(state.size() == 490);
-	adaptor.quote(0.01, 0.01, 0.1, 0.1);
+	adaptor.quote(1, 1, 10, 10);
 
 	for (int ii=0; ii < 500; ++ii) {
 		adaptor.next();
 		state = adaptor.getState();
-		adaptor.quote(0, 0, 0.1, 0.1);
+		adaptor.quote(0, 0, 10, 10);
 	}
 
 	adaptor.next();
@@ -257,8 +257,8 @@ TEST_CASE("testing the csv reader") {
 	int counter = 0;
 	while(reader.hasNext()) {
 		auto& next = reader.next();
-		double tmp = next.getBestAskPrice();
-		tmp = next.getBestBidPrice();
+		auto _ = next.getBestAskPrice();
+		_ = next.getBestBidPrice();
 		counter++;
 	}
 
@@ -297,11 +297,12 @@ TEST_CASE("testing the normal position") {
 		Order order;
 		order.amount = 0.001;
 		order.microSecond = 1;
-		order.orderId = 1;
+		order.orderId = "1";
 		order.price = 1000.0;
 		order.side = OrderSide::BUY;
 		order.state = OrderState::FILLED;
-		pos.onFill(order, true);
+		order.is_taker = false;
+		pos.onFill(order);
 		CHECK(pos.getInitialBalance() == Approx(2000));
 		PositionInfo info = pos.getPositionInfo(1010, 1020);
 		CHECK(info.averagePrice == Approx(1000.0));
@@ -323,11 +324,12 @@ TEST_CASE("testing the normal position") {
 			Order order;
 			order.amount = 0.1;
 			order.microSecond = 1;
-			order.orderId = 1;
+			order.orderId = "1";
 			order.price = 1000.0;
 			order.side = OrderSide::BUY;
 			order.state = OrderState::FILLED;
-			pos.onFill(order, true);
+			order.is_taker = true;
+			pos.onFill(order);
 			CHECK(pos.getInitialBalance() == Approx(2000));
 			PositionInfo info = pos.getPositionInfo(1010, 1020);
 			CHECK(info.averagePrice == Approx(1000.0));
@@ -346,11 +348,12 @@ TEST_CASE("testing the normal position") {
 		Order order;
 		order.amount = 0.2;
 		order.microSecond = 1;
-		order.orderId = 1;
+		order.orderId = "1";
 		order.price = 1015.0;
 		order.side = OrderSide::SELL;
 		order.state = OrderState::FILLED;
-		pos.onFill(order, true);
+		order.is_taker = false;
+		pos.onFill(order);
 		CHECK(pos.getInitialBalance() == Approx(2000));
 		PositionInfo info = pos.getPositionInfo(1010, 1020);
 		CHECK(info.averagePrice == Approx(1000.0));
@@ -393,11 +396,11 @@ TEST_CASE("testing the inverse position") {
 		Order order;
 		order.amount = 10.0;
 		order.microSecond = 1;
-		order.orderId = 1;
+		order.orderId = "1";
 		order.price = 1000.0;
 		order.side = OrderSide::BUY;
 		order.state = OrderState::FILLED;
-		pos.onFill(order, true);
+		pos.onFill(order);
 		CHECK(pos.getInitialBalance() == Approx(0.1));
 		PositionInfo info = pos.getPositionInfo(1010, 1020);
 		CHECK(info.averagePrice == Approx(1000.0));
@@ -419,11 +422,11 @@ TEST_CASE("testing the inverse position") {
 			Order order;
 			order.amount = 10.0;
 			order.microSecond = 1;
-			order.orderId = 1;
+			order.orderId = "1";
 			order.price = 1000.0;
 			order.side = OrderSide::BUY;
 			order.state = OrderState::FILLED;
-			pos.onFill(order, true);
+			pos.onFill(order);
 			CHECK(pos.getInitialBalance() == Approx(0.1));
 			PositionInfo info = pos.getPositionInfo(1010, 1020);
 			CHECK(info.averagePrice == Approx(1000.0));
@@ -442,11 +445,11 @@ TEST_CASE("testing the inverse position") {
 		Order order;
 		order.amount = 15.0;
 		order.microSecond = 1;
-		order.orderId = 1;
+		order.orderId = "1";
 		order.price = 1015.0;
 		order.side = OrderSide::SELL;
 		order.state = OrderState::FILLED;
-		pos.onFill(order, true);
+		pos.onFill(order);
 		CHECK(pos.getInitialBalance() == Approx(0.1));
 		PositionInfo info = pos.getPositionInfo(1010, 1020);
 		CHECK(info.averagePrice == Approx(1000.0));
@@ -468,11 +471,11 @@ TEST_CASE("testing the inverse position") {
 			Order order;
 			order.amount = 10.0;
 			order.microSecond = 1;
-			order.orderId = 1;
+			order.orderId = "1";
 			order.price = 1000.0;
 			order.side = OrderSide::SELL;
 			order.state = OrderState::FILLED;
-			pos.onFill(order, true);
+			pos.onFill(order);
 			CHECK(pos.getInitialBalance() == Approx(0.1));
 			PositionInfo info = pos.getPositionInfo(1010, 1020);
 			CHECK(info.averagePrice == Approx(1000.0));
@@ -491,11 +494,11 @@ TEST_CASE("testing the inverse position") {
 		Order order;
 		order.amount = 15.0;
 		order.microSecond = 1;
-		order.orderId = 1;
+		order.orderId = "1";
 		order.price = 1015.0;
 		order.side = OrderSide::BUY;
 		order.state = OrderState::FILLED;
-		pos.onFill(order, true);
+		pos.onFill(order);
 		CHECK(pos.getInitialBalance() == Approx(0.1));
 		PositionInfo info = pos.getPositionInfo(1010, 1020);
 		CHECK(info.averagePrice == Approx(1000.0));
@@ -510,11 +513,11 @@ TEST_CASE("testing the inverse position") {
 			Order order;
 			order.amount = 10.0;
 			order.microSecond = 1;
-			order.orderId = 1;
+			order.orderId = "1";
 			order.price = 1000.0;
 			order.side = OrderSide::BUY;
 			order.state = OrderState::FILLED;
-			pos.onFill(order, true);
+			pos.onFill(order);
 			CHECK(pos.getInitialBalance() == Approx(0.1));
 			PositionInfo info = pos.getPositionInfo(1010, 1020);
 			CHECK(info.averagePrice == Approx(1000.0));
@@ -527,11 +530,11 @@ TEST_CASE("testing the inverse position") {
 		Order order;
 		order.amount = 10.0;
 		order.microSecond = 1;
-		order.orderId = 1;
+		order.orderId = "1";
 		order.price = 1015.0;
 		order.side = OrderSide::SELL;
 		order.state = OrderState::FILLED;
-		pos.onFill(order, true);
+		pos.onFill(order);
 		CHECK(pos.getInitialBalance() == Approx(0.1));
 		PositionInfo info= pos.getPositionInfo(1010, 1020);
 		CHECK(info.averagePrice == Approx(0));
@@ -546,11 +549,11 @@ TEST_CASE("testing the inverse position") {
 			Order order;
 			order.amount = 10.0;
 			order.microSecond = 1;
-			order.orderId = 1;
+			order.orderId = "1";
 			order.price = 1015.0;
 			order.side = OrderSide::SELL;
 			order.state = OrderState::FILLED;
-			pos.onFill(order, true);
+			pos.onFill(order);
 			CHECK(pos.getInitialBalance() == Approx(0.1));
 			PositionInfo info = pos.getPositionInfo(1010, 1020);
 			CHECK(info.averagePrice == Approx(1015.0));
@@ -563,11 +566,11 @@ TEST_CASE("testing the inverse position") {
 		Order order;
 		order.amount = 10.0;
 		order.microSecond = 1;
-		order.orderId = 1;
+		order.orderId = "1";
 		order.price = 1000.0;
 		order.side = OrderSide::BUY;
 		order.state = OrderState::FILLED;
-		pos.onFill(order, true);
+		pos.onFill(order);
 		CHECK(pos.getInitialBalance() == Approx(0.1));
 		PositionInfo info = pos.getPositionInfo(1010, 1020);
 		CHECK(info.averagePrice == Approx(0.0));
@@ -582,11 +585,11 @@ TEST_CASE("testing the inverse position") {
 			Order order;
 			order.amount = 10.0;
 			order.microSecond = 1;
-			order.orderId = 1;
+			order.orderId = "1";
 			order.price = 1015.0;
 			order.side = OrderSide::SELL;
 			order.state = OrderState::FILLED;
-			pos.onFill(order, true);
+			pos.onFill(order);
 			CHECK(pos.getInitialBalance() == Approx(0.1));
 			PositionInfo info = pos.getPositionInfo(1010, 1020);
 			CHECK(info.averagePrice == Approx(1015.0));
@@ -599,11 +602,11 @@ TEST_CASE("testing the inverse position") {
 		Order order;
 		order.amount = 20.0;
 		order.microSecond = 1;
-		order.orderId = 1;
+		order.orderId = "1";
 		order.price = 1000.0;
 		order.side = OrderSide::BUY;
 		order.state = OrderState::FILLED;
-		pos.onFill(order, true);
+		pos.onFill(order);
 		CHECK(pos.getInitialBalance() == Approx(0.1));
 		PositionInfo info = pos.getPositionInfo(1010, 1020);
 		CHECK(info.averagePrice == Approx(1000.0));
@@ -632,10 +635,10 @@ TEST_CASE("testing exchange") {
 	CHECK(next.bid_prices[0] == Approx(63100));
 	CHECK(next.bid_prices[1] == Approx(63099.5));
 	exch.reset();
-	exch.quote(1, OrderSide::SELL, 42302, 100);
-	exch.quote(2, OrderSide::SELL, 42305, 500);
-	exch.quote(3, OrderSide::BUY, 40000, 300);
-	exch.quote(4, OrderSide::BUY, 39000, 200);
+	exch.quote("1", OrderSide::SELL, 42302, 100);
+	exch.quote("2", OrderSide::SELL, 42305, 500);
+	exch.quote("3", OrderSide::BUY, 40000, 300);
+	exch.quote("4", OrderSide::BUY, 39000, 200);
 	std::vector<Order> unacks = exch.getUnackedOrders();
 	CHECK(unacks.size() == 4);
 	exch.next();

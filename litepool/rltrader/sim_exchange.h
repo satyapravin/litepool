@@ -38,26 +38,26 @@ namespace RLTrader {
         // Processes order cancellation
         void cancelOrders() override;
 
-         const std::map<long, Order>& getBidOrders() const override;
+         const std::map<std::string, Order>& getBidOrders() const override;
 
-         const std::map<long, Order>& getAskOrders() const override;
+         const std::map<std::string, Order>& getAskOrders() const override;
 
          std::vector<Order> getUnackedOrders() const override;
 
-         void quote(int order_id, OrderSide side, const double& price, const double& amount) override;
+         void quote(std::string order_id, OrderSide side, const double& price, const double& amount) override;
 
-         void market(int order_id, OrderSide side, const double& price, const double& amount) override;
+         void market(std::string order_id, OrderSide side, const double& price, const double& amount) override;
 
     private:
         CsvReader dataReader; // reader
         long delay;           // Delay to process timed buffer  
-        std::map<long, Order> bid_quotes;  // Active buy orders
-        std::map<long, Order> ask_quotes;  // Active sell orders
+        std::map<std::string, Order> bid_quotes;  // Active buy orders
+        std::map<std::string, Order> ask_quotes;  // Active sell orders
         std::vector<Order> executions;       // Executed orders
         std::map<long long, std::vector<Order>> timed_buffer;  // Orders waiting for processing
 
         // cancel orders for a side
-        void cancel(std::map<long, Order>& quotes);
+        void cancel(std::map<std::string, Order>& quotes);
 
         // Executes orders based on current market conditions
         void execute();

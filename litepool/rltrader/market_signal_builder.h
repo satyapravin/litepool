@@ -1,10 +1,8 @@
 #pragma once
 
 #include <vector>
-#include <string>
 #include <memory>
 #include "orderbook.h"
-#include "circ_buffer.h"
 #include "circ_table.h"
 
 namespace RLTrader {
@@ -105,13 +103,13 @@ namespace RLTrader {
 
 class MarketSignalBuilder {
 public:
-    MarketSignalBuilder(int depth);
+    explicit MarketSignalBuilder(int depth);
 
     std::vector<double> add_book(Orderbook& lob);
 
 
 private:
-    void compute_signals(Orderbook& book);
+    void compute_signals(const Orderbook& book);
 
     static double compute_ofi(double curr_bid_price, double curr_bid_size,
                        double curr_ask_price, double curr_ask_size,

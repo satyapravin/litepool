@@ -38,7 +38,7 @@ namespace RLTrader {
         Position(BaseInstrument& instr, const double& aBalance, const double& initialQty, const double& initialAvgprice);
         void reset(const double& initialQty, const double& initialAvgprice);
         [[nodiscard]] PositionInfo getPositionInfo(const double& bidPrice, const double& askPrice) const;
-        void onFill(const Order& order, bool is_maker);
+        void onFill(const Order& order);
         [[nodiscard]] double inventoryPnL(const double& price) const;
         [[nodiscard]] double getNetAmount() const { return netAmount; }
         [[nodiscard]] double getInitialBalance() const { return initialBalance; }

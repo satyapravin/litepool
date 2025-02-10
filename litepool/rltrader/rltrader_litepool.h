@@ -17,16 +17,20 @@
 
 #include <memory>
 #include <vector>
-#include <cmath>
 #include <algorithm>
-#include <numeric>
 #include <iostream>
 #include "litepool/core/async_litepool.h"
 #include "litepool/core/env.h"
 #include "env_adaptor.h"
+
+#include "base_instrument.h"
+#include "inverse_instrument.h"
 #include "normal_instrument.h"
-#include <random>
+
 #include <filesystem>
+
+#include "deribit_exchange.h"
+#include "sim_exchange.h"
 
 namespace fs = std::filesystem;
 namespace rltrader {
@@ -34,7 +38,20 @@ namespace rltrader {
 class RlTraderEnvFns {
  public:
   static decltype(auto) DefaultConfig() {
-    return MakeDict("foldername"_.Bind(std::string("")), "balance"_.Bind(1.0), "depth"_.Bind<int>(5), "start"_.Bind<int>(0), "max"_.Bind<int>(72000));
+    return MakeDict("is_prod"_.Bind<bool>(false),
+                    "api_key"_.Bind(std::string("")),
+                    "api_secret"_.Bind(std::string("")),
+                    "is_inverse_instr"_.Bind<bool>(true),
+                    "symbol"_.Bind((std::string(""))),
+                    "tick_size"_.Bind<float>(0.5),
+                    "min_amount"_.Bind<float>(10.0),
+                    "maker_fee"_.Bind<float>(-0.0001),
+                    "taker_fee"_.Bind<float>(0.0005),
+                    "foldername"_.Bind(std::string("")),
+                    "balance"_.Bind(1.0),
+                    "depth"_.Bind<int>(5),
+                    "start"_.Bind<int>(0),
+                    "max"_.Bind<int>(72000));
   }
 
   template <typename Config>
@@ -46,7 +63,7 @@ class RlTraderEnvFns {
                     "info:realized_pnl"_.Bind(Spec<float>({})),
                     "info:leverage"_.Bind(Spec<float>({})),
                     "info:trade_count"_.Bind(Spec<float>({})),
-                    "info:inventory_drawdown"_.Bind(Spec<float>({})),
+                    "info:inventory_drawdown"_.Bind(Spec<float>({})), // NOLINT(*-static-accessed-through-instance)
                     "info:drawdown"_.Bind(Spec<float>({})),
                     "info:fees"_.Bind((Spec<float>({}))),
                     "info:buy_amount"_.Bind((Spec<float>({}))),
@@ -65,9 +82,18 @@ using RlTraderEnvSpec = EnvSpec<RlTraderEnvFns>;
 
 class RlTraderEnv : public Env<RlTraderEnvSpec> {
  protected:
-  double spreads[4] = {0, 2, 4, 10};
+  int spreads[4] = {0, 2, 4, 10};
   int state_{0};
   bool isDone = true;
+  bool is_prod = false;
+  bool is_inverse_instr = false;
+  std::string api_key;
+  std::string api_secret;
+  std::string symbol;
+  double tick_size;
+  double min_amount;
+  double maker_fee;
+  double taker_fee;
   std::string foldername;
   double balance = 0;
   int start_read = 0;
@@ -76,24 +102,50 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   double previous_rpnl = 0;
   double previous_upnl = 0;
   double previous_fees = 0;
-  std::unique_ptr<RLTrader::NormalInstrument> instr_ptr;
-  std::unique_ptr<RLTrader::SimExchange> exchange_ptr;
+  std::unique_ptr<RLTrader::BaseInstrument> instr_ptr;
+  std::unique_ptr<RLTrader::BaseExchange> exchange_ptr;
   std::unique_ptr<RLTrader::Strategy> strategy_ptr;
   std::unique_ptr<RLTrader::EnvAdaptor> adaptor_ptr;
  public:
   RlTraderEnv(const Spec& spec, int env_id) : Env<RlTraderEnvSpec>(spec, env_id),
+                                              is_prod(spec.config["is_prod"_]),
+                                              is_inverse_instr(spec.config["is_inverse_instr"_]),
+                                              api_key(spec.config["api_key"_]),
+                                              api_secret(spec.config["api_secret"_]),
+                                              symbol(spec.config["symbol"_]),
+                                              tick_size(spec.config["tick_size"_]),
+                                              min_amount(spec.config["min_amount"_]),
+                                              maker_fee(spec.config["maker_fee"_]),
+                                              taker_fee(spec.config["taker_fee"_]),
                                               foldername(spec.config["foldername"_]),
                                               balance(spec.config["balance"_]),
                                               start_read(spec.config["start"_]),
                                               max_read(spec.config["max"_])
   {
-    instr_ptr = std::make_unique<RLTrader::NormalInstrument>("BTCUSDT", 0.5,
-                                                                0.001, -0.00005, 0.0005);
-    int idx = env_id % 45;
-    std::string filename = foldername + std::to_string(idx + 1) + ".csv";
-    std::cout << filename << std::endl;
-    exchange_ptr = std::make_unique<RLTrader::SimExchange>(filename, 250, start_read, max_read);
-    strategy_ptr = std::make_unique<RLTrader::Strategy>(*instr_ptr, *exchange_ptr, balance, 0, 0, 20);
+
+    RLTrader::BaseInstrument* instr_raw_ptr = nullptr;
+    RLTrader::BaseExchange* exch_raw_ptr = nullptr;
+
+
+    if (this->is_inverse_instr) {
+      instr_raw_ptr = new RLTrader::InverseInstrument(symbol, tick_size, min_amount, maker_fee, taker_fee);
+    } else {
+      instr_raw_ptr = new RLTrader::NormalInstrument(symbol, tick_size, min_amount, maker_fee, taker_fee);
+    }
+
+
+    if (this->is_prod) {
+      exch_raw_ptr = new RLTrader::DeribitExchange(symbol, api_key, api_secret);
+    } else {
+      int idx = env_id % 45;
+      std::string filename = foldername + std::to_string(idx + 1) + ".csv";
+      std::cout << filename << std::endl;
+      exch_raw_ptr = new RLTrader::SimExchange(filename, 250, start_read, max_read);
+    }
+
+    instr_ptr.reset(instr_raw_ptr);
+    exchange_ptr.reset(exch_raw_ptr);
+    strategy_ptr = std::make_unique<RLTrader::Strategy>(*instr_ptr, *exchange_ptr, balance, 20);
     adaptor_ptr = std::make_unique<RLTrader::EnvAdaptor>(*strategy_ptr, *exchange_ptr, spec.config["depth"_]);
   }
 
@@ -102,12 +154,12 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     previous_rpnl = 0;
     previous_upnl = 0;
     previous_fees = 0;
-    adaptor_ptr->reset(0, 0);
+    adaptor_ptr->reset();
     isDone = false;
     WriteState();
   }
 
-  int select_action(const std::vector<double>& logits) {
+  static u_int select_action(const std::vector<double>& logits) {
       auto maxLogitIt = std::max_element(logits.begin(), logits.end());
       return std::distance(logits.begin(), maxLogitIt);
   }

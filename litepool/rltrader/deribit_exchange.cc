@@ -1,10 +1,12 @@
 #include "deribit_exchange.h"
 
+#include <iostream>
+
 using namespace RLTrader;
 
 
 DeribitExchange::DeribitExchange(const std::string& symbol, const std::string& api_key, const std::string& api_secret)
-    :db_client(api_key, api_secret, symbol)
+    :db_client(api_key, api_secret, symbol), symbol(symbol), orders_count(0)
 {
 }
 
@@ -14,9 +16,8 @@ Orderbook DeribitExchange::orderbook(std::unordered_map<std::string, double> lob
 
 void DeribitExchange::reset() {
     db_client.stop();
+    std::lock_guard<std::mutex> lock(this->fill_mutex);
     this->executions.clear();
-    this->bid_quotes.clear();
-    this->ask_quotes.clear();
     this->set_callbacks();
     db_client.start();
 }
@@ -29,19 +30,51 @@ void DeribitExchange::set_callbacks() {
 }
 
 void DeribitExchange::handle_private_trade_updates (const json& data) {
-
+    if (data["instrument_name"] == this->symbol) {
+        Order order;
+        order.amount = data["amount"];
+        order.is_taker = false;
+        order.price = data["price"];
+        order.side = data["direction"] == "buy" ? OrderSide::BUY : OrderSide::SELL;
+        order.state = OrderState::FILLED;
+        order.orderId = data["trade_id"];
+        order.microSecond = data["timestamp"];
+        std::lock_guard<std::mutex> lock(this->fill_mutex);
+        this->executions.push_back(order);
+    }
 }
 
 void DeribitExchange::handle_order_book_updates (const json& data) {
 
+    std::vector<double> bid_prices;
+    std::vector<double> bid_sizes;
+    std::vector<double> ask_prices;
+    std::vector<double> ask_sizes;
+
+    // Extract bids
+    for (const auto& bid : data["bids"]) {
+        bid_prices.push_back(std::stod(bid[0].get<std::string>()));
+        bid_sizes.push_back(std::stod(bid[1].get<std::string>()));
+    }
+
+    // Extract asks
+    for (const auto& ask : data["asks"]) {
+        ask_prices.push_back(std::stod(ask[0].get<std::string>()));
+        ask_sizes.push_back(std::stod(ask[1].get<std::string>()));
+    }
+
+    this->book_manager.update(std::move(bid_prices), std::move(ask_prices),
+                              std::move(bid_sizes), std::move(ask_sizes));
 }
 
 void DeribitExchange::handle_order_updates (const json& data) {
-
+    ++this->orders_count;
+    std::cout << data << std::endl;
 }
 
-void DeribitExchange::handle_position_updates (const json& data) {
-
+// ReSharper disable once CppMemberFunctionMayBeStatic
+void DeribitExchange::handle_position_updates (const json& data) { // NOLINT(*-convert-member-functions-to-static)
+    std::cout << data << std::endl;
 }
 
 bool DeribitExchange::next() {
@@ -60,4 +93,11 @@ void DeribitExchange::cancelOrders() {
 
 Orderbook DeribitExchange::getBook() const {
     return book_manager.get_current();
+}
+
+std::vector<Order> DeribitExchange::getFills() {
+    std::lock_guard<std::mutex> lock(this->fill_mutex);
+    std::vector<Order> fills(this->executions);
+    this->executions.clear();
+    return fills;
 }

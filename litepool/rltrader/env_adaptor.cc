@@ -46,8 +46,6 @@ void EnvAdaptor::reset() {
     position_builder = std::move(position_ptr);
     auto trade_ptr = std::make_unique<TradeSignalBuilder>();
     trade_builder = std::move(trade_ptr);
-    double init_qty = 0;
-    double avg_price = 0;
     this->strategy.reset();
     this->next();
 }
@@ -69,7 +67,7 @@ std::unordered_map<std::string, double> EnvAdaptor::getInfo() {
     retval["unrealized_pnl"] = posInfo.inventoryPnL;
     retval["realized_pnl"] = posInfo.tradingPnL;
     retval["leverage"] = posInfo.leverage;
-    retval["trade_count"] = (double)(tradeInfo.buy_trades + tradeInfo.sell_trades);
+    retval["trade_count"] = static_cast<double>(tradeInfo.buy_trades + tradeInfo.sell_trades);
     retval["drawdown"] = drawdown;
     retval["buy_amount"] = tradeInfo.buy_amount;
     retval["sell_amount"] = tradeInfo.sell_amount;
