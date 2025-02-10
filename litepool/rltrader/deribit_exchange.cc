@@ -51,6 +51,7 @@ void DeribitExchange::handle_order_book_updates (const json& data) {
     std::vector<double> ask_prices;
     std::vector<double> ask_sizes;
 
+
     // Extract bids
     for (const auto& bid : data["bids"]) {
         bid_prices.push_back(std::stod(bid[0].get<std::string>()));

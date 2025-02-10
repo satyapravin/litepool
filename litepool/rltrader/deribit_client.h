@@ -22,7 +22,7 @@
 #include <functional>
 #include <memory>
 #include <string>
-
+#include <queue>
 
 namespace RLTrader {
     namespace beast = boost::beast;
@@ -85,6 +85,9 @@ namespace RLTrader {
         void send_market_message(const json& msg) const;
         void send_trading_message(const json& msg) const;
         void handle_error(const std::string& operation, const beast::error_code& ec);
+        void write_next_market_message() const;
+        void write_next_trading_message() const;
+
 
         // Thread management
         void run_io_context();
@@ -118,5 +121,12 @@ namespace RLTrader {
 
         // Mutex for callback protection
         std::mutex callback_mutex_;
+
+        mutable std::mutex market_write_mutex_;
+        mutable std::mutex trading_write_mutex_;
+        mutable std::queue<json> market_message_queue_;
+        mutable std::queue<json> trading_message_queue_;
+        mutable std::atomic<bool> is_market_writing_{false};
+        mutable std::atomic<bool> is_trading_writing_{false};
     };
 }
