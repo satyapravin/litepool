@@ -3,7 +3,7 @@
 #include <memory>
 #include "position.h"
 
-namespace Simulator {
+namespace RLTrader {
     struct trade_signal_repository {
         double buy_num_trade_ratio = 0;
         double sell_num_trade_ratio = 0;

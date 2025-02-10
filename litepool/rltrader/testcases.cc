@@ -18,7 +18,7 @@
 
 #include "normal_instrument.h"
 
-using namespace Simulator;
+using namespace RLTrader;
 using namespace doctest;
 
 TEST_CASE("Testing TemporalTable") {
@@ -92,7 +92,7 @@ struct TestData {
 };
 
 TEST_CASE("Testing TemporalBuffer with custom class TestData") {
-    Simulator::TemporalBuffer<TestData> buffer(2); // Buffer for 2 lags
+    RLTrader::TemporalBuffer<TestData> buffer(2); // Buffer for 2 lags
 
     SUBCASE("Initial state") {
         CHECK_NOTHROW(buffer.get(0));

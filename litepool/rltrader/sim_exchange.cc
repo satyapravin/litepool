@@ -4,7 +4,7 @@
 
 #include "orderbook.h"
 
-using namespace Simulator;
+using namespace RLTrader;
 
 std::vector<std::string> SimExchange::bid_price_labels(0);
 std::vector<std::string> SimExchange::ask_price_labels(0);

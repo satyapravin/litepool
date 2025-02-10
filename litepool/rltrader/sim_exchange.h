@@ -8,7 +8,7 @@
 #include "csv_reader.h"
 #include "orderbook.h"
 
-namespace Simulator {
+namespace RLTrader {
     class SimExchange final : public BaseExchange {
     public:
         // initialized labels

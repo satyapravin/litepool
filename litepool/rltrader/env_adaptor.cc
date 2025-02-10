@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-using namespace Simulator;
+using namespace RLTrader;
 
 EnvAdaptor::EnvAdaptor(Strategy& strat, BaseExchange& exch, int depth)
            :market_depth(depth),

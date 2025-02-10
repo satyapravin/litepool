@@ -2,7 +2,7 @@
 #include "normal_instrument.h"
 
 using namespace std;
-using namespace Simulator;
+using namespace RLTrader;
 
 NormalInstrument::NormalInstrument(const std::string& symbol, const double& tickSize,
     const double& minAmount, const double& makerFee, const double& takerFee)

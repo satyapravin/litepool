@@ -4,7 +4,7 @@
 #include <stdexcept> // for std::out_of_range
 
 
-namespace Simulator {
+namespace RLTrader {
 template <typename T>
 class TemporalBuffer {
 public:

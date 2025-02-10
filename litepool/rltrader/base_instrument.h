@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 
-namespace Simulator {
+namespace RLTrader {
     class BaseInstrument {
     public:
         BaseInstrument(const std::string& aSymbol, const double& aTickSize,

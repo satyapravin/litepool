@@ -3,7 +3,7 @@
 #include "position.h"
 
 #include <iostream>
-using namespace Simulator;
+using namespace RLTrader;
 
 Position::Position(BaseInstrument& instr, const double& aBalance,
     const double& initialQty, const double& initialAvgprice)

@@ -6,7 +6,7 @@
 #include "position_signal_builder.h"
 #include "trade_signal_builder.h"
 
-namespace Simulator {
+namespace RLTrader {
 class EnvAdaptor final: public BaseAdaptor{
 public:
     EnvAdaptor(Strategy& strat, BaseExchange& exch, int depth);

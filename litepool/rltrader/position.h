@@ -2,7 +2,7 @@
 #include "base_instrument.h"
 #include "order.h"
 
-namespace Simulator {
+namespace RLTrader {
 	struct PositionInfo {
         double netPosition = 0;
         double balance = 0;

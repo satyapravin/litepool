@@ -5,7 +5,7 @@
 #include <string>
 #include <sstream>
 
-namespace Simulator {
+namespace RLTrader {
 class Orderbook {
 public:
     Orderbook() = default;

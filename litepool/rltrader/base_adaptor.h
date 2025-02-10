@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace Simulator {
+namespace RLTrader {
 class BaseAdaptor {
 public:
     virtual ~BaseAdaptor() = default;

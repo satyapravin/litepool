@@ -3,7 +3,7 @@
 #include "market_signal_builder.h"
 #include "rl_macros.h"
 
-using namespace Simulator;
+using namespace RLTrader;
 
 PositionSignalBuilder::PositionSignalBuilder()
                       :raw_previous_signals(std::make_unique<position_signal_repository>()),

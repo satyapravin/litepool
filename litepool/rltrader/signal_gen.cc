@@ -5,7 +5,7 @@
 #include <orderbook.h>
 #include <market_signal_builder.h>
 
-using namespace Simulator;
+using namespace RLTrader;
 
 int main(int argc, char** argv) {
     if (argc < 2) {
@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
     std::string filename = argv[1];
     std::string output = argv[2];
     std::ofstream ofile(output);
-    Simulator::CsvReader reader(filename, 1, 36000);
+    RLTrader::CsvReader reader(filename, 1, 36000);
     MarketSignalBuilder builder(5);
     bool header = false;
 

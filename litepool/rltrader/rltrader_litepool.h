@@ -76,10 +76,10 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   double previous_rpnl = 0;
   double previous_upnl = 0;
   double previous_fees = 0;
-  std::unique_ptr<Simulator::NormalInstrument> instr_ptr;
-  std::unique_ptr<Simulator::SimExchange> exchange_ptr;
-  std::unique_ptr<Simulator::Strategy> strategy_ptr;
-  std::unique_ptr<Simulator::EnvAdaptor> adaptor_ptr;
+  std::unique_ptr<RLTrader::NormalInstrument> instr_ptr;
+  std::unique_ptr<RLTrader::SimExchange> exchange_ptr;
+  std::unique_ptr<RLTrader::Strategy> strategy_ptr;
+  std::unique_ptr<RLTrader::EnvAdaptor> adaptor_ptr;
  public:
   RlTraderEnv(const Spec& spec, int env_id) : Env<RlTraderEnvSpec>(spec, env_id),
                                               foldername(spec.config["foldername"_]),
@@ -87,14 +87,14 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
                                               start_read(spec.config["start"_]),
                                               max_read(spec.config["max"_])
   {
-    instr_ptr = std::make_unique<Simulator::NormalInstrument>("BTCUSDT", 0.5,
+    instr_ptr = std::make_unique<RLTrader::NormalInstrument>("BTCUSDT", 0.5,
                                                                 0.001, -0.00005, 0.0005);
     int idx = env_id % 45;
     std::string filename = foldername + std::to_string(idx + 1) + ".csv";
     std::cout << filename << std::endl;
-    exchange_ptr = std::make_unique<Simulator::SimExchange>(filename, 250, start_read, max_read);
-    strategy_ptr = std::make_unique<Simulator::Strategy>(*instr_ptr, *exchange_ptr, balance, 0, 0, 20);
-    adaptor_ptr = std::make_unique<Simulator::EnvAdaptor>(*strategy_ptr, *exchange_ptr, spec.config["depth"_]);
+    exchange_ptr = std::make_unique<RLTrader::SimExchange>(filename, 250, start_read, max_read);
+    strategy_ptr = std::make_unique<RLTrader::Strategy>(*instr_ptr, *exchange_ptr, balance, 0, 0, 20);
+    adaptor_ptr = std::make_unique<RLTrader::EnvAdaptor>(*strategy_ptr, *exchange_ptr, spec.config["depth"_]);
   }
 
   void Reset() override {

@@ -7,7 +7,7 @@
 #include "circ_buffer.h"
 #include "circ_table.h"
 
-namespace Simulator {
+namespace RLTrader {
     struct volume_signal_repository {
         double volume_imbalance_signal_0 = 0;
         double volume_imbalance_signal_1 = 0;

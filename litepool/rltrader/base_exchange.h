@@ -4,7 +4,7 @@
 #include "order.h"
 #include "orderbook.h"
 
-namespace Simulator {
+namespace RLTrader {
     class BaseExchange {
     public:
         // Constructor
@@ -17,7 +17,7 @@ namespace Simulator {
         virtual bool next() = 0;
 
         // build order book from labeled data
-        virtual Orderbook orderbook(std::unordered_map<std::string, double> lob) const = 0;
+        [[nodiscard]] virtual Orderbook orderbook(std::unordered_map<std::string, double> lob) const = 0;
 
         // fetches the current position from exchange
         virtual void fetchPosition(const std::string& symbol, double& posAmount, double& avgPrice) = 0;

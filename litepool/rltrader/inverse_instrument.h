@@ -2,7 +2,7 @@
 
 #include "base_instrument.h"
 
-namespace Simulator {
+namespace RLTrader {
     class InverseInstrument : public BaseInstrument {
     public:
         InverseInstrument(const std::string& symbol, const double& tickSize, 

@@ -1,6 +1,6 @@
 #include "orderbook.h"
 
-using namespace Simulator;
+using namespace RLTrader;
 
 
 Orderbook::Orderbook(Orderbook&& other) noexcept

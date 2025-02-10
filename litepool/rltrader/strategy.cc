@@ -6,7 +6,7 @@
 #include "position_signal_builder.h"
 #include "trade_signal_builder.h"
 
-using namespace Simulator;
+using namespace RLTrader;
 
 Strategy::Strategy(BaseInstrument& instr, BaseExchange& exch, const double& balance, int maxTicks)
 	:instrument(instr), exchange(exch),

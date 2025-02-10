@@ -6,7 +6,7 @@
 #include "orderbook.h"
 #include "position.h"
 
-namespace Simulator {
+namespace RLTrader {
 	class Strategy {
 	public:
 		Strategy(BaseInstrument& instr, BaseExchange& exch, const double& balance, int maxTicks);

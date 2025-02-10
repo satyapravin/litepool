@@ -2,14 +2,14 @@
 #include "base_exchange.h"
 
 
-namespace Simulator {
-    class CCApiExchange final : public BaseExchange {
+namespace RLTrader {
+    class DeribitExchange final : public BaseExchange {
     public:
         // initialized labels
         static bool initialize();
 
         // Constructor
-        CCApiExchange(const std::string& exch_name, std::string api_key, std::string api_secret);
+        DeribitExchange(std::string api_key, std::string api_secret);
 
         // Generates an orderbook
         [[nodiscard]] Orderbook  orderbook(std::unordered_map<std::string, double> lob) const override;
@@ -44,6 +44,10 @@ namespace Simulator {
         void quote(int order_id, OrderSide side, const double& price, const double& amount) override;
 
         void market(int order_id, OrderSide side, const double& price, const double& amount) override;
+    private:
+        static bool init;
+        std::string key;
+        std::string secret;
     };
 
-} // Simulator
+} // RLTrader

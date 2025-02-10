@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace Simulator {
+namespace RLTrader {
     enum class OrderState {
         NEW = 1,
         NEW_ACK = 2,

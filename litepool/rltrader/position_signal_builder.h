@@ -5,7 +5,7 @@
 #include <memory>
 #include "position.h"
 
-namespace Simulator {
+namespace RLTrader {
     struct position_signal_repository {
         double leverage = 0;
         double net_position = 0;

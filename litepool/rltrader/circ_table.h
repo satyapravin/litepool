@@ -3,7 +3,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace Simulator {
+namespace RLTrader {
 class TemporalTable {
 public:
     TemporalTable(u_int rows, u_int cols) : currentRow(-1),

@@ -5,7 +5,7 @@
 #include <fstream>
 #include <unordered_map>
 
-namespace Simulator {
+namespace RLTrader {
     struct DataRow {
         DataRow(long long anId, const std::unordered_map<std::string, double>& dataMap) {
             this->id = anId;

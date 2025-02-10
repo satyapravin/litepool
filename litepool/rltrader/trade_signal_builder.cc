@@ -1,7 +1,7 @@
 #include "trade_signal_builder.h"
 #include "rl_macros.h"
 
-using namespace Simulator;
+using namespace RLTrader;
 
 TradeSignalBuilder::TradeSignalBuilder()
                    : raw_previous_signals(std::make_unique<trade_signal_repository>()),

@@ -5,7 +5,7 @@
 #include "order.h"
 #include "rl_macros.h"
 
-using namespace Simulator;
+using namespace RLTrader;
 
 MarketSignalBuilder::MarketSignalBuilder(int depth)
               :previous_bid_prices(30, depth),

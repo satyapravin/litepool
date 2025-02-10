@@ -2,7 +2,7 @@
 #include "inverse_instrument.h"
 
 using namespace std;
-using namespace Simulator;
+using namespace RLTrader;
 
 InverseInstrument::InverseInstrument(const std::string& symbol, const double& tickSize, 
     const double& minAmount, const double& makerFee, const double& takerFee)

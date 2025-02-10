@@ -20,6 +20,8 @@ pybind11_add_module(rltrader_litepool rltrader_litepool.h rltrader_litepool.cc
                                       csv_reader.h csv_reader.cc
                                       base_exchange.h
                                       sim_exchange.h sim_exchange.cc
+                                      deribit_exchange.h deribit_exchange.cc
+                                      deribit_client.h deribit_client.cc
                                       inverse_instrument.h inverse_instrument.cc
                                       normal_instrument.h normal_instrument.cc
                                       order.h position.h position.cc
@@ -47,9 +49,9 @@ add_executable(rltradertest rltrader_litepool_test.cc
                                       trade_signal_builder.h trade_signal_builder.cc
                                       base_adaptor.h env_adaptor.h env_adaptor.cc
                                       rl_macros.h
-        base_exchange.h
-        ccapi_exchange.cc
-        ccapi_exchange.h
+                                      deribit_exchange.cc deribit_exchange.h
+                                      deribit_client.h deribit_client.cc
+        deribit_client.cc
 )
 target_link_libraries(rltrader_litepool PRIVATE glog -lstdc++fs)
 target_link_libraries(rltradertest PRIVATE GTest::GTest GTest::Main gflags gmock glog -lstdc++fs)
