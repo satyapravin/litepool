@@ -62,7 +62,19 @@ void DeribitClient::stop() {
     
     should_run_ = false;
 
-    cancel_all_orders();
+    // Clear message queues
+    {
+        std::lock_guard<std::mutex> market_lock(market_write_mutex_);
+        std::queue<json>().swap(market_message_queue_);
+    }
+    {
+        std::lock_guard<std::mutex> trading_lock(trading_write_mutex_);
+        std::queue<json>().swap(trading_message_queue_);
+    }
+
+    if (trading_connected_) {
+        cancel_all_orders();
+    }
 
     if (ioc_) {
         ioc_->stop();
@@ -432,21 +444,75 @@ void DeribitClient::handle_trading_message(const json& msg) {
 }
 
 void DeribitClient::send_market_message(const json& msg) const {
+    std::lock_guard<std::mutex> lock(market_write_mutex_);
+    market_message_queue_.push(msg);
+
+    if (!is_market_writing_) {
+        write_next_market_message();
+    }
+}
+
+void DeribitClient::send_trading_message(const json& msg) const {
+    std::lock_guard<std::mutex> lock(trading_write_mutex_);
+    trading_message_queue_.push(msg);
+
+    if (!is_trading_writing_) {
+        write_next_trading_message();
+    }
+}
+
+void DeribitClient::write_next_market_message() const {
+    if (market_message_queue_.empty() || is_market_writing_ || !market_ws_ || !market_connected_) {
+        return;
+    }
+
+    is_market_writing_ = true;
+    auto msg = market_message_queue_.front();
+    market_message_queue_.pop();
+
     market_ws_->async_write(
         net::buffer(msg.dump()),
-        [](const beast::error_code& ec, std::size_t) {
+        [this](const beast::error_code& ec, std::size_t) {
+            is_market_writing_ = false;
+
             if (ec) {
                 std::cerr << "Market write error: " << ec.message() << std::endl;
+                market_connected_ = false;
+                setup_market_connection();
+                return;
+            }
+
+            // Process next message if any
+            if (!market_message_queue_.empty()) {
+                write_next_market_message();
             }
         });
 }
 
-void DeribitClient::send_trading_message(const json& msg) const {
+void DeribitClient::write_next_trading_message() const {
+    if (trading_message_queue_.empty() || is_trading_writing_ || !trading_ws_ || !trading_connected_) {
+        return;
+    }
+
+    is_trading_writing_ = true;
+    auto msg = trading_message_queue_.front();
+    trading_message_queue_.pop();
+
     trading_ws_->async_write(
         net::buffer(msg.dump()),
-        [](const beast::error_code& ec, std::size_t) {
+        [this](const beast::error_code& ec, std::size_t) {
+            is_trading_writing_ = false;
+
             if (ec) {
                 std::cerr << "Trading write error: " << ec.message() << std::endl;
+                trading_connected_ = false;
+                setup_trading_connection();
+                return;
+            }
+
+            // Process next message if any
+            if (!trading_message_queue_.empty()) {
+                write_next_trading_message();
             }
         });
 }
