@@ -93,7 +93,7 @@ std::vector<Order> SimExchange::getUnackedOrders() const {
 	return retval;
 }
 
-void SimExchange::fetchPosition(const std::string &symbol, double &posAmount, double &avgPrice) {
+void SimExchange::fetchPosition(double &posAmount, double &avgPrice) {
 	posAmount = 0;
 	avgPrice = 0;
 }
@@ -227,11 +227,8 @@ void SimExchange::processPending(const DataRow& obs) {
 	}
 }
 
-void SimExchange::cancelBuys() {
+void SimExchange::cancelOrders() {
 	this->cancel(this->bid_quotes);
-}
-
-void SimExchange::cancelSells() {
 	this->cancel(this->ask_quotes);
 }
 

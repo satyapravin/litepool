@@ -27,7 +27,7 @@ namespace RLTrader {
         bool next() override;
 
         // fetch dummy zero positions
-        void fetchPosition(const std::string& symbol, double& posAmount, double& avgPrice) override;
+        void fetchPosition(double& posAmount, double& avgPrice) override;
 
         // Retrieves the current row of the DataFrame
         Orderbook getBook() const override;
@@ -35,11 +35,8 @@ namespace RLTrader {
         // Returns executed orders and clears them
         std::vector<Order> getFills() override;
 
-        // Processes order cancellation for buy orders
-        void cancelBuys() override;
-
-        // Processes order cancellation for sell orders
-        void cancelSells() override;
+        // Processes order cancellation
+        void cancelOrders() override;
 
          const std::map<long, Order>& getBidOrders() const override;
 

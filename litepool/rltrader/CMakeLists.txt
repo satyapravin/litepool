@@ -1,5 +1,8 @@
 find_package(GTest REQUIRED)
 find_package(pybind11 REQUIRED)
+find_package(OpenSSL REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system)
+find_package(Threads REQUIRED)
 
 add_executable(test_sim base_instrument.h
         csv_reader.h csv_reader.cc
@@ -30,7 +33,9 @@ pybind11_add_module(rltrader_litepool rltrader_litepool.h rltrader_litepool.cc
                                       market_signal_builder.h market_signal_builder.cc
                                       position_signal_builder.h position_signal_builder.cc
                                       trade_signal_builder.h trade_signal_builder.cc
-                                      base_adaptor.h env_adaptor.h env_adaptor.cc)
+                                      base_adaptor.h env_adaptor.h env_adaptor.cc
+                                      orderbook_manager.h orderbook_manager.cc
+)
 
 set_target_properties(rltrader_litepool PROPERTIES PREFIX "" SUFFIX ".so")
 include_directories(${PROJECT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
@@ -49,11 +54,10 @@ add_executable(rltradertest rltrader_litepool_test.cc
                                       trade_signal_builder.h trade_signal_builder.cc
                                       base_adaptor.h env_adaptor.h env_adaptor.cc
                                       rl_macros.h
-                                      deribit_exchange.cc deribit_exchange.h
-                                      deribit_client.h deribit_client.cc
-        deribit_client.cc
 )
-target_link_libraries(rltrader_litepool PRIVATE glog -lstdc++fs)
+
+target_link_libraries(rltrader_litepool PUBLIC OpenSSL::SSL OpenSSL::Crypto Boost::system Threads::Threads
+                                        PRIVATE glog -lstdc++fs)
 target_link_libraries(rltradertest PRIVATE GTest::GTest GTest::Main gflags gmock glog -lstdc++fs)
 include(GoogleTest)
 gtest_discover_tests(rltradertest)

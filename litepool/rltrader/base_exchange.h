@@ -20,7 +20,7 @@ namespace RLTrader {
         [[nodiscard]] virtual Orderbook orderbook(std::unordered_map<std::string, double> lob) const = 0;
 
         // fetches the current position from exchange
-        virtual void fetchPosition(const std::string& symbol, double& posAmount, double& avgPrice) = 0;
+        virtual void fetchPosition(double& posAmount, double& avgPrice) = 0;
 
         // Retrieves the current row of the DataFrame
         [[nodiscard]] virtual Orderbook getBook() const = 0;
@@ -28,11 +28,8 @@ namespace RLTrader {
         // Returns executed orders and clears them
         virtual std::vector<Order> getFills() = 0;
 
-        // Processes order cancellation for buy orders
-        virtual void cancelBuys() = 0;
-
-        // Processes order cancellation for sell orders
-        virtual void cancelSells() = 0;
+        // Processes order cancellation
+        virtual void cancelOrders() = 0;
 
         [[nodiscard]] virtual const std::map<long, Order>& getBidOrders() const = 0;
 

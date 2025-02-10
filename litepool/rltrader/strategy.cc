@@ -20,15 +20,14 @@ void Strategy::reset() {
 	this->exchange.reset();
 	double initQty = 0;
 	double avgPrice = 0;
-	this->exchange.fetchPosition(instrument.getName(), initQty, avgPrice);
+	this->exchange.fetchPosition(initQty, avgPrice);
 	this->position.reset(initQty, avgPrice);
 	this->order_id = 0;
 }
 
 void Strategy::quote(int buy_spread, int sell_spread, int buy_percent, int sell_percent) {
-	const auto& book = this->exchange.getBook();
-	exchange.cancelBuys();
-	exchange.cancelSells();
+	auto book = this->exchange.getBook();
+	exchange.cancelOrders();
 	auto posInfo = position.getPositionInfo(book.bid_prices[0], book.ask_prices[0]);
 	auto leverage = posInfo.leverage;
         auto inventoryPnL = posInfo.inventoryPnL;

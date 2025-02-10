@@ -61,7 +61,9 @@ void DeribitClient::stop() {
     if (!should_run_) return;
     
     should_run_ = false;
-    
+
+    cancel_all_orders();
+
     if (ioc_) {
         ioc_->stop();
     }
@@ -225,7 +227,7 @@ void DeribitClient::subscribe_market_data() const {
         {"method", "public/subscribe"},
         {"params", {
             {"channels", {
-                "book." + symbol_ + ".100ms"
+                "book." + symbol_ + "none.20.100ms"
             }}
         }},
         {"id", 1}
@@ -319,15 +321,23 @@ void DeribitClient::get_position() const {
     send_trading_message(pos_msg);
 }
 
-void DeribitClient::set_callbacks(
-    std::function<void(const json&)> orderbook_cb,
-    std::function<void(const json&)> private_trade_cb,
-    std::function<void(const json&)> position_cb,
-    std::function<void(const json&)> order_cb) {
+void DeribitClient::set_orderbook_cb(std::function<void(const json&)> orderbook_cb) {
     std::lock_guard<std::mutex> lock(callback_mutex_);
     orderbook_callback_ = std::move(orderbook_cb);
+}
+
+void DeribitClient::set_private_trade_cb(std::function<void(const json&)> private_trade_cb) {
+    std::lock_guard<std::mutex> lock(callback_mutex_);
     private_trade_callback_ = std::move(private_trade_cb);
+}
+
+void DeribitClient::set_position_cb(std::function<void(const json&)> position_cb) {
+    std::lock_guard<std::mutex> lock(callback_mutex_);
     position_callback_ = std::move(position_cb);
+}
+
+void DeribitClient::set_order_cb(std::function<void(const json&)> order_cb) {
+    std::lock_guard<std::mutex> lock(callback_mutex_);
     order_callback_ = std::move(order_cb);
 }
 
