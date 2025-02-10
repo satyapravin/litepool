@@ -45,7 +45,6 @@ void DeribitExchange::handle_private_trade_updates (const json& data) {
 }
 
 void DeribitExchange::handle_order_book_updates (const json& data) {
-
     std::vector<double> bid_prices;
     std::vector<double> bid_sizes;
     std::vector<double> ask_prices;
@@ -53,14 +52,14 @@ void DeribitExchange::handle_order_book_updates (const json& data) {
 
     // Extract bids
     for (const auto& bid : data["bids"]) {
-        bid_prices.push_back(std::stod(bid[0].get<std::string>()));
-        bid_sizes.push_back(std::stod(bid[1].get<std::string>()));
+        bid_prices.push_back(bid[0].get<double>());
+        bid_sizes.push_back(bid[1].get<double>());
     }
 
     // Extract asks
     for (const auto& ask : data["asks"]) {
-        ask_prices.push_back(std::stod(ask[0].get<std::string>()));
-        ask_sizes.push_back(std::stod(ask[1].get<std::string>()));
+        ask_prices.push_back(ask[0].get<double>());
+        ask_sizes.push_back(ask[1].get<double>());
     }
 
     this->book_manager.update(std::move(bid_prices), std::move(ask_prices),

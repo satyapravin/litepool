@@ -106,7 +106,7 @@ class VecAdapter(VecEnvWrapper):
               infos[i]["terminal_observation"] = obs[i]
               obs[i] = self.venv.reset(np.array([i]))[0]
 
-          if self.steps % 1800 == 0 or dones[i]:
+          if self.steps % 1 == 0 or dones[i]:
               if infos[i]["env_id"] == 0:
                   d = {"mid": self.mid_prices, "balance": self.balances, "upnl" : self.upnl, 
                        "leverage": self.leverages, "trades": self.trades, "fees": self.fees,
@@ -149,7 +149,7 @@ env = litepool.make("RlTrader-v0", env_type="gymnasium",
                           symbol="BTC-PERPETUAL",
                           tick_size=0.5,
                           min_amount=10,
-                          maker_fee=0.0,
+                          maker_fee=-0.0001,
                           taker_fee=0.0005,
                           foldername="./testfiles/", 
                           balance=0.001,
