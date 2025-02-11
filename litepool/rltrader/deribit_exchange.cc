@@ -122,7 +122,7 @@ Orderbook DeribitExchange::getBook() const {
 
 std::vector<Order> DeribitExchange::getFills() {
     std::lock_guard<std::mutex> lock(this->fill_mutex);
-    std::vector<Order> fills(this->executions);
+    std::vector<Order> fills(std::move(this->executions));
     this->executions.clear();
     return fills;
 }
