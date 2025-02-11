@@ -63,6 +63,10 @@ namespace RLTrader {
         std::string symbol;
         std::mutex fill_mutex;
         std::atomic<long> orders_count;
+
+        std::mutex order_mutex;
+        Order bid;
+        Order ask;
     };
 
 } // RLTrader

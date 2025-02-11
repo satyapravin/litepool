@@ -8,6 +8,11 @@ using namespace RLTrader;
 DeribitExchange::DeribitExchange(const std::string& symbol, const std::string& api_key, const std::string& api_secret)
     :db_client(api_key, api_secret, symbol), symbol(symbol), orders_count(0)
 {
+    this->bid.state = OrderState::CANCELLED;
+    this->ask.state = OrderState::CANCELLED;
+    this->bid.side = OrderSide::BUY;
+    this->ask.side = OrderSide::SELL;
+
 }
 
 Orderbook DeribitExchange::orderbook(std::unordered_map<std::string, double> lob) const {
@@ -71,6 +76,24 @@ void DeribitExchange::handle_order_book_updates (const json& data) {
 
 void DeribitExchange::handle_order_updates (const json& data) {
     ++this->orders_count;
+    if (data["instrument_name"] == symbol) {
+        OrderSide side = data["direction"] == "buy" ? OrderSide::BUY: OrderSide::SELL;
+        double price = data["price"];
+        const std::string& order_id = data["order_id"];
+        OrderState order_state = data["order_state"] == "open" ? OrderState::NEW_ACK : OrderState::CANCELLED;
+
+        std::lock_guard<std::mutex> order_guard(this->order_mutex);
+
+        if (side == OrderSide::BUY) {
+            bid.price = price;
+            bid.state = order_state;
+            bid.orderId = order_id;
+        } else {
+            ask.price = price;
+            ask.state = order_state;
+            ask.orderId = order_id;
+        }
+    }
 }
 
 // ReSharper disable once CppMemberFunctionMayBeStatic
@@ -103,8 +126,28 @@ std::vector<Order> DeribitExchange::getFills() {
     return fills;
 }
 
+bool is_close(const double& a, const double& b) {
+    return std::abs(a - b) < 0.001;
+}
+
 void DeribitExchange::quote(std::string order_id, OrderSide side, const double& price, const double& amount) {
     std::string sidestr = side == OrderSide::BUY ? "buy" : "sell";
+    {
+        std::lock_guard<std::mutex> order_guard(this->order_mutex);
+        if (side == OrderSide::BUY) {
+            if (this->bid.state != OrderState::CANCELLED && is_close(price, this->bid.price)) {
+                return;
+            } else {
+                this->db_client.cancel_order(this->bid.orderId);
+            }
+        } else {
+            if (this->ask.state != OrderState::CANCELLED && is_close(price, this->ask.price)) {
+                return;
+            } else {
+                this->db_client.cancel_order(this->ask.orderId);
+            }
+        }
+    }
     this->db_client.place_order(sidestr, price, amount, "limit");
 }
 
