@@ -34,6 +34,7 @@ pybind11_add_module(rltrader_litepool rltrader_litepool.h rltrader_litepool.cc
                                       sim_exchange.h sim_exchange.cc
                                       deribit_exchange.h deribit_exchange.cc
                                       deribit_client.h deribit_client.cc
+                                      deribit_rest.h deribit_rest.cc
                                       inverse_instrument.h inverse_instrument.cc
                                       normal_instrument.h normal_instrument.cc
                                       order.h position.h position.cc
@@ -55,6 +56,7 @@ add_executable(rltradertest rltrader_litepool_test.cc
                                       sim_exchange.h sim_exchange.cc
                                       deribit_exchange.h deribit_exchange.cc
                                       deribit_client.h deribit_client.cc
+                                      deribit_rest.h deribit_rest.cc
                                       inverse_instrument.h inverse_instrument.cc
                                       normal_instrument.h normal_instrument.cc
                                       order.h position.h position.cc

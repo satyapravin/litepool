@@ -26,7 +26,7 @@ void Strategy::reset() {
 
 void Strategy::quote(int buy_spread, int sell_spread, int buy_percent, int sell_percent) {
 	auto book = this->exchange.getBook();
-	exchange.cancelOrders();
+	//exchange.cancelOrders();
 	auto posInfo = position.getPositionInfo(book.bid_prices[0], book.ask_prices[0]);
 	auto leverage = posInfo.leverage;
     auto initBalance = position.getInitialBalance();

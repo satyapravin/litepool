@@ -1,10 +1,18 @@
+#include <iostream>
+#include <boost/asio/ssl.hpp>
+#include <boost/beast.hpp>
+#include <boost/asio.hpp>
+#include <nlohmann/json.hpp>
+#include "deribit_rest.h"
+
+using namespace RLTrader;
 using namespace boost::beast;
 using namespace boost::asio;
 using tcp = boost::asio::ip::tcp;
 using json = nlohmann::json;
 
 
-std::string DeribitREST::send_request(const std::string& host, const std::string& target, const std::string& body, bool use_ssl = true) {
+std::string DeribitREST::send_request(const std::string& host, const std::string& target, const std::string& body, bool use_ssl) {
     try {
         io_context ioc;
         ssl::context ctx(ssl::context::tlsv12_client);
@@ -52,8 +60,7 @@ void DeribitREST::authenticate(const std::string& api_key, const std::string& ap
     }
 }
 
-void DeribitREST::fetch_position(const std::string& api_key, const std::string& api_secret, const std::string& symbol,
-                                double& amount, double& price) {
+void DeribitREST::fetch_position(const std::string& symbol, double& amount, double& price) {
     authenticate(api_key, api_secret);
 
     std::string position_body = R"({"instrument_name":")" + symbol + R"("})";

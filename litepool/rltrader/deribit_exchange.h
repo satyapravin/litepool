@@ -2,6 +2,7 @@
 #include <mutex>
 #include "base_exchange.h"
 #include "deribit_client.h"
+#include "deribit_rest.h"
 #include "orderbook_manager.h"
 
 namespace RLTrader {
@@ -55,6 +56,7 @@ namespace RLTrader {
         void handle_position_updates (const json& data);
 
         DeribitClient db_client;
+        DeribitREST RESTApi;
         std::vector<Order> executions;
 
         double position_amount = 0;

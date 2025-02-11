@@ -6,7 +6,7 @@ using namespace RLTrader;
 
 
 DeribitExchange::DeribitExchange(const std::string& symbol, const std::string& api_key, const std::string& api_secret)
-    :db_client(api_key, api_secret, symbol), symbol(symbol), orders_count(0)
+    :db_client(api_key, api_secret, symbol), symbol(symbol), orders_count(0), RESTApi(api_key, api_secret)
 {
     this->bid.state = OrderState::CANCELLED;
     this->ask.state = OrderState::CANCELLED;
@@ -108,8 +108,7 @@ bool DeribitExchange::next() {
 }
 
 void DeribitExchange::fetchPosition(double &posAmount, double &avgPrice) {
-    posAmount = this->position_amount;
-    avgPrice = this->position_avg_price;
+    RESTApi.fetch_position(symbol, posAmount, avgPrice);
 }
 
 void DeribitExchange::cancelOrders() {
@@ -153,4 +152,5 @@ void DeribitExchange::quote(std::string order_id, OrderSide side, const double& 
 void DeribitExchange::market(std::string order_id, OrderSide side, const double& price, const double& amount) {
     std::string sidestr = side == OrderSide::BUY ? "buy" : "sell";
     this->db_client.place_order(sidestr, price, amount, sidestr, "market");
+
 }
