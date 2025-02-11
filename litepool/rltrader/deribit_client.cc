@@ -83,9 +83,17 @@ void DeribitClient::stop() {
     if (io_thread_ && io_thread_->joinable()) {
         io_thread_->join();
     }
-    
-    market_ws_.reset();
-    trading_ws_.reset();
+
+    {
+        std::lock_guard<std::mutex> market_lock(market_write_mutex_);
+        market_ws_.reset();
+    }
+
+    {
+        std::lock_guard<std::mutex> trading_lock(trading_write_mutex_);
+        trading_ws_.reset();
+    }
+
     ioc_.reset();
     ctx_.reset();
 }
@@ -445,17 +453,20 @@ void DeribitClient::handle_trading_message(const json& msg) {
 }
 
 void DeribitClient::send_market_message(const json& msg) {
-    std::lock_guard<std::mutex> lock(market_write_mutex_);
-    market_message_queue_.push(msg);
-
+    {
+        std::lock_guard<std::mutex> lock(market_write_mutex_);
+        market_message_queue_.push(msg);
+    }
     if (!is_market_writing_) {
         write_next_market_message();
     }
 }
 
 void DeribitClient::send_trading_message(const json& msg){
-    std::lock_guard<std::mutex> lock(trading_write_mutex_);
-    trading_message_queue_.push(msg);
+    {
+        std::lock_guard<std::mutex> lock(trading_write_mutex_);
+        trading_message_queue_.push(msg);
+    }
 
     if (!is_trading_writing_) {
         write_next_trading_message();
@@ -463,7 +474,12 @@ void DeribitClient::send_trading_message(const json& msg){
 }
 
 void DeribitClient::write_next_market_message() {
-    if (market_message_queue_.empty() || is_market_writing_ || !market_ws_ || !market_connected_) {
+    if (market_message_queue_.empty() || is_market_writing_) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(market_write_mutex_);
+    if (!market_ws_ || !market_connected_) {
         return;
     }
 
@@ -490,11 +506,15 @@ void DeribitClient::write_next_market_message() {
         });
 }
 
-void DeribitClient::write_next_trading_message() {
-    if (trading_message_queue_.empty() || is_trading_writing_ || !trading_ws_ || !trading_connected_) {
+void DeribitClient::write_next_trading_message
+    if (trading_message_queue_.empty() || is_trading_writing_) {
         return;
     }
 
+    std::lock_guard<std::mutex> lock(trading_write_mutex_);
+    if (!trading_ws_ || !trading_connected_) {
+        return;
+    }
     is_trading_writing_ = true;
     auto msg = trading_message_queue_.front();
     trading_message_queue_.pop();
@@ -520,12 +540,34 @@ void DeribitClient::write_next_trading_message() {
 
 void DeribitClient::handle_error(const std::string& operation, const beast::error_code& ec) {
     std::cerr << operation << " error: " << ec.message() << std::endl;
-    
+
     if (starts_with(operation, "Market")) {
-        market_connected_ = false;
-        setup_market_connection();
+        {
+            std::lock_guard<std::mutex> lock(market_write_mutex_);
+            market_connected_ = false;
+        }
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));  // Prevent excessive reconnection attempts
+
+        {
+            std::lock_guard<std::mutex> lock(market_write_mutex_);
+            if (!market_connected_) {
+                setup_market_connection();
+            }
+        }
     } else if (starts_with(operation, "Trading")) {
-        trading_connected_ = false;
-        setup_trading_connection();
+        {
+            std::lock_guard<std::mutex> lock(trading_write_mutex_);
+            trading_connected_ = false;
+        }
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));  // Prevent excessive reconnection attempts
+
+        {
+            std::lock_guard<std::mutex> lock(trading_write_mutex_);
+            if (!trading_connected_) {
+                setup_trading_connection();
+            }
+        }
     }
 }
