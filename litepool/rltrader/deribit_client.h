@@ -55,10 +55,10 @@ namespace RLTrader {
         void place_order(const std::string& side,
                         double price,
                         double size,
-                        const std::string& type = "limit") const;
-        void cancel_order(const std::string& order_id) const;
-        void cancel_all_orders() const;
-        void get_position() const;
+                        const std::string& type = "limit");
+        void cancel_order(const std::string& order_id);
+        void cancel_all_orders();
+        void get_position();
 
         // Callback setters
         void set_orderbook_cb(std::function<void(const json&)> orderbook_cb);
@@ -74,19 +74,19 @@ namespace RLTrader {
         void do_market_connect();
         void do_trading_connect();
         void authenticate();
-        void subscribe_market_data() const;
-        void subscribe_private_data() const;
+        void subscribe_market_data() ;
+        void subscribe_private_data();
 
         // Message handling
         void do_market_read();
         void do_trading_read();
         void handle_market_message(const json& msg);
         void handle_trading_message(const json& msg);
-        void send_market_message(const json& msg) const;
-        void send_trading_message(const json& msg) const;
+        void send_market_message(const json& msg);
+        void send_trading_message(const json& msg);
         void handle_error(const std::string& operation, const beast::error_code& ec);
-        void write_next_market_message() const;
-        void write_next_trading_message() const;
+        void write_next_market_message();
+        void write_next_trading_message();
 
 
         // Thread management

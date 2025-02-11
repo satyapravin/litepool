@@ -182,7 +182,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
       auto sell_action = select_action(sellActionLogits);
       auto buy_spread = spreads[buy_action];
       auto sell_spread = spreads[sell_action];
-      adaptor_ptr->quote(buy_spread, sell_spread, 50, 50);
+      adaptor_ptr->quote(buy_spread, sell_spread, 5, 5);
       auto info = adaptor_ptr->getInfo();
       isDone = !adaptor_ptr->next();
       ++steps;

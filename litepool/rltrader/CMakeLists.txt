@@ -1,8 +1,17 @@
+include(FetchContent)
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.11.3
+)
+FetchContent_MakeAvailable(nlohmann_json)
 find_package(GTest REQUIRED)
 find_package(pybind11 REQUIRED)
-find_package(OpenSSL REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(Threads REQUIRED)
+set(OPENSSL_ROOT_DIR "/usr/openssl")
+set(OPENSSL_LIBRARIES "/lib64/libssl.so;/lib64/libcrypto.so")
+find_package(OpenSSL REQUIRED)
 
 add_executable(test_sim base_instrument.h
         csv_reader.h csv_reader.cc
@@ -61,8 +70,8 @@ add_executable(rltradertest rltrader_litepool_test.cc
 )
 
 target_link_libraries(rltrader_litepool PUBLIC OpenSSL::SSL OpenSSL::Crypto Boost::system Threads::Threads
-                                        PRIVATE glog -lstdc++fs)
+                                        PRIVATE glog -lstdc++fs nlohmann_json::nlohmann_json)
 target_link_libraries(rltradertest PUBLIC OpenSSL::SSL OpenSSL::Crypto Boost::system Threads::Threads
-                                   PRIVATE GTest::GTest GTest::Main gflags gmock glog -lstdc++fs)
+                                   PRIVATE GTest::GTest GTest::Main gflags gmock glog -lstdc++fs nlohmann_json::nlohmann_json)
 include(GoogleTest)
 gtest_discover_tests(rltradertest)

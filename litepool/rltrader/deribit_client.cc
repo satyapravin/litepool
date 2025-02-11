@@ -231,7 +231,7 @@ void DeribitClient::authenticate() {
     send_trading_message(auth_msg);
 }
 
-void DeribitClient::subscribe_market_data() const {
+void DeribitClient::subscribe_market_data() {
     if (!market_connected_) return;
     
     json sub_msg = {
@@ -239,7 +239,7 @@ void DeribitClient::subscribe_market_data() const {
         {"method", "public/subscribe"},
         {"params", {
             {"channels", {
-                "book." + symbol_ + "none.20.100ms"
+                "book." + symbol_ + ".none.20.100ms"
             }}
         }},
         {"id", 1}
@@ -248,7 +248,7 @@ void DeribitClient::subscribe_market_data() const {
     send_market_message(sub_msg);
 }
 
-void DeribitClient::subscribe_private_data() const {
+void DeribitClient::subscribe_private_data() {
     if (!trading_connected_) return;
     
     json sub_msg = {
@@ -270,7 +270,7 @@ void DeribitClient::subscribe_private_data() const {
 void DeribitClient::place_order(const std::string& side, 
                               double price, 
                               double size, 
-                              const std::string& type) const {
+                              const std::string& type) {
     if (!trading_connected_) return;
     
     json order_msg = {
@@ -280,7 +280,8 @@ void DeribitClient::place_order(const std::string& side,
             {"instrument_name", symbol_},
             {"amount", size},
             {"type", type},
-            {"price", price}
+            {"price", price},
+            {"post_only", true}
         }},
         {"id", 3}
     };
@@ -288,7 +289,7 @@ void DeribitClient::place_order(const std::string& side,
     send_trading_message(order_msg);
 }
 
-void DeribitClient::cancel_order(const std::string& order_id) const {
+void DeribitClient::cancel_order(const std::string& order_id) {
     if (!trading_connected_) return;
     
     json cancel_msg = {
@@ -303,7 +304,7 @@ void DeribitClient::cancel_order(const std::string& order_id) const {
     send_trading_message(cancel_msg);
 }
 
-void DeribitClient::cancel_all_orders() const {
+void DeribitClient::cancel_all_orders() {
     if (!trading_connected_) return;
     
     json cancel_all_msg = {
@@ -318,7 +319,7 @@ void DeribitClient::cancel_all_orders() const {
     send_trading_message(cancel_all_msg);
 }
 
-void DeribitClient::get_position() const {
+void DeribitClient::get_position() {
     if (!trading_connected_) return;
     
     json pos_msg = {
@@ -443,7 +444,7 @@ void DeribitClient::handle_trading_message(const json& msg) {
     }
 }
 
-void DeribitClient::send_market_message(const json& msg) const {
+void DeribitClient::send_market_message(const json& msg) {
     std::lock_guard<std::mutex> lock(market_write_mutex_);
     market_message_queue_.push(msg);
 
@@ -452,7 +453,7 @@ void DeribitClient::send_market_message(const json& msg) const {
     }
 }
 
-void DeribitClient::send_trading_message(const json& msg) const {
+void DeribitClient::send_trading_message(const json& msg){
     std::lock_guard<std::mutex> lock(trading_write_mutex_);
     trading_message_queue_.push(msg);
 
@@ -461,7 +462,7 @@ void DeribitClient::send_trading_message(const json& msg) const {
     }
 }
 
-void DeribitClient::write_next_market_message() const {
+void DeribitClient::write_next_market_message() {
     if (market_message_queue_.empty() || is_market_writing_ || !market_ws_ || !market_connected_) {
         return;
     }
@@ -489,7 +490,7 @@ void DeribitClient::write_next_market_message() const {
         });
 }
 
-void DeribitClient::write_next_trading_message() const {
+void DeribitClient::write_next_trading_message() {
     if (trading_message_queue_.empty() || is_trading_writing_ || !trading_ws_ || !trading_connected_) {
         return;
     }

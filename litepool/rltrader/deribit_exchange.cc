@@ -29,7 +29,9 @@ void DeribitExchange::set_callbacks() {
     this->db_client.set_position_cb([this] (const json& data) { handle_position_updates(data);});
 }
 
-void DeribitExchange::handle_private_trade_updates (const json& data) {
+void DeribitExchange::handle_private_trade_updates (const json& json_array) {
+    const auto& data = json_array[0];
+    std::cout << data << std::endl;
     if (data["instrument_name"] == this->symbol) {
         Order order;
         order.amount = data["amount"];
@@ -37,7 +39,7 @@ void DeribitExchange::handle_private_trade_updates (const json& data) {
         order.price = data["price"];
         order.side = data["direction"] == "buy" ? OrderSide::BUY : OrderSide::SELL;
         order.state = OrderState::FILLED;
-        order.orderId = data["trade_id"];
+        order.orderId = data["order_id"];
         order.microSecond = data["timestamp"];
         std::lock_guard<std::mutex> lock(this->fill_mutex);
         this->executions.push_back(order);
@@ -69,7 +71,6 @@ void DeribitExchange::handle_order_book_updates (const json& data) {
 
 void DeribitExchange::handle_order_updates (const json& data) {
     ++this->orders_count;
-    std::cout << data << std::endl;
 }
 
 // ReSharper disable once CppMemberFunctionMayBeStatic

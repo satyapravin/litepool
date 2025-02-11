@@ -152,7 +152,7 @@ env = litepool.make("RlTrader-v0", env_type="gymnasium",
                           maker_fee=-0.0001,
                           taker_fee=0.0005,
                           foldername="./testfiles/", 
-                          balance=0.001,
+                          balance=0.005,
                           start=1,
                           max=72000001,
                           depth=20)
