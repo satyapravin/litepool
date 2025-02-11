@@ -4,6 +4,7 @@
 #include <cassert>
 #include "orderbook.h"
 #include "position_signal_builder.h"
+#include <iostream>
 
 using namespace RLTrader;
 
@@ -20,6 +21,8 @@ void Strategy::reset() {
 	double initQty = 0;
 	double avgPrice = 0;
 	this->exchange.fetchPosition(initQty, avgPrice);
+        std::cout << "initial quantity=" << initQty << std::endl;
+        std::cout << "initial price=" << avgPrice << std::endl;
 	this->position.reset(initQty, avgPrice);
 	this->order_id = 0;
 }
