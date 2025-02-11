@@ -80,7 +80,8 @@ void DeribitExchange::handle_order_updates (const json& data) {
         OrderSide side = data["direction"] == "buy" ? OrderSide::BUY: OrderSide::SELL;
         double price = data["price"];
         const std::string& order_id = data["order_id"];
-        OrderState order_state = data["order_state"] == "open" ? OrderState::NEW_ACK : OrderState::CANCELLED;
+        OrderState order_state = (data["order_state"] == "open"
+                                 || data["order_state"] == "untriggered") ? OrderState::NEW_ACK : OrderState::CANCELLED;
 
         std::lock_guard<std::mutex> order_guard(this->order_mutex);
 
@@ -135,20 +136,18 @@ void DeribitExchange::quote(std::string order_id, OrderSide side, const double& 
     {
         std::lock_guard<std::mutex> order_guard(this->order_mutex);
         if (side == OrderSide::BUY) {
-            if (this->bid.state != OrderState::CANCELLED && is_close(price, this->bid.price)) {
+            if (this->bid.state == OrderState::NEW_ACK && is_close(price, this->bid.price)) {
                 return;
-            } else {
-                this->db_client.cancel_all_by_label(sidestr);
             }
         } else {
-            if (this->ask.state != OrderState::CANCELLED && is_close(price, this->ask.price)) {
+            if (this->ask.state == OrderState::NEW_ACK && is_close(price, this->ask.price)) {
                 return;
-            } else {
-                this->db_client.cancel_all_by_label(sidestr);
             }
         }
     }
-    this->db_client.place_order(sidestr, price, amount, "limit");
+
+    this->db_client.cancel_all_by_label(sidestr);
+    this->db_client.place_order(sidestr, price, amount, sidestr, "limit");
 }
 
 void DeribitExchange::market(std::string order_id, OrderSide side, const double& price, const double& amount) {
