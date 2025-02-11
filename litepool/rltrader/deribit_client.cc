@@ -507,7 +507,7 @@ void DeribitClient::write_next_market_message() {
 }
 
 void DeribitClient::write_next_trading_message() {
-    std::lock_guard<std::mutex> lock(trading_write_mutex_);
+    std::unique_lock<std::mutex> lock(trading_write_mutex_);
 
     if (trading_message_queue_.empty() || is_trading_writing_ || !trading_ws_ || !trading_connected_) {
         return;
@@ -517,13 +517,14 @@ void DeribitClient::write_next_trading_message() {
     auto msg = trading_message_queue_.front();
     trading_message_queue_.pop();
 
+    // Unlock before async_write to prevent deadlock
+    lock.unlock();
+
     trading_ws_->async_write(
         net::buffer(msg.dump()),
         [this](const beast::error_code& ec, std::size_t) {
-            {
-                std::lock_guard<std::mutex> lock(trading_write_mutex_);
-                is_trading_writing_ = false;
-            }
+            std::unique_lock<std::mutex> lock(trading_write_mutex_);
+            is_trading_writing_ = false;
 
             if (ec) {
                 std::cerr << "Trading write error: " << ec.message() << std::endl;
@@ -532,11 +533,9 @@ void DeribitClient::write_next_trading_message() {
                 return;
             }
 
-            {
-                std::lock_guard<std::mutex> lock(trading_write_mutex_);
-                if (!trading_message_queue_.empty()) {
-                    write_next_trading_message();
-                }
+            if (!trading_message_queue_.empty()) {
+                lock.unlock();  // Unlock before recursive call
+                write_next_trading_message();
             }
         });
 }
