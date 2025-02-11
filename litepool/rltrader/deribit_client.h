@@ -55,8 +55,11 @@ namespace RLTrader {
         void place_order(const std::string& side,
                         double price,
                         double size,
+                        const std::string& label,
                         const std::string& type = "limit");
+
         void cancel_order(const std::string& order_id);
+        void cancel_all_by_label(const std::string& label);
         void cancel_all_orders();
         void get_position();
 

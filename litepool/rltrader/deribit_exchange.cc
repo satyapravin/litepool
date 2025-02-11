@@ -138,13 +138,13 @@ void DeribitExchange::quote(std::string order_id, OrderSide side, const double& 
             if (this->bid.state != OrderState::CANCELLED && is_close(price, this->bid.price)) {
                 return;
             } else {
-                this->db_client.cancel_order(this->bid.orderId);
+                this->db_client.cancel_all_by_label(sidestr);
             }
         } else {
             if (this->ask.state != OrderState::CANCELLED && is_close(price, this->ask.price)) {
                 return;
             } else {
-                this->db_client.cancel_order(this->ask.orderId);
+                this->db_client.cancel_all_by_label(sidestr);
             }
         }
     }
@@ -153,5 +153,5 @@ void DeribitExchange::quote(std::string order_id, OrderSide side, const double& 
 
 void DeribitExchange::market(std::string order_id, OrderSide side, const double& price, const double& amount) {
     std::string sidestr = side == OrderSide::BUY ? "buy" : "sell";
-    this->db_client.place_order(sidestr, price, amount, "market");
+    this->db_client.place_order(sidestr, price, amount, sidestr, "market");
 }

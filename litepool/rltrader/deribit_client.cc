@@ -277,7 +277,8 @@ void DeribitClient::subscribe_private_data() {
 
 void DeribitClient::place_order(const std::string& side, 
                               double price, 
-                              double size, 
+                              double size,
+                              const std::string& label,
                               const std::string& type) {
     if (!trading_connected_) return;
     
@@ -289,6 +290,7 @@ void DeribitClient::place_order(const std::string& side,
             {"amount", size},
             {"type", type},
             {"price", price},
+            {"label", label},
             {"post_only", true}
         }},
         {"id", 3}
@@ -312,6 +314,20 @@ void DeribitClient::cancel_order(const std::string& order_id) {
     send_trading_message(cancel_msg);
 }
 
+void DeribitClient::cancel_all_by_label(const std::string& label) {
+    if (!trading_connected_) return;
+
+    json cancel_by_label_msg = {
+        {"jsonrpc", "2.0"},
+        {"method", "private/cancel_by_label"},
+        {"params", {
+                {"label", label}
+        }},
+        {"id", 7}
+    };
+
+    send_trading_message(cancel_by_label_msg);
+}
 void DeribitClient::cancel_all_orders() {
     if (!trading_connected_) return;
     
