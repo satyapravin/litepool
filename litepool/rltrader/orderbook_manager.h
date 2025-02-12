@@ -12,10 +12,11 @@ namespace RLTrader {
 class OrderbookManager {
 public:
     OrderbookManager() 
-        : current(std::make_shared<Orderbook>()), changed(false) {}
+        : current(std::make_unique<Orderbook>()), changed(false) {}
 
-    std::shared_ptr<Orderbook> get_current() const {
-        return current.load();
+    Orderbook get_current() const {
+        std::unique_lock<std::mutex> lock(current_mtx);
+        return *current;
     }
 
     bool wait_for_update_timeout(std::chrono::milliseconds timeout);
@@ -29,7 +30,8 @@ public:
     }
 
 private:
-    std::atomic<std::shared_ptr<Orderbook>> current;
+    std::unique_ptr<Orderbook> current;
+    mutable std::mutex current_mtx;
     std::atomic<bool> changed;
     std::mutex cv_mutex;
     std::condition_variable cv;
