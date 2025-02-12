@@ -82,7 +82,7 @@ using RlTraderEnvSpec = EnvSpec<RlTraderEnvFns>;
 
 class RlTraderEnv : public Env<RlTraderEnvSpec> {
  protected:
-  int spreads[4] = {0, 4, 8, 16};
+  int spreads[4] = {0, 6, 10, 16};
   int state_{0};
   bool isDone = true;
   bool is_prod = false;
@@ -182,7 +182,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
       auto sell_action = select_action(sellActionLogits);
       auto buy_spread = spreads[buy_action];
       auto sell_spread = spreads[sell_action];
-      adaptor_ptr->quote(buy_spread, sell_spread, 10, 10);
+      adaptor_ptr->quote(buy_spread, sell_spread, 5, 5);
       auto info = adaptor_ptr->getInfo();
       isDone = !adaptor_ptr->next();
       ++steps;

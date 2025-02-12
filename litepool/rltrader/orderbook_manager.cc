@@ -2,42 +2,31 @@
 
 using namespace RLTrader;
 
-Orderbook OrderbookManager::get_current() const {
-    return *current.load();
-}
-
-bool OrderbookManager::wait_for_update_timeout(std::chrono::milliseconds timeout) {  // removed const
+bool OrderbookManager::wait_for_update_timeout(std::chrono::milliseconds timeout) {
     std::unique_lock<std::mutex> lock(cv_mutex);
-    const bool result = cv.wait_for(lock, timeout,
-        [this]() { return changed.load(); });
+    bool result = cv.wait_for(lock, timeout, [this]() { return changed.load(); });
     if (result) {
-        changed.store(false);
+        changed.store(false, std::memory_order_relaxed);
     }
     return result;
 }
 
-void OrderbookManager::wait_for_update() {  // removed const
+void OrderbookManager::wait_for_update() {
     std::unique_lock<std::mutex> lock(cv_mutex);
     cv.wait(lock, [this]() { return changed.load(); });
-    changed.store(false);
+    changed.store(false, std::memory_order_relaxed);
 }
 
 void OrderbookManager::update(std::vector<double> new_bid_prices, std::vector<double> new_ask_prices,
                               std::vector<double> new_bid_sizes, std::vector<double> new_ask_sizes) {
+    auto next = std::make_shared<Orderbook>();
 
-    Orderbook* curr = current.load();
-    Orderbook* next = (curr == &book1) ? &book2 : &book1;
+    next->bid_prices.swap(new_bid_prices);
+    next->ask_prices.swap(new_ask_prices);
+    next->bid_sizes.swap(new_bid_sizes);
+    next->ask_sizes.swap(new_ask_sizes);
 
-    next->bid_prices = std::move(new_bid_prices);
-    next->ask_prices = std::move(new_ask_prices);
-    next->bid_sizes = std::move(new_bid_sizes);
-    next->ask_sizes = std::move(new_ask_sizes);
-
-    current.store(next);
-    changed.store(true);
+    current.store(next, std::memory_order_release);
+    changed.store(true, std::memory_order_relaxed);
     cv.notify_all();
-}
-
-bool OrderbookManager::has_update() const {
-    return changed.load();
 }

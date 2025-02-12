@@ -1,38 +1,38 @@
 #pragma once
 
-#include <atomic>
-#include <condition_variable>
-#include <chrono>
 #include <vector>
-
+#include <memory>
+#include <atomic>
+#include <mutex>
+#include <condition_variable>
 #include "orderbook.h"
 
 namespace RLTrader {
 
-    class OrderbookManager {
-    private:
-        Orderbook book1;
-        Orderbook book2;
-        std::atomic<Orderbook*> current{&book1};
-        std::atomic<bool> changed{false};
+class OrderbookManager {
+public:
+    OrderbookManager() 
+        : current(std::make_shared<Orderbook>()), changed(false) {}
 
-        mutable std::mutex cv_mutex;
-        mutable std::condition_variable cv;
+    std::shared_ptr<Orderbook> get_current() const {
+        return current.load();
+    }
 
-    public:
-        OrderbookManager() = default;
+    bool wait_for_update_timeout(std::chrono::milliseconds timeout);
+    void wait_for_update();
+    
+    void update(std::vector<double> new_bid_prices, std::vector<double> new_ask_prices,
+                std::vector<double> new_bid_sizes, std::vector<double> new_ask_sizes);
 
-        Orderbook get_current() const;
+    bool has_update() const {
+        return changed.load();
+    }
 
-        bool wait_for_update_timeout(std::chrono::milliseconds timeout);
+private:
+    std::atomic<std::shared_ptr<Orderbook>> current;
+    std::atomic<bool> changed;
+    std::mutex cv_mutex;
+    std::condition_variable cv;
+};
 
-        void wait_for_update();
-
-        void update(std::vector<double> new_bid_prices,
-                    std::vector<double> new_ask_prices,
-                    std::vector<double> new_bid_sizes,
-                    std::vector<double> new_ask_sizes);
-
-        bool has_update() const;
-    };
-}
+}  // namespace RLTrader

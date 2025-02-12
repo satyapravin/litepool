@@ -50,6 +50,16 @@ std::string send_get_request(const std::string& host, const std::string& target,
         auto const results = resolver.resolve(host, "443");
 
         ssl::stream<tcp::socket> stream(ioc, ctx);
+        
+        if(!SSL_set_tlsext_host_name(stream.native_handle(), "www.deribit.com")) {
+            throw beast::system_error(
+                beast::error_code(
+                    static_cast<int>(ERR_get_error()),
+                    net::error::get_ssl_category()
+                ),
+                "Failed to set SNI Hostname"
+            );
+        }
         connect(stream.next_layer(), results.begin(), results.end());
         stream.handshake(ssl::stream_base::client);
 
@@ -92,7 +102,7 @@ std::string get_bearer_token(const std::string& client_id,
         }
     })";
 
-    std::string response = send_get_request("www.derbit.com", "/api/v2/public/auth", auth_body);
+    std::string response = send_get_request("www.deribit.com", "/api/v2/public/auth", auth_body);
 
     json jsonResponse = json::parse(response);
     if (jsonResponse.contains("result") && jsonResponse["result"].contains("access_token")) {
