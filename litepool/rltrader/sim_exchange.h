@@ -2,6 +2,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <cstdint>
 
 #include "base_exchange.h"
 #include "order.h"

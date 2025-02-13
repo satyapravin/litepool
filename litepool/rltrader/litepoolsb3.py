@@ -5,7 +5,6 @@ import numpy as np
 import torch as th
 import torch.nn as nn
 from packaging import version
-from sb3_contrib import RecurrentPPO
 from stable_baselines3 import SAC, PPO
 from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.common.env_util import make_vec_env
@@ -178,11 +177,20 @@ if os.path.exists('temp.csv'):
 env = litepool.make("RlTrader-v0", env_type="gymnasium", 
                           num_envs=32, batch_size=32,
                           num_threads=32,
-                          foldername="./oos/", 
-                          balance=1000,
+                          is_prod=False,
+                          is_inverse_instr=True,
+                          api_key="",
+                          api_secret="",
+                          symbol="BTC-PERPETUAL",
+                          tick_size=0.5,
+                          min_amount=10,
+                          maker_fee=-0.0001,
+                          taker_fee=0.0005,
+                          foldername="./train_files/", 
+                          balance=0.01,
                           start=1,
-                          max=7200001,
-                          depth=20)
+                          max=7200001)
+
 env.spec.id = 'RlTrader-v0'
 
 env = VecAdapter(env)

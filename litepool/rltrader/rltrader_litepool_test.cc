@@ -31,7 +31,6 @@ TEST(RlTraderLitePoolTest, SplitZeroAction) {
   config["seed"_] = 42;
   config["foldername"_] = std::string("./oos");
   config["balance"_] = static_cast<float>(0.1);
-  config["depth"_] = 20;
 
   rltrader::RlTraderEnvSpec spec(config);
   rltrader::RlTraderLitePool litepool(spec);
@@ -83,7 +82,6 @@ void Runner(int num_envs, int batch, int seed, int total_iter, int num_threads) 
   config["max_num_players"_] = 1;
   config["foldername"_] = std::string("./oos");
   config["balance"_] = static_cast<float>(0.1);
-  config["depth"_] = 20;
 
   std::vector<int> length;
 

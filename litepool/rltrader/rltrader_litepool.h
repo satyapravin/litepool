@@ -49,7 +49,6 @@ class RlTraderEnvFns {
                     "taker_fee"_.Bind<float>(0.0005),
                     "foldername"_.Bind(std::string("")),
                     "balance"_.Bind(1.0),
-                    "depth"_.Bind<int>(5),
                     "start"_.Bind<int>(0),
                     "max"_.Bind<int>(72000));
   }
@@ -146,7 +145,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     instr_ptr.reset(instr_raw_ptr);
     exchange_ptr.reset(exch_raw_ptr);
     strategy_ptr = std::make_unique<RLTrader::Strategy>(*instr_ptr, *exchange_ptr, balance, 20);
-    adaptor_ptr = std::make_unique<RLTrader::EnvAdaptor>(*strategy_ptr, *exchange_ptr, spec.config["depth"_]);
+    adaptor_ptr = std::make_unique<RLTrader::EnvAdaptor>(*strategy_ptr, *exchange_ptr);
   }
 
   void Reset() override {

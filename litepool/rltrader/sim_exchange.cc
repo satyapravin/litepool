@@ -2,6 +2,7 @@
 #include <vector>
 #include <cassert>
 #include <sstream>
+#include <iostream>
 #include "orderbook.h"
 
 using namespace RLTrader;
@@ -78,6 +79,7 @@ bool SimExchange::next_read(size_t& slot, OrderBook& book) {
 void SimExchange::done_read(size_t slot) {
 	// no ops
 }
+
 const std::map<std::string, Order>& SimExchange::getBidOrders() const {
 	return this->bid_quotes;
 }
@@ -128,6 +130,7 @@ void SimExchange::market(std::string order_id, OrderSide side, const double &pri
 
 std::vector<Order> SimExchange::getFills() {
 	std::vector<Order> retval(this->executions);
+	std::cout << retval.size() << std::endl;
 	this->executions.clear();
 	return retval;
 }

@@ -142,11 +142,20 @@ if os.path.exists('temp.csv'):
 env = litepool.make("RlTrader-v0", env_type="gymnasium", 
                           num_envs=1, batch_size=1,
                           num_threads=1,
-                          foldername="./testfiles/", 
-                          balance=5000,
+                          is_prod=False,
+                          is_inverse_instr=True,
+                          api_key="",
+                          api_secret="",
+                          symbol="BTC-PERPETUAL",
+                          tick_size=0.5,
+                          min_amount=10,
+                          maker_fee=-0.0001,
+                          taker_fee=0.0005,
+                          foldername="./testfiles/",
+                          balance=0.01,
                           start=1,
-                          max=72000001,
-                          depth=20)
+                          max=72000001)
+
 env.spec.id = 'RlTrader-v0'
 
 env = VecAdapter(env)

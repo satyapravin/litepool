@@ -68,12 +68,12 @@ add_executable(rltradertest rltrader_litepool_test.cc
                                       position_signal_builder.h position_signal_builder.cc
                                       trade_signal_builder.h trade_signal_builder.cc
                                       base_adaptor.h env_adaptor.h env_adaptor.cc
-        norm_macro.h rl_macros.h
+                                      norm_macro.h rl_macros.h
                                       rl_macros.h
                                       norm_macro.h
-        orderbook_buffer.h
-        fixed_vector.h
-        fixed_vector.h
+                                      orderbook_buffer.h
+                                      fixed_vector.h
+                                      fixed_vector.h
 )
 
 target_link_libraries(rltrader_litepool PUBLIC OpenSSL::SSL OpenSSL::Crypto Boost::system Threads::Threads
