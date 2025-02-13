@@ -64,7 +64,7 @@ namespace RLTrader {
         void get_position();
 
         // Callback setters
-        void set_orderbook_cb(std::function<void(const json&)> orderbook_cb);
+        void set_OrderBook_cb(std::function<void(const json&)> OrderBook_cb);
         void set_private_trade_cb (std::function<void(const json&)> private_trade_cb);
         void set_position_cb(std::function<void(const json&)> position_cb);
         void set_order_cb(std::function<void(const json&)> order_cb);
@@ -117,7 +117,7 @@ namespace RLTrader {
         std::unique_ptr<std::thread> io_thread_;
 
         // Callbacks
-        std::function<void(const json&)> orderbook_callback_;
+        std::function<void(const json&)> OrderBook_callback_;
         std::function<void(const json&)> private_trade_callback_;
         std::function<void(const json&)> position_callback_;
         std::function<void(const json&)> order_callback_;

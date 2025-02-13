@@ -20,7 +20,7 @@ add_executable(test_sim base_instrument.h
         normal_instrument.h normal_instrument.cc
         order.h position.h position.cc
         strategy.cc doctest.h strategy.h
-        orderbook.h orderbook.cc
+        orderbook.h orderbook_buffer.h
         market_signal_builder.h market_signal_builder.cc
         position_signal_builder.h position_signal_builder.cc
         trade_signal_builder.h trade_signal_builder.cc
@@ -30,6 +30,7 @@ set(GFLAG_LIBRARY_NAME /usr/local/lib/libgflags.a)
 pybind11_add_module(rltrader_litepool rltrader_litepool.h rltrader_litepool.cc
                                       base_instrument.h rl_macros.h
                                       csv_reader.h csv_reader.cc
+                                      circ_buffer.h circ_table.h
                                       base_exchange.h
                                       sim_exchange.h sim_exchange.cc
                                       deribit_exchange.h deribit_exchange.cc
@@ -39,12 +40,12 @@ pybind11_add_module(rltrader_litepool rltrader_litepool.h rltrader_litepool.cc
                                       normal_instrument.h normal_instrument.cc
                                       order.h position.h position.cc
                                       strategy.cc doctest.h strategy.h
-                                      orderbook.h orderbook.cc
+                                      orderbook.h orderbook_buffer.h
                                       market_signal_builder.h market_signal_builder.cc
                                       position_signal_builder.h position_signal_builder.cc
                                       trade_signal_builder.h trade_signal_builder.cc
                                       base_adaptor.h env_adaptor.h env_adaptor.cc
-                                      orderbook_manager.h orderbook_manager.cc norm_macro.h rl_macros.h
+                                      norm_macro.h rl_macros.h
 )
 
 set_target_properties(rltrader_litepool PROPERTIES PREFIX "" SUFFIX ".so")
@@ -53,6 +54,7 @@ add_executable(rltradertest rltrader_litepool_test.cc
                                       base_instrument.h rl_macros.h
                                       csv_reader.h csv_reader.cc
                                       base_exchange.h
+                                      circ_table.h circ_buffer.h
                                       sim_exchange.h sim_exchange.cc
                                       deribit_exchange.h deribit_exchange.cc
                                       deribit_client.h deribit_client.cc
@@ -61,14 +63,17 @@ add_executable(rltradertest rltrader_litepool_test.cc
                                       normal_instrument.h normal_instrument.cc
                                       order.h position.h position.cc
                                       strategy.cc doctest.h strategy.h
-                                      orderbook.h orderbook.cc
+                                      orderbook.h orderbook_buffer.h
                                       market_signal_builder.h market_signal_builder.cc
                                       position_signal_builder.h position_signal_builder.cc
                                       trade_signal_builder.h trade_signal_builder.cc
                                       base_adaptor.h env_adaptor.h env_adaptor.cc
-                                      orderbook_manager.h orderbook_manager.cc norm_macro.h rl_macros.h
+        norm_macro.h rl_macros.h
                                       rl_macros.h
                                       norm_macro.h
+        orderbook_buffer.h
+        fixed_vector.h
+        fixed_vector.h
 )
 
 target_link_libraries(rltrader_litepool PUBLIC OpenSSL::SSL OpenSSL::Crypto Boost::system Threads::Threads

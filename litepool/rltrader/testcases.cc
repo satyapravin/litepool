@@ -21,10 +21,14 @@
 using namespace RLTrader;
 using namespace doctest;
 
+bool double_equals(double a, double b, double epsilon = 1e-9) {
+	return std::abs(a - b) <= epsilon;
+}
+
 TEST_CASE("Testing TemporalTable") {
     constexpr u_int rows = 3;
-    constexpr u_int cols = 4;
-    TemporalTable table(rows, cols);
+    constexpr u_int cols = 20;
+    TemporalTable table(rows);
 
     SUBCASE("Initial state") {
         for (u_int i = 0; i < rows; ++i) {
@@ -35,9 +39,13 @@ TEST_CASE("Testing TemporalTable") {
     }
 
     SUBCASE("Adding and retrieving rows") {
-        std::vector<double> row1 = {1.1, 1.2, 1.3, 1.4};
-        std::vector<double> row2 = {2.1, 2.2, 2.3, 2.4};
-        std::vector<double> row3 = {3.1, 3.2, 3.3, 3.4};
+    	FixedVector<double, 20> row1, row2, row3;
+
+    	for (int ii=0; ii < 20; ++ii) {
+    		row1[ii] = 1.0 + 0.4 * ii;
+    		row2[ii] = 2.0 + 0.4 * ii;
+    		row3[ii] = 3.0 + 0.4 * ii;
+    	}
 
         table.addRow(row1);
 		auto result = table.get(0);
@@ -54,10 +62,14 @@ TEST_CASE("Testing TemporalTable") {
     }
 
     SUBCASE("Overwriting old rows") {
-        std::vector<double> row1 = {1.1, 1.2, 1.3, 1.4};
-        std::vector<double> row2 = {2.1, 2.2, 2.3, 2.4};
-        std::vector<double> row3 = {3.1, 3.2, 3.3, 3.4};
-        std::vector<double> row4 = {4.1, 4.2, 4.3, 4.4};
+    	FixedVector<double, 20> row1, row2, row3, row4;
+
+    	for (int ii=0; ii < 20; ++ii) {
+    		row1[ii] = 1.0 + 0.4 * ii;
+    		row2[ii] = 2.0 + 0.4 * ii;
+    		row3[ii] = 3.0 + 0.4 * ii;
+    		row4[ii] = 4.0 * 0.4 * ii;
+    	}
 
         table.addRow(row1);
         table.addRow(row2);
@@ -67,22 +79,6 @@ TEST_CASE("Testing TemporalTable") {
         CHECK(std::equal(table.get(0).begin(), table.get(0).end(), row4.begin()));
         CHECK(std::equal(table.get(1).begin(), table.get(1).end(), row3.begin()));
         CHECK(std::equal(table.get(2).begin(), table.get(2).end(), row2.begin()));
-    }
-
-    SUBCASE("Adding multiple rows in a loop") {
-        for (u_int i = 0; i < 10; ++i) {
-            std::vector<double> row(cols, static_cast<double>(i));
-            table.addRow(row);
-            CHECK(std::equal(table.get(0).begin(), table.get(0).end(), row.begin()));
-            if (i > 0) {
-                std::vector<double> prev_row(cols, static_cast<double>(i - 1));
-                CHECK(std::equal(table.get(1).begin(), table.get(1).end(), prev_row.begin()));
-            }
-            if (i > 1) {
-                std::vector<double> prev_prev_row(cols, static_cast<double>(i - 2));
-                CHECK(std::equal(table.get(2).begin(), table.get(2).end(), prev_prev_row.begin()));
-            }
-        }
     }
 }
 
@@ -146,7 +142,7 @@ TEST_CASE("env adaptor test") {
 	SimExchange exch("data.csv", 5, 0, 100);
 	InverseInstrument instr("BTC", 0.5, 10.0, 0, 0.0005);
 	Strategy strategy(instr, exch, 1, 5);
-	EnvAdaptor adaptor = EnvAdaptor(strategy, exch, 5);
+	EnvAdaptor adaptor = EnvAdaptor(strategy, exch);
 	adaptor.reset();
 
 	int counter = 0;
@@ -175,14 +171,10 @@ TEST_CASE("env adaptor test") {
 	CHECK(std::all_of(signals.begin(), signals.end(), [](double val) { return std::abs(val) >= 0;}));
 }
 
-TEST_CASE("test of orderbook and signals") {
+TEST_CASE("test of OrderBook and signals") {
 	double bid_price = 1000;
 	double ask_price = 1000;
-	Orderbook lob;
-	lob.bid_prices.assign(20, 0.0);
-	lob.ask_prices.assign(20, 0.0);
-	lob.bid_sizes.assign(20, 0.0);
-	lob.ask_sizes.assign(20, 0.0);
+	OrderBook lob;
 	std::mt19937 rng;
 	std::random_device rd;
 	rng.seed(rd());
@@ -201,7 +193,7 @@ TEST_CASE("test of orderbook and signals") {
 	CHECK(book.bid_prices.size() == 20);
 	CHECK(book.ask_sizes.size() == 20);
 	CHECK(book.bid_sizes.size() == 20);
-	MarketSignalBuilder builder(20);
+	MarketSignalBuilder builder;
 	std::vector<std::chrono::duration<double>> durations;
 
 	int ii = 0;
@@ -265,10 +257,12 @@ TEST_CASE("testing the csv reader") {
 	SimExchange exch("data.csv", 300, 0, 100);
 	exch.reset();
 	counter = 0;
-	while(exch.next())
+	OrderBook book;
+	size_t read_slot;
+	while(exch.next_read(read_slot, book))
 		++counter;
 	exch.reset();
-	while(exch.next())
+	while(exch.next_read(read_slot, book))
 		++counter;
 }
 
@@ -619,19 +613,20 @@ TEST_CASE("testing the inverse position") {
 
 TEST_CASE("testing exchange") {
 	SimExchange exch("data.csv", 5, 0, 100); // 10 microsecond delay is not practical in reality
-	exch.next();
-	const auto& row = exch.getBook();
+	OrderBook row;
+	size_t read_slot;
+	exch.next_read(read_slot, row);
 
 	CHECK(row.bid_prices[0] == Approx(63100));
 	CHECK(row.bid_prices[1] == Approx(63099.5));
 
 	for (int ii = 0; ii < 8; ++ii)
-		CHECK(exch.next());
+		CHECK(exch.next_read(read_slot, row));
 
-	CHECK(exch.next());
+	OrderBook next;
+	CHECK(exch.next_read(read_slot, next));
 	exch.reset();
-	exch.next();
-	auto next = exch.getBook();
+	exch.next_read(read_slot, next);
 	CHECK(next.bid_prices[0] == Approx(63100));
 	CHECK(next.bid_prices[1] == Approx(63099.5));
 	exch.reset();
@@ -641,7 +636,8 @@ TEST_CASE("testing exchange") {
 	exch.quote("4", OrderSide::BUY, 39000, 200);
 	std::vector<Order> unacks = exch.getUnackedOrders();
 	CHECK(unacks.size() == 4);
-	exch.next();
+	size_t slot;
+	exch.next_read(slot, row);
 	const auto& bids = exch.getBidOrders();
 	CHECK(bids.size() == 2);
 	const auto& asks = exch.getAskOrders();
@@ -652,11 +648,13 @@ TEST_CASE("testing exchange") {
 
 TEST_CASE("test of inverse strategy") {
 	SimExchange exch("data.csv", 5, 0, 1000);
-	exch.next();
+	OrderBook book;
+	size_t slot;
+	exch.next_read(slot, book);
 	InverseInstrument instr("BTC", 0.5, 10.0, 0, 0.0005);
 	Strategy strategy(instr, exch, 0.015, 5);
-	strategy.quote(2, 2, 1, 1);
-	exch.next();
+	strategy.quote(2, 2, 1, 1, book.bid_prices, book.ask_prices);
+	exch.next_read(slot, book);
 	const auto& bids = exch.getBidOrders();
 	const auto& asks = exch.getAskOrders();
 	CHECK(bids.size() == 1);
@@ -665,11 +663,13 @@ TEST_CASE("test of inverse strategy") {
 
 TEST_CASE("test of normal strategy") {
 	SimExchange exch("data.csv", 5, 0, 1000);
-	exch.next();
+	OrderBook book;
+	size_t slot;
+	exch.next_read(slot, book);
 	NormalInstrument instr("BTCUSDT", 0.1, .0001, -0.0001, 0.0075);
 	Strategy strategy(instr, exch, 2000,  5);
-	strategy.quote(2, 2, 1, 1);
-	exch.next();
+	strategy.quote(2, 2, 1, 1, book.bid_prices, book.ask_prices);
+	exch.next_read(slot, book);
 	const auto& bids = exch.getBidOrders();
 	const auto& asks = exch.getAskOrders();
 	CHECK(bids.size() == 1);

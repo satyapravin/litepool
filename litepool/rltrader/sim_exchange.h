@@ -17,20 +17,20 @@ namespace RLTrader {
         // Constructor
         SimExchange(const std::string& filename, long delay, int start_read, int max_read); // 300 milliseconds delay
 
-        // Generates an orderbook
-        Orderbook orderbook(std::unordered_map<std::string, double> lob) const override;
+        // Generates an OrderBook
+        void toBook(const std::unordered_map<std::string, double>& lob, OrderBook& book) override;
 
         // Resets the exchange's state
         void reset() override;
 
         // Advances to the next row in the data
-        bool next() override;
+        bool next_read(size_t& slot, OrderBook& book) override;
+
+        void done_read(size_t slot) override;
 
         // fetch dummy zero positions
         void fetchPosition(double& posAmount, double& avgPrice) override;
 
-        // Retrieves the current row of the DataFrame
-        Orderbook getBook() const override;
 
         // Returns executed orders and clears them
         std::vector<Order> getFills() override;

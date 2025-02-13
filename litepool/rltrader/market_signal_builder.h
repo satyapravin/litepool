@@ -103,13 +103,13 @@ namespace RLTrader {
 
 class MarketSignalBuilder {
 public:
-    explicit MarketSignalBuilder(int depth);
+    explicit MarketSignalBuilder();
 
-    std::vector<double> add_book(Orderbook& lob);
+    std::vector<double> add_book(OrderBook& lob);
 
 
 private:
-    void compute_signals(const Orderbook& book);
+    void compute_signals(const OrderBook& book);
 
     static double compute_ofi(double curr_bid_price, double curr_bid_size,
                        double curr_ask_price, double curr_ask_size,
@@ -118,26 +118,26 @@ private:
 
     std::tuple<double, double>
     compute_lagged_ofi(const price_signal_repository& repo,
-                                             const std::vector<double>& cum_bid_sizes,
-                                             const std::vector<double>& cum_ask_sizes,
+                                             const FixedVector<double, 20>& cum_bid_sizes,
+                                             const FixedVector<double, 20>& cum_ask_sizes,
                                              int lag);
 
     void compute_price_signals( price_signal_repository& repo,
-                                const std::vector<double>& current_bid_prices,
-                                const std::vector<double>& current_ask_prices,
-                                const std::vector<double>& current_bid_sizes,
-                                const std::vector<double>& current_ask_sizes,
-                                const std::vector<double>& cum_bid_sizes,
-                                const std::vector<double>& cum_ask_sizes,
-                                const std::vector<double>& cum_bid_amounts,
-                                const std::vector<double>& cum_ask_amounts);
+                                const FixedVector<double, 20>& current_bid_prices,
+                                const FixedVector<double, 20>& current_ask_prices,
+                                const FixedVector<double, 20>& current_bid_sizes,
+                                const FixedVector<double, 20>& current_ask_sizes,
+                                const FixedVector<double, 20>& cum_bid_sizes,
+                                const FixedVector<double, 20>& cum_ask_sizes,
+                                const FixedVector<double, 20>& cum_bid_amounts,
+                                const FixedVector<double, 20>& cum_ask_amounts);
 
     void compute_spread_signals(const price_signal_repository& repo) const;
 
-    void compute_volume_signals(const std::vector<double>& bid_sizes,
-                                const std::vector<double>& ask_sizes,
-                                const std::vector<double>& cum_bid_sizes,
-                                const std::vector<double>& cum_ask_sizes) const;
+    void compute_volume_signals(const FixedVector<double, 20>& bid_sizes,
+                                const FixedVector<double, 20>& ask_sizes,
+                                const FixedVector<double, 20>& cum_bid_sizes,
+                                const FixedVector<double, 20>& cum_ask_sizes) const;
 
 private:
     TemporalTable previous_bid_prices;

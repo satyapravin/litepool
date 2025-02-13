@@ -3,7 +3,7 @@
 #include "base_exchange.h"
 #include "deribit_client.h"
 #include "deribit_rest.h"
-#include "orderbook_manager.h"
+#include "orderbook_buffer.h"
 
 namespace RLTrader {
     class DeribitExchange final : public BaseExchange {
@@ -11,20 +11,19 @@ namespace RLTrader {
         // Constructor
         DeribitExchange(const std::string& symbol, const std::string& api_key, const std::string& api_secret);
 
-        // Generates an orderbook
-        [[nodiscard]] Orderbook  orderbook(std::unordered_map<std::string, double> lob) const override;
+        // Generates an OrderBook
+        void toBook(const std::unordered_map<std::string, double>& lob, OrderBook &book) override;
 
         // Resets the exchange's state
         void reset() override;
 
         // Advances to the next row in the data
-        bool next() override;
+        bool next_read(size_t& slot, OrderBook& book) override;
+
+        void done_read(size_t slot) override { this->book_buffer.commit_read(slot); }
 
         // fetch dummy zero positions
         void fetchPosition(double& posAmount, double& avgPrice) override;
-
-        // Retrieves the current row of the DataFrame
-        [[nodiscard]] Orderbook getBook() const override;
 
         // Returns executed orders and clears them
         std::vector<Order> getFills() override;
@@ -61,7 +60,7 @@ namespace RLTrader {
 
         double position_amount = 0;
         double position_avg_price = 0;
-        OrderbookManager book_manager;
+        LockFreeOrderBookBuffer book_buffer;
         std::string symbol;
         std::mutex fill_mutex;
         std::atomic<long> orders_count;

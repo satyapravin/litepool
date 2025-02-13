@@ -14,16 +14,15 @@ namespace RLTrader {
         virtual void reset() = 0;
 
         // Advances to the next row in the data
-        virtual bool next() = 0;
+        virtual bool next_read(size_t& slot, OrderBook& book) = 0;
+
+        virtual void done_read(size_t slot) = 0;
 
         // build order book from labeled data
-        [[nodiscard]] virtual Orderbook orderbook(std::unordered_map<std::string, double> lob) const = 0;
+        virtual void toBook(const std::unordered_map<std::string, double>& lob, OrderBook &book) = 0;
 
         // fetches the current position from exchange
         virtual void fetchPosition(double& posAmount, double& avgPrice) = 0;
-
-        // Retrieves the current row of the DataFrame
-        [[nodiscard]] virtual Orderbook getBook() const = 0;
 
         // Returns executed orders and clears them
         virtual std::vector<Order> getFills() = 0;

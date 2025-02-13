@@ -1,21 +1,19 @@
 #pragma once
 #include <stdexcept>
 #include <vector>
+#include "fixed_vector.h"
 
 namespace RLTrader {
 class TemporalTable {
 public:
-    TemporalTable(u_int rows, u_int cols) : currentRow(-1),
-                                            NUM_ROWS(rows),
-                                            NUM_COLS(cols),
-                                            buffer(NUM_ROWS, std::vector<double>(NUM_COLS, 0.0)) {
+    explicit TemporalTable(u_int rows) : currentRow(-1), NUM_ROWS(rows), buffer(rows) {
     }
 
-    void addRow(std::vector<double>& row) {
-        if (row.size() != NUM_COLS)
+    void addRow(FixedVector<double, 20>& row) {
+        if (row.size() != 20)
             throw std::runtime_error("Invalid column size");
         currentRow = (currentRow + 1) % NUM_ROWS;
-        std::copy(row.begin(), row.end(), buffer[currentRow].begin());
+        std::ranges::copy(row, buffer[currentRow].begin());
     }
 
     [[nodiscard]] u_int get_lagged_row(u_int lag) const {
@@ -23,7 +21,7 @@ public:
         return (currentRow + NUM_ROWS - lag) % NUM_ROWS;
     }
 
-    const std::vector<double>& get(const u_int lag) {
+    const FixedVector<double, 20>& get(const u_int lag) const {
         const auto idx = get_lagged_row(lag);
         return buffer[idx];
     }
@@ -31,7 +29,6 @@ public:
 private:
     u_int currentRow;
     u_int NUM_ROWS;
-    u_int NUM_COLS;
-    std::vector<std::vector<double>> buffer;
+    std::vector<FixedVector<double, 20>> buffer;
 };
 }

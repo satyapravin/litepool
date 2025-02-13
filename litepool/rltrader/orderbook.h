@@ -1,26 +1,28 @@
 #pragma once
+#include "fixed_vector.h"
 
-#include <unordered_map>
-#include <vector>
-#include <string>
-#include <sstream>
+namespace  RLTrader {
+    class alignas(64) OrderBook {
+    public:
+        static constexpr size_t MAX_LEVELS = 20;
 
-namespace RLTrader {
-class Orderbook {
-public:
-    Orderbook() = default;
+        FixedVector<double, MAX_LEVELS> bid_prices;
+        FixedVector<double, MAX_LEVELS> bid_sizes;
+        FixedVector<double, MAX_LEVELS> ask_prices;
+        FixedVector<double, MAX_LEVELS> ask_sizes;
 
-    Orderbook(Orderbook&& other) noexcept ;
+        void clear() {
+            bid_prices.clear();
+            bid_sizes.clear();
+            ask_prices.clear();
+            ask_sizes.clear();
+        }
 
-    Orderbook& operator=(Orderbook && other) noexcept ;
-
-    Orderbook(const Orderbook&) = default;
-    Orderbook& operator=(const Orderbook&) = default;
-
-
-    std::vector<double> bid_prices;
-    std::vector<double> ask_prices;
-    std::vector<double> bid_sizes;
-    std::vector<double> ask_sizes;
-};
+        void initialize() {
+            bid_prices.initialize();
+            bid_sizes.initialize();
+            ask_prices.initialize();
+            ask_sizes.initialize();
+        }
+    };
 }

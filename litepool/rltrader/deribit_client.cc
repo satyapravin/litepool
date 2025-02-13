@@ -358,9 +358,9 @@ void DeribitClient::get_position() {
     send_trading_message(pos_msg);
 }
 
-void DeribitClient::set_orderbook_cb(std::function<void(const json&)> orderbook_cb) {
+void DeribitClient::set_OrderBook_cb(std::function<void(const json&)> OrderBook_cb) {
     std::lock_guard<std::mutex> lock(callback_mutex_);
-    orderbook_callback_ = std::move(orderbook_cb);
+    OrderBook_callback_ = std::move(OrderBook_cb);
 }
 
 void DeribitClient::set_private_trade_cb(std::function<void(const json&)> private_trade_cb) {
@@ -433,8 +433,8 @@ void DeribitClient::handle_market_message(const json& msg) {
         const std::string& channel = msg["params"]["channel"];
         if (starts_with(channel, "book.")) {
             std::lock_guard<std::mutex> lock(callback_mutex_);
-            if (orderbook_callback_) {
-                orderbook_callback_(msg["params"]["data"]);
+            if (OrderBook_callback_) {
+                OrderBook_callback_(msg["params"]["data"]);
             }
         }
     }

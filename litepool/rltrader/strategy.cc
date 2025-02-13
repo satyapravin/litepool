@@ -27,10 +27,9 @@ void Strategy::reset() {
 	this->order_id = 0;
 }
 
-void Strategy::quote(int buy_spread, int sell_spread, int buy_percent, int sell_percent) {
-	auto book = this->exchange.getBook();
-	//exchange.cancelOrders();
-	auto posInfo = position.getPositionInfo(book.bid_prices[0], book.ask_prices[0]);
+void Strategy::quote(int buy_spread, int sell_spread, int buy_percent, int sell_percent,
+                     FixedVector<double, 20>& bid_prices, FixedVector<double, 20>& ask_prices) {
+	auto posInfo = position.getPositionInfo(bid_prices[0], ask_prices[0]);
 	auto leverage = posInfo.leverage;
     auto initBalance = position.getInitialBalance();
     double buy_denom = 100;
@@ -42,13 +41,14 @@ void Strategy::quote(int buy_spread, int sell_spread, int buy_percent, int sell_
         buy_spread = std::max(0, buy_spread + skew);
         sell_spread = std::max(0, sell_spread - skew);
 
-        if (buy_volume > 0 && buy_spread >= 0) this->sendGrid(1, buy_spread, buy_volume, book, OrderSide::BUY);
-        if (sell_volume > 0 && sell_spread >= 0) this->sendGrid(1, sell_spread, sell_volume, book, OrderSide::SELL);
+        if (buy_volume > 0 && buy_spread >= 0)
+        	this->sendGrid(1, buy_spread, buy_volume, OrderSide::BUY, bid_prices);
+        if (sell_volume > 0 && sell_spread >= 0)
+        	this->sendGrid(1, sell_spread, sell_volume, OrderSide::SELL, ask_prices);
 }
 
-void Strategy::sendGrid(int levels, int start_level, const double& amount, const Orderbook& book, OrderSide side) {
-	auto refPrices = side == OrderSide::SELL ? book.ask_prices : book.bid_prices;
-
+void Strategy::sendGrid(int levels, int start_level, const double& amount,
+	                    OrderSide side, FixedVector<double, 20>& refPrices) {
         for (int ii = 0; ii < levels; ++ii) {
 	     auto trade_amount = instrument.getTradeAmount(amount, refPrices[0]);
              if (trade_amount >= instrument.getMinAmount()) {

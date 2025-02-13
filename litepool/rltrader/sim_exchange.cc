@@ -1,7 +1,7 @@
 #include "sim_exchange.h"
 #include <vector>
 #include <cassert>
-
+#include <sstream>
 #include "orderbook.h"
 
 using namespace RLTrader;
@@ -32,19 +32,17 @@ bool SimExchange::initialize() {
 	return true;
 }
 
-Orderbook SimExchange::orderbook(std::unordered_map<std::string, double> lob) const {
-	Orderbook book;
+void SimExchange::toBook(const std::unordered_map<std::string, double>& lob, OrderBook& book)  {
 	int ii = 0;
 	for(const auto & bid_price_label : bid_price_labels) {
-		if (lob.find(bid_price_label) != lob.end()) {
-			book.bid_prices.push_back(lob[SimExchange::bid_price_labels[ii]]);
-			book.ask_prices.push_back(lob[SimExchange::ask_price_labels[ii]]);
-			book.bid_sizes.push_back(lob[SimExchange::bid_size_labels[ii]]);
-			book.ask_sizes.push_back(lob[SimExchange::ask_size_labels[ii]]);
+		if (lob.contains(bid_price_label)) {
+			book.bid_prices[ii] = lob.at(SimExchange::bid_price_labels[ii]);
+			book.ask_prices[ii] = lob.at(SimExchange::ask_price_labels[ii]);
+			book.bid_sizes[ii]= lob.at(SimExchange::bid_size_labels[ii]);
+			book.ask_sizes[ii] = lob.at(SimExchange::ask_size_labels[ii]);
 		}
 		ii++;
 	}
-	return book;
 }
 
 SimExchange::SimExchange(const std::string& filename, long delay, int start_read, int max_read) :dataReader(filename, start_read, max_read), delay(delay) {
@@ -64,9 +62,11 @@ void SimExchange::reset() {
 	this->timed_buffer.clear();
 }
 
-bool SimExchange::next() {
+bool SimExchange::next_read(size_t& slot, OrderBook& book) {
     if (this->dataReader.hasNext()) {
         this->dataReader.next();
+    	slot = 0;
+    	toBook(this->dataReader.current().data, book);
         this->execute();
     } else {
         return false;
@@ -75,6 +75,9 @@ bool SimExchange::next() {
     return true;
 }
 
+void SimExchange::done_read(size_t slot) {
+	// no ops
+}
 const std::map<std::string, Order>& SimExchange::getBidOrders() const {
 	return this->bid_quotes;
 }
@@ -120,10 +123,6 @@ void SimExchange::market(std::string order_id, OrderSide side, const double &pri
 	order.side = side;
 	order.state = OrderState::NEW;
 	this->addToBuffer(order);
-}
-
-Orderbook SimExchange::getBook() const {
-	return orderbook(this->dataReader.current().data);
 }
 
 

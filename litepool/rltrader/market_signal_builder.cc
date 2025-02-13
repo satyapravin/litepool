@@ -1,14 +1,16 @@
 #include "market_signal_builder.h"
 #include <numeric>
+
+#include "orderbook.h"
 #include "rl_macros.h"
 
 using namespace RLTrader;
 
-MarketSignalBuilder::MarketSignalBuilder(int depth)
-              :previous_bid_prices(30, depth),
-               previous_ask_prices(30, depth),
-               previous_bid_amounts(30, depth),
-               previous_ask_amounts(30, depth),
+MarketSignalBuilder::MarketSignalBuilder()
+              :previous_bid_prices(30),
+               previous_ask_prices(30),
+               previous_bid_amounts(30),
+               previous_ask_amounts(30),
                previous_price_signal{},
                raw_price_diff_signals(std::make_unique<price_signal_repository>()),                      // price
                raw_spread_signals(std::make_unique<spread_signal_repository>()),                         // spread
@@ -18,25 +20,21 @@ MarketSignalBuilder::MarketSignalBuilder(int depth)
 }
 
 
-std::vector<double> cumulative_prod_sum(const std::vector<double>& first, const std::vector<double>& second) {
-    std::vector<double> result;
+void cumulative_prod_sum(const FixedVector<double, 20>& first, const FixedVector<double, 20>& second,
+                                        FixedVector<double, 20>& result) {
     double cum_product_sum = 0;
 
     for(auto ii=0; ii < first.size(); ++ii) {
         cum_product_sum += first[ii] * second[ii];
-        result.push_back(cum_product_sum);
+        result[ii] = cum_product_sum;
     }
-
-    return result;
 }
 
-std::vector<double> get_cumulative_sizes(const std::vector<double>& sizes) {
-    std::vector<double> retval(sizes.size());
+void get_cumulative_sizes(const FixedVector<double, 20>& sizes, FixedVector<double, 20>& retval) {
     std::partial_sum(sizes.begin(), sizes.end(), retval.begin());
-    return retval;
 }
 
-double fill_price(const std::vector<double>& bid_prices, const std::vector<double>& bid_sizes, double size) {
+double fill_price(const FixedVector<double, 20>& bid_prices, const FixedVector<double, 20>& bid_sizes, double size) {
     double fill_amount = 0;
     double fill_size = size;
     for(auto ii = 0; ii < bid_prices.size(); ++ii) {
@@ -57,7 +55,7 @@ double micro_price(const double& bid_price, const double& ask_price,
     return (bid_price * ask_size + ask_price * bid_size) / (bid_size + ask_size);
 }
 
-std::vector<double> MarketSignalBuilder::add_book(Orderbook& book) {
+std::vector<double> MarketSignalBuilder::add_book(OrderBook& book) {
     compute_signals(book);
 
     std::vector<double> retval;
@@ -72,17 +70,21 @@ std::vector<double> MarketSignalBuilder::add_book(Orderbook& book) {
     return retval;
 }
 
-void MarketSignalBuilder::compute_signals(const Orderbook& book) {
+void MarketSignalBuilder::compute_signals(const OrderBook& book) {
     auto current_bid_prices = book.bid_prices;
     auto current_ask_prices = book.ask_prices;
     auto current_bid_sizes = book.bid_sizes;
     auto current_ask_sizes = book.ask_sizes;
 
-    std::vector<double> cum_bid_sizes = get_cumulative_sizes(current_bid_sizes);
-    std::vector<double> cum_ask_sizes = get_cumulative_sizes(current_ask_sizes);
+    FixedVector<double, 20> cum_bid_sizes;
+    FixedVector<double, 20> cum_ask_sizes;
+    get_cumulative_sizes(current_bid_sizes, cum_bid_sizes);
+    get_cumulative_sizes(current_ask_sizes, cum_ask_sizes);
 
-    std::vector<double> cum_bid_amounts = cumulative_prod_sum(current_bid_prices, current_bid_sizes);
-    std::vector<double> cum_ask_amounts = cumulative_prod_sum(current_ask_prices, current_ask_sizes);
+    FixedVector<double, 20> cum_bid_amounts;
+    FixedVector<double, 20> cum_ask_amounts;
+    cumulative_prod_sum(current_bid_prices, current_bid_sizes, cum_bid_amounts);
+    cumulative_prod_sum(current_ask_prices, current_ask_sizes, cum_ask_amounts);
 
     price_signal_repository repo;
 
@@ -121,8 +123,8 @@ void MarketSignalBuilder::compute_signals(const Orderbook& book) {
 
 std::tuple<double, double>
 MarketSignalBuilder::compute_lagged_ofi(const price_signal_repository& repo,
-                                        const std::vector<double>& cum_bid_sizes,
-                                        const std::vector<double>& cum_ask_sizes,
+                                        const FixedVector<double, 20>& cum_bid_sizes,
+                                        const FixedVector<double, 20>& cum_ask_sizes,
                                         const int lag)
 {
     auto current_bid_price = repo.vwap_bid_price_signal_0;
@@ -139,11 +141,15 @@ MarketSignalBuilder::compute_lagged_ofi(const price_signal_repository& repo,
     auto lagged_bid_sizes = previous_bid_amounts.get(previous_bid_amounts.get_lagged_row(lag));
     auto lagged_ask_sizes = previous_ask_amounts.get(previous_ask_amounts.get_lagged_row(lag));
 
-    std::vector<double> previous_cum_bid_sizes = get_cumulative_sizes(lagged_bid_sizes);
-    std::vector<double> previous_cum_ask_sizes = get_cumulative_sizes(lagged_ask_sizes);
+    FixedVector<double, 20> previous_cum_bid_sizes;
+    FixedVector<double, 20> previous_cum_ask_sizes;
+    FixedVector<double, 20> previous_cum_bid_amounts;
+    FixedVector<double, 20> previous_cum_ask_amounts;
+    get_cumulative_sizes(lagged_bid_sizes, previous_cum_bid_sizes);
+    get_cumulative_sizes(lagged_ask_sizes, previous_cum_ask_sizes);
 
-    std::vector<double> previous_cum_bid_amounts = cumulative_prod_sum(lagged_bid_prices, lagged_bid_sizes);
-    std::vector<double> previous_cum_ask_amounts = cumulative_prod_sum(lagged_ask_prices, lagged_ask_sizes);
+    cumulative_prod_sum(lagged_bid_prices, lagged_bid_sizes, previous_cum_bid_amounts);
+    cumulative_prod_sum(lagged_ask_prices, lagged_ask_sizes, previous_cum_ask_amounts);
 
     double previous_vwap_bid_price_5 = previous_cum_bid_amounts[4] / previous_cum_bid_sizes[4];
     double previous_vwap_ask_price_5 = previous_cum_ask_amounts[4] / previous_cum_ask_sizes[4];
@@ -173,10 +179,10 @@ double MarketSignalBuilder::compute_ofi(double curr_bid_price, double curr_bid_s
     return retval / normalizer;
 }
 
-void MarketSignalBuilder::compute_volume_signals(const std::vector<double>& bid_sizes,
-                                                 const std::vector<double>& ask_sizes,
-                                                 const std::vector<double>& cum_bid_sizes,
-                                                 const std::vector<double>& cum_ask_sizes) const {
+void MarketSignalBuilder::compute_volume_signals(const FixedVector<double, 20>& bid_sizes,
+                                                 const FixedVector<double, 20>& ask_sizes,
+                                                 const FixedVector<double, 20>& cum_bid_sizes,
+                                                 const FixedVector<double, 20>& cum_ask_sizes) const {
     raw_volume_signals->volume_imbalance_signal_0 = (bid_sizes[0] - ask_sizes[0]) / (bid_sizes[0] + ask_sizes[0]);
     raw_volume_signals->volume_imbalance_signal_1 = (cum_bid_sizes[1] - cum_ask_sizes[1]) / (cum_bid_sizes[1] + cum_ask_sizes[1]);
     raw_volume_signals->volume_imbalance_signal_2 = (cum_bid_sizes[2] - cum_ask_sizes[2]) / (cum_bid_sizes[2] + cum_ask_sizes[2]);
@@ -217,14 +223,14 @@ void MarketSignalBuilder::compute_spread_signals(const price_signal_repository& 
 }
 
 void MarketSignalBuilder::compute_price_signals(price_signal_repository& raw_price_repo,
-                                          const std::vector<double>& current_bid_prices,
-                                          const std::vector<double>& current_ask_prices,
-                                          const std::vector<double>& current_bid_sizes,
-                                          const std::vector<double>& current_ask_sizes,
-                                          const std::vector<double>& cum_bid_sizes,
-                                          const std::vector<double>& cum_ask_sizes,
-                                          const std::vector<double>& cum_bid_amounts,
-                                          const std::vector<double>& cum_ask_amounts) {
+                                          const FixedVector<double, 20>& current_bid_prices,
+                                          const FixedVector<double, 20>& current_ask_prices,
+                                          const FixedVector<double, 20>& current_bid_sizes,
+                                          const FixedVector<double, 20>& current_ask_sizes,
+                                          const FixedVector<double, 20>& cum_bid_sizes,
+                                          const FixedVector<double, 20>& cum_ask_sizes,
+                                          const FixedVector<double, 20>& cum_bid_amounts,
+                                          const FixedVector<double, 20>& cum_ask_amounts) {
     raw_price_repo.mid_price_signal = (current_bid_prices[0] + current_ask_prices[0]) * 0.5;
     raw_price_repo.vwap_bid_price_signal_0 = cum_bid_amounts[0] / cum_bid_sizes[0];
     raw_price_repo.vwap_bid_price_signal_1 = cum_bid_amounts[1] / cum_bid_sizes[1];
