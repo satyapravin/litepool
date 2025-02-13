@@ -36,7 +36,6 @@ void DeribitExchange::set_callbacks() {
 
 void DeribitExchange::handle_private_trade_updates (const json& json_array) {
     const auto& data = json_array[0];
-    std::cout << data << std::endl;
     if (data["instrument_name"] == this->symbol) {
         Order order;
         order.amount = data["amount"];
@@ -99,7 +98,7 @@ void DeribitExchange::handle_order_updates (const json& data) {
 
 // ReSharper disable once CppMemberFunctionMayBeStatic
 void DeribitExchange::handle_position_updates (const json& data) { // NOLINT(*-convert-member-functions-to-static)
-    std::cout << data << std::endl;
+    //std::cout << data << std::endl;
 }
 
 bool DeribitExchange::next() {
@@ -136,16 +135,17 @@ void DeribitExchange::quote(std::string order_id, OrderSide side, const double& 
         std::lock_guard<std::mutex> order_guard(this->order_mutex);
         if (side == OrderSide::BUY) {
             if (this->bid.state == OrderState::NEW_ACK && is_close(price, this->bid.price)) {
+		if (bid.amount < amount * 5) this->db_client.cancel_all_by_label(sidestr);
                 return;
-            }
+	    }
         } else {
             if (this->ask.state == OrderState::NEW_ACK && is_close(price, this->ask.price)) {
+		if (ask.amount < amount * 5) this->db_client.cancel_all_by_label(sidestr);
                 return;
-            }
+	    }
         }
     }
 
-    this->db_client.cancel_all_by_label(sidestr);
     this->db_client.place_order(sidestr, price, amount, sidestr, "limit");
 }
 

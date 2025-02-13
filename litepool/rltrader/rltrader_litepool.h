@@ -82,7 +82,7 @@ using RlTraderEnvSpec = EnvSpec<RlTraderEnvFns>;
 
 class RlTraderEnv : public Env<RlTraderEnvSpec> {
  protected:
-  int spreads[4] = {0, 6, 10, 16};
+  int spreads[4] = {0, 3, 8, 16};
   int state_{0};
   bool isDone = true;
   bool is_prod = false;

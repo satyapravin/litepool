@@ -27,7 +27,7 @@ import torch.nn.functional as F
 from typing import Optional, Type
 from gymnasium import spaces
 
-device = torch.device("cpu")
+device = torch.device("cuda")
 
 class ResetHiddenStateCallback(BaseCallback):
     def __init__(self, verbose=0):
