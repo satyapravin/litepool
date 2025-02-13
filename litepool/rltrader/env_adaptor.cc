@@ -54,7 +54,7 @@ void EnvAdaptor::reset() {
     auto trade_ptr = std::make_unique<TradeSignalBuilder>();
     trade_builder = std::move(trade_ptr);
     this->strategy.reset();
-    this->next();
+    this->state.assign(490, 0);
 }
 
 

@@ -130,7 +130,6 @@ void SimExchange::market(std::string order_id, OrderSide side, const double &pri
 
 std::vector<Order> SimExchange::getFills() {
 	std::vector<Order> retval(this->executions);
-	std::cout << retval.size() << std::endl;
 	this->executions.clear();
 	return retval;
 }
