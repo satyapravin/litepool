@@ -68,7 +68,7 @@ class LSTMFeatureExtractor(BaseFeaturesExtractor):
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
         lstm_input = observations  
         batch_size = observations.shape[0]
-        lstm_input = lstm_input.view(batch_size, 5, 98)  
+        lstm_input = lstm_input.view(batch_size, 2, 98)  
         if self.hidden is None or lstm_input.shape[0] != self.hidden[0].shape[1]:
             self.hidden = (
                 torch.zeros(1, batch_size, self.lstm_hidden_size).to(observations.device),
@@ -165,9 +165,9 @@ class VecAdapter(VecEnvWrapper):
                   self.sells = [] 
                   self.header = False
                   self.header = dones[i]
-              print("env_id ", i,  " steps ", self.steps, 'balance = ',infos[i]['balance'] - infos[i]['fees'], "  unreal = ", infos[i]['unrealized_pnl'], 
-                    " real = ", infos[i]['realized_pnl'], '    drawdown = ', infos[i]['drawdown'], '     fees = ', infos[i]['fees'], 
-                    ' leverage = ', infos[i]['leverage'])
+                  print("id ", i,  " steps ", self.steps, 'balance=',infos[i]['balance'] - infos[i]['fees'], "  unreal=", infos[i]['unrealized_pnl'], 
+                    " real=", infos[i]['realized_pnl'], '    drawdown=', infos[i]['drawdown'], '     fees=', infos[i]['fees'], 
+                    ' leverage=', infos[i]['leverage'])
       self.steps += 1
       return obs, rewards, dones, infos
 
@@ -175,8 +175,8 @@ import os
 if os.path.exists('temp.csv'):
     os.remove('temp.csv')
 env = litepool.make("RlTrader-v0", env_type="gymnasium", 
-                          num_envs=32, batch_size=32,
-                          num_threads=32,
+                          num_envs=64, batch_size=64,
+                          num_threads=64,
                           is_prod=False,
                           is_inverse_instr=True,
                           api_key="",
@@ -184,12 +184,12 @@ env = litepool.make("RlTrader-v0", env_type="gymnasium",
                           symbol="BTC-PERPETUAL",
                           tick_size=0.5,
                           min_amount=10,
-                          maker_fee=-0.0001,
+                          maker_fee=-0.0000001,
                           taker_fee=0.0005,
                           foldername="./train_files/", 
                           balance=0.01,
-                          start=1,
-                          max=7200001)
+                          start=100000,
+                          max=720001)
 
 env.spec.id = 'RlTrader-v0'
 
@@ -233,6 +233,6 @@ else:
                 verbose=1,
                 device=device)
 
-model.learn(700000 * 100, callback=ResetHiddenStateCallback())
+model.learn(700000 * 10, callback=ResetHiddenStateCallback())
 model.save("sac_rltrader")
 model.save_replay_buffer("replay_buffer.pkl")

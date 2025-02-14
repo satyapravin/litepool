@@ -11,18 +11,5 @@ namespace  RLTrader {
         FixedVector<double, MAX_LEVELS> ask_prices;
         FixedVector<double, MAX_LEVELS> ask_sizes;
 
-        void clear() {
-            bid_prices.clear();
-            bid_sizes.clear();
-            ask_prices.clear();
-            ask_sizes.clear();
-        }
-
-        void initialize() {
-            bid_prices.initialize();
-            bid_sizes.initialize();
-            ask_prices.initialize();
-            ask_sizes.initialize();
-        }
     };
 }

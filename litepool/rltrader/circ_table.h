@@ -1,6 +1,7 @@
 #pragma once
 #include <stdexcept>
 #include <vector>
+#include <iostream>
 #include "fixed_vector.h"
 
 namespace RLTrader {
@@ -10,8 +11,10 @@ public:
     }
 
     void addRow(FixedVector<double, 20>& row) {
-        if (row.size() != 20)
+        if (row.size() != 20) {
+	    std::cout << row.size() << std::endl;
             throw std::runtime_error("Invalid column size");
+	}
         currentRow = (currentRow + 1) % NUM_ROWS;
         std::ranges::copy(row, buffer[currentRow].begin());
     }

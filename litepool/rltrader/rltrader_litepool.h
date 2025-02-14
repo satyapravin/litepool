@@ -55,7 +55,7 @@ class RlTraderEnvFns {
 
   template <typename Config>
   static decltype(auto) StateSpec(const Config& conf) {
-    return MakeDict("obs"_.Bind(Spec<float>({490})),
+    return MakeDict("obs"_.Bind(Spec<float>({98*2})),
                     "info:mid_price"_.Bind(Spec<float>({})),
                     "info:balance"_.Bind(Spec<float>({})),
                     "info:unrealized_pnl"_.Bind(Spec<float>({})),
@@ -71,8 +71,8 @@ class RlTraderEnvFns {
 
   template <typename Config>
   static decltype(auto) ActionSpec(const Config& conf) {
-    return MakeDict("action"_.Bind(Spec<float>({8}, {{-1., -1., -1., -1., -1., -1., -1., -1.},
-                                                     { 1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.}})));
+    return MakeDict("action"_.Bind(Spec<float>({10}, {{-1., -1., -1., -1., -1., -1., -1., -1., 1, 1},
+                                                      { 1.,  1.,  1.,  1.,  1.,  1.,  1.,  1., 3, 3}})));
   }
 };
 
@@ -181,7 +181,10 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
       auto sell_action = select_action(sellActionLogits);
       auto buy_spread = spreads[buy_action];
       auto sell_spread = spreads[sell_action];
-      adaptor_ptr->quote(buy_spread, sell_spread, 5, 5);
+      int base_vol = 5;
+      int buy_vol = base_vol * static_cast<int>(action["action"_][8]);
+      int sell_vol = base_vol * static_cast<int>(action["action"_][9]);
+      adaptor_ptr->quote(buy_spread, sell_spread, buy_vol, sell_vol);
       auto info = adaptor_ptr->getInfo();
       isDone = !adaptor_ptr->next();
       ++steps;
@@ -193,7 +196,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     State state = Allocate(1);
 
     if (!isDone) {
-      assert(data.size() == 490);
+      assert(data.size() == 98*2);
     }
 
     auto info = adaptor_ptr->getInfo();
@@ -208,9 +211,13 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     state["info:buy_amount"_] = static_cast<float>(info["buy_amount"]);
     state["info:sell_amount"_] = static_cast<float>(info["sell_amount"]);
 
+    auto avg_buy_price = static_cast<float>(info["average_buy_price"]);
+    auto avg_sell_price = static_cast<float>(info["average_sell_price"]);
     auto pnl = info["realized_pnl"] - previous_rpnl; 
     auto upnl = info["unrealized_pnl"]- previous_upnl;
-    state["reward"_] = (previous_fees - info["fees"]) + pnl + upnl; 
+    auto leverage = info["leverage"];
+    state["reward"_] = (previous_fees - info["fees"]) + pnl + upnl -0.001 * std::max(0., std::abs(leverage) - 1);
+    state["reward"_] += 0.001 * (avg_sell_price - avg_buy_price) / (avg_buy_price + avg_sell_price + 1); 
 
     if (isDone) return;
     previous_rpnl = info["realized_pnl"];

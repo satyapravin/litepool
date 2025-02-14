@@ -147,15 +147,15 @@ TEST_CASE("env adaptor test") {
 
 	int counter = 0;
 	auto state = adaptor.getState();
-	CHECK(state.size() == 490);
+	CHECK(state.size() == 98*2);
 	adaptor.next();
 	state = adaptor.getState();
-	CHECK(state.size() == 490);
+	CHECK(state.size() == 98*2);
 	state = adaptor.getState();
-	CHECK(state.size() == 490);
+	CHECK(state.size() == 98*2);
 	adaptor.next();
 	state = adaptor.getState();
-	CHECK(state.size() == 490);
+	CHECK(state.size() == 98*2);
 	adaptor.quote(1, 1, 10, 10);
 
 	for (int ii=0; ii < 500; ++ii) {

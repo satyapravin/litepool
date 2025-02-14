@@ -26,7 +26,6 @@ private:
         std::atomic<size_t> sequence;
 
         Slot() : sequence(0) {
-            book.initialize();
         }
     };
 
@@ -46,7 +45,6 @@ public:
         // Initialize all slots in the buffer
         for (size_t i = 0; i < BUFFER_SIZE; ++i) {
             buffer[i].sequence.store(i, std::memory_order_relaxed);
-            buffer[i].book.initialize();
         }
         write_index.value.store(0, std::memory_order_relaxed);
         read_index.value.store(0, std::memory_order_relaxed);
@@ -58,7 +56,6 @@ public:
             size_t sequence = buffer[current_write].sequence.load(std::memory_order_acquire);
 
             if (sequence == current_write) {
-                buffer[current_write].book.clear();
                 return buffer[current_write].book;
             }
 

@@ -53,18 +53,20 @@ void DeribitExchange::handle_private_trade_updates (const json& json_array) {
 void DeribitExchange::handle_order_book_updates (const json& data) {
     size_t write_slot;
     auto& book = this->book_buffer.get_write_slot(write_slot);
-
     size_t idx = 0;
     for (const auto& bid : data["bids"]) {
         book.bid_prices[idx] = bid[0].get<double>();
         book.bid_sizes[idx] = bid[1].get<double>();
         ++idx;
+	if (idx >= 20) break;
     }
 
     idx = 0;
     for (const auto& ask : data["asks"]) {
         book.ask_prices[idx] = ask[0].get<double>();
         book.ask_sizes[idx] = ask[1].get<double>();
+	++idx;
+	if (idx >= 20) break;
     }
 
     this->book_buffer.commit_write(write_slot);
@@ -130,17 +132,16 @@ void DeribitExchange::quote(std::string order_id, OrderSide side, const double& 
         std::lock_guard<std::mutex> order_guard(this->order_mutex);
         if (side == OrderSide::BUY) {
             if (this->bid.state == OrderState::NEW_ACK && is_close(price, this->bid.price)) {
-		if (bid.amount < amount * 5) this->db_client.cancel_all_by_label(sidestr);
-                return;
+		return;
 	    }
         } else {
             if (this->ask.state == OrderState::NEW_ACK && is_close(price, this->ask.price)) {
-		if (ask.amount < amount * 5) this->db_client.cancel_all_by_label(sidestr);
-                return;
+	        return;
 	    }
         }
     }
 
+    this->db_client.cancel_all_by_label(sidestr);
     this->db_client.place_order(sidestr, price, amount, sidestr, "limit");
 }
 

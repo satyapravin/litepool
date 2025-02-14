@@ -16,16 +16,16 @@ EnvAdaptor::EnvAdaptor(Strategy& strat, BaseExchange& exch):
 bool EnvAdaptor::next() {
     state.clear();
 
-    for (int ii=0; ii < 5; ++ii) {
+    for (int ii=0; ii < 2; ++ii) {
         OrderBook book;
         size_t read_slot;
         if(this->exchange.next_read(read_slot, book)) {
             this->strategy.next();
             computeState(book);
-            std::ranges::copy(bid_prices, book.bid_prices.begin());
-            std::ranges::copy(ask_prices, book.ask_prices.begin());
-            std::ranges::copy(bid_sizes, book.bid_sizes.begin());
-            std::ranges::copy(ask_sizes, book.ask_sizes.begin());
+            std::ranges::copy(book.bid_prices, bid_prices.begin());
+            std::ranges::copy(book.ask_prices, ask_prices.begin());
+            std::ranges::copy(book.bid_sizes, bid_sizes.begin());
+            std::ranges::copy(book.ask_sizes, ask_sizes.begin());
             this->exchange.done_read(read_slot);
         } else {
             return false;
@@ -35,7 +35,7 @@ bool EnvAdaptor::next() {
     return true;
 }
 
-std::vector<double> EnvAdaptor::getState() {
+std::vector<double>& EnvAdaptor::getState() {
     return state;
 }
 
@@ -54,11 +54,11 @@ void EnvAdaptor::reset() {
     auto trade_ptr = std::make_unique<TradeSignalBuilder>();
     trade_builder = std::move(trade_ptr);
     this->strategy.reset();
-    this->state.assign(490, 0);
+    this->state.assign(98*2, 0);
 }
 
 
-std::unordered_map<std::string, double> EnvAdaptor::getInfo() {
+std::unordered_map<std::string, double>& EnvAdaptor::getInfo() {
    return info;
 }
 
