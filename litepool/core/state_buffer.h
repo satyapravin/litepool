@@ -1,4 +1,3 @@
-// state_buffer.h
 #ifndef LITEPOOL_CORE_STATE_BUFFER_H_
 #define LITEPOOL_CORE_STATE_BUFFER_H_
 
@@ -49,17 +48,56 @@ public:
         alloc_count_.store(0, std::memory_order_release);
     }
 
-    void Allocate(size_t slot, int batch_size) {
-        CHECK_LT(slot, 0xffffffffffff) << "Slot index out of bounds";
-        CHECK_GT(batch_size, 0) << "Batch size must be positive";
-
-        // Ensure array has sufficient size before slicing
-        if (array_.Shape(0) < batch_size) {
-            array_ = Array(ShapeSpec(array_.element_size, {batch_size}));
+    WritableSlice Allocate(std::size_t num_players, int order = -1) {
+        std::lock_guard<std::mutex> lock(buffer_mutex_);
+        
+        if (num_players > max_num_players_) {
+            throw std::runtime_error("Too many players requested");
         }
 
-        buffer_[slot] = array_.Slice(0, batch_size);
+        uint64_t current_offsets = offsets_.load(std::memory_order_acquire);
+        uint32_t player_offset = current_offsets >> 32;
+        uint32_t shared_offset = current_offsets & 0xFFFFFFFF;
+
+        if (shared_offset >= batch_) {
+            throw std::runtime_error("Buffer full");
+        }
+
+        std::vector<Array> slice_arrays;
+        slice_arrays.reserve(arrays_.size());
+
+        for (std::size_t i = 0; i < arrays_.size(); ++i) {
+            if (is_player_state_[i]) {
+                slice_arrays.push_back(arrays_[i].Slice(player_offset, 
+                    player_offset + num_players));
+            } else {
+                slice_arrays.push_back(arrays_[i].Slice(shared_offset, 
+                    shared_offset + 1));
+            }
+        }
+
+        if (order >= 0) {
+            // Synchronous mode
+            player_offset += num_players;
+            shared_offset++;
+        } else {
+            // Asynchronous mode
+            player_offset += num_players;
+            shared_offset++;
+        }
+
+        uint64_t new_offsets = (static_cast<uint64_t>(player_offset) << 32) | 
+                               static_cast<uint64_t>(shared_offset);
+        offsets_.store(new_offsets, std::memory_order_release);
+        alloc_count_.fetch_add(1, std::memory_order_release);
+
+        auto done_write_fn = [this]() {
+            Done(1);
+        };
+
+        return WritableSlice{std::move(slice_arrays), done_write_fn};
     }
+
     void Done(std::size_t num = 1) {
         std::size_t prev_done = done_count_.fetch_add(num, std::memory_order_acq_rel);
         if (prev_done + num >= batch_) {
@@ -111,7 +149,6 @@ public:
             static_cast<uint32_t>(offs & 0xFFFFFFFF)
         };
     }
-
 };
 
 #endif  // LITEPOOL_CORE_STATE_BUFFER_H_

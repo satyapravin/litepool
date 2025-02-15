@@ -63,7 +63,13 @@ public:
         buffer_ = std::vector<Array>(capacity_ * specs.size());
     }
 
-    Slice Allocate(size_t num_players, int order = -1) {
+    // Single-argument version (from test case)
+    Slice Allocate(size_t num_players) {
+        return Allocate(num_players, -1);
+    }
+
+    // Two-argument version
+    Slice Allocate(size_t num_players, int order) {
         std::unique_lock<std::mutex> lock(mutex_);
         if (current_size_ >= capacity_) {
             throw std::runtime_error("Buffer full");
@@ -94,7 +100,7 @@ public:
             }
         }
 
-        auto done_write_fn = [this, slot] {
+        auto done_write_fn = [this]() {
             if (--pending_writes_ == 0) {
                 cv_.notify_one();
             }
@@ -126,6 +132,21 @@ public:
         }
 
         return result;
+    }
+
+    void Clear() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        current_size_ = 0;
+        head_ = 0;
+        tail_ = 0;
+        pending_writes_ = 0;
+    }
+
+    void EnsureCapacity(size_t required_size) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (capacity_ < required_size) {
+            ResizeBuffer(std::max(capacity_ * 2, required_size));
+        }
     }
 
 protected:
