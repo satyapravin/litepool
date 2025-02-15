@@ -6,6 +6,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <vector>
+#include <thread>
 
 #include "litepool/core/array.h"
 #include "litepool/core/circular_buffer.h"

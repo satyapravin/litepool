@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 #include <mutex>
+#include <thread>
 
 #include "litepool/core/array.h"
 #include "litepool/core/dict.h"
