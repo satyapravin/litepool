@@ -613,6 +613,7 @@ TEST_CASE("testing the inverse position") {
 
 TEST_CASE("testing exchange") {
 	SimExchange exch("data.csv", 5, 0, 100); // 10 microsecond delay is not practical in reality
+	exch.reset();
 	OrderBook row;
 	size_t read_slot;
 	exch.next_read(read_slot, row);

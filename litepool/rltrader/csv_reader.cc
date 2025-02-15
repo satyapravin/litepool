@@ -63,6 +63,7 @@ void CsvReader::reset() {
     this->filestream.open(filename, std::ios::in);
     this->readCSV(start_line);
     this->iterator.populate(&rows);
+    iterator.next();
 }
 
 void CsvReader::readCSV(int start_line) {
