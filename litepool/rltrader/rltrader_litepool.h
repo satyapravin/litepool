@@ -57,16 +57,16 @@ class RlTraderEnvFns {
   static decltype(auto) StateSpec(const Config& conf) {
     return MakeDict("obs"_.Bind(Spec<float>({196})),
                     "info:mid_price"_.Bind(Spec<float>(-1)),
-                    "info:balance"_.Bind(Spec<float>({1})),
-                    "info:unrealized_pnl"_.Bind(Spec<float>({1})),
-                    "info:realized_pnl"_.Bind(Spec<float>({1})),
-                    "info:leverage"_.Bind(Spec<float>({1})),
-                    "info:trade_count"_.Bind(Spec<float>({1})),
-                    "info:inventory_drawdown"_.Bind(Spec<float>({1})),
-                    "info:drawdown"_.Bind(Spec<float>({1})),
-                    "info:fees"_.Bind((Spec<float>({1}))),
-                    "info:buy_amount"_.Bind((Spec<float>({1}))),
-                    "info:sell_amount"_.Bind((Spec<float>({1}))));
+                    "info:balance"_.Bind(Spec<float>(-1)),
+                    "info:unrealized_pnl"_.Bind(Spec<float>(-1)),
+                    "info:realized_pnl"_.Bind(Spec<float>(-1)),
+                    "info:leverage"_.Bind(Spec<float>(-1)),
+                    "info:trade_count"_.Bind(Spec<float>(-1)),
+                    "info:inventory_drawdown"_.Bind(Spec<float>(-1)),
+                    "info:drawdown"_.Bind(Spec<float>(-1)),
+                    "info:fees"_.Bind((Spec<float>(-1))),
+                    "info:buy_amount"_.Bind((Spec<float>(-1))),
+                    "info:sell_amount"_.Bind((Spec<float>(-1))));
   }
 
   template <typename Config>
@@ -222,10 +222,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     previous_rpnl = info["realized_pnl"];
     previous_upnl = info["unrealized_pnl"];
     previous_fees = info["fees"];
-       
-    for(int ii=0; ii < data.size(); ++ii) {
-      state["obs"_](ii) = static_cast<float>(data[ii]);
-    }
+    state["obs"_].Assign(data.begin(), data.size());
   }
 
   bool IsDone() override { return isDone; }
