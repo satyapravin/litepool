@@ -53,6 +53,37 @@ public:
         buffer_ = std::vector<Array>(capacity_ * specs.size());
     }
 
+    void Allocate(size_t slot, int batch_size) {
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        if (slot >= capacity_) {
+            throw std::runtime_error("Slot index out of bounds: " + std::to_string(slot));
+        }
+        if (batch_size <= 0) {
+            throw std::runtime_error("Batch size must be positive: " + std::to_string(batch_size));
+        }
+        if (static_cast<size_t>(batch_size) > batch_size_) {
+            throw std::runtime_error("Batch size exceeds maximum: " +
+                std::to_string(batch_size) + " > " + std::to_string(batch_size_));
+        }
+
+        // Allocate arrays for this slot
+        for (size_t i = 0; i < arrays_.size(); ++i) {
+            const Array& src = arrays_[i];
+            if (!src.Shape().empty() && src.Shape(0) >= static_cast<size_t>(batch_size)) {
+                buffer_[slot * arrays_.size() + i] = src.Slice(0, batch_size);
+            } else {
+                // Handle empty or undersized arrays
+                std::vector<size_t> shape = src.Shape();
+                if (!shape.empty()) {
+                    shape[0] = batch_size;
+                }
+                buffer_[slot * arrays_.size() + i] = Array(ShapeSpec(src.element_size, shape));
+            }
+        }
+        cv_.notify_one();
+    }
+
     void Clear() {
         std::lock_guard<std::mutex> lock(mutex_);
         current_size_ = 0;
