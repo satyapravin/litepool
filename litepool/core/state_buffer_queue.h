@@ -1,20 +1,17 @@
-// state_buffer_queue.h
 #ifndef LITEPOOL_CORE_STATE_BUFFER_QUEUE_H_
 #define LITEPOOL_CORE_STATE_BUFFER_QUEUE_H_
 
 #include <algorithm>
 #include <cstdint>
-#include <list>
 #include <memory>
 #include <thread>
 #include <utility>
 #include <vector>
+#include <mutex>
 
 #include "litepool/core/array.h"
-#include "litepool/core/circular_buffer.h"
 #include "litepool/core/spec.h"
 #include "litepool/core/state_buffer.h"
-#include <concurrentqueue/moodycamel/lightweightsemaphore.h>
 
 class StateBufferQueue {
  protected:
@@ -24,11 +21,11 @@ class StateBufferQueue {
   std::vector<ShapeSpec> specs_;
   std::size_t queue_size_;
   std::vector<std::unique_ptr<StateBuffer>> queue_;
-  std::atomic<uint64_t> alloc_count_, done_ptr_;
-
-  CircularBuffer<std::unique_ptr<StateBuffer>> stock_buffer_;
-  std::vector<std::thread> create_buffer_thread_;
-  std::atomic<bool> quit_;
+  alignas(64) std::atomic<uint64_t> alloc_count_{0};
+  alignas(64) std::atomic<uint64_t> done_ptr_{0};
+  std::mutex mutex_;
+  std::atomic<bool> shutdown_{false};
+  std::atomic<size_t> active_allocations_{0};
 
  public:
   StateBufferQueue(std::size_t batch_env, std::size_t num_envs,
@@ -42,78 +39,96 @@ class StateBufferQueue {
                                          s.shape[0] == -1);
                                  })),
         specs_(Transform(specs,
-                       [=](ShapeSpec s) {
+                       [batch = batch_env, max_players = max_num_players](ShapeSpec s) {
                          if (!s.shape.empty() && s.shape[0] == -1) {
-                           s.shape[0] = batch_ * max_num_players_;
+                           s.shape[0] = batch * max_players;
                            return s;
                          }
-                         return s.Batch(batch_);
+                         return s.Batch(batch);
                        })),
         queue_size_((num_envs / batch_env + 2) * 2),
-        queue_(queue_size_),
-        alloc_count_(0),
-        done_ptr_(0),
-        stock_buffer_((num_envs / batch_env + 2) * 2),
-        quit_(false) {
+        queue_(queue_size_) {
+    
     for (auto& q : queue_) {
       q = std::make_unique<StateBuffer>(batch_, max_num_players_, specs_,
                                       is_player_state_);
     }
-    std::size_t processor_count = std::thread::hardware_concurrency();
-    std::size_t create_buffer_thread_num = std::max(1UL, processor_count / 64);
-    for (std::size_t i = 0; i < create_buffer_thread_num; ++i) {
-      create_buffer_thread_.emplace_back(std::thread([&]() {
-        while (true) {
-          stock_buffer_.Put(std::make_unique<StateBuffer>(
-              batch_, max_num_players_, specs_, is_player_state_));
-          if (quit_) {
-            break;
-          }
-        }
-      }));
-    }
   }
 
   ~StateBufferQueue() {
-    quit_ = true;
-    for (std::size_t i = 0; i < create_buffer_thread_.size(); ++i) {
-      stock_buffer_.Get();
+    shutdown_.store(true, std::memory_order_release);
+    
+    // Wait for all active allocations to complete
+    while (active_allocations_.load(std::memory_order_acquire) > 0) {
+      std::this_thread::yield();
     }
-    for (auto& t : create_buffer_thread_) {
-      t.join();
-    }
+    
+    // Clear all buffers
+    std::lock_guard<std::mutex> lock(mutex_);
+    queue_.clear();
   }
 
   StateBuffer::WritableSlice Allocate(std::size_t num_players, int order = -1) {
-    std::size_t pos = alloc_count_.fetch_add(1);
+    if (shutdown_.load(std::memory_order_acquire)) {
+      throw std::runtime_error("Queue is shutting down");
+    }
+
+    active_allocations_.fetch_add(1, std::memory_order_acq_rel);
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    if (shutdown_.load(std::memory_order_acquire)) {
+      active_allocations_.fetch_sub(1, std::memory_order_release);
+      throw std::runtime_error("Queue is shutting down");
+    }
+
+    std::size_t pos = alloc_count_.fetch_add(1, std::memory_order_acq_rel);
     std::size_t offset = (pos / batch_) % queue_size_;
+    
     try {
-      return queue_[offset]->Allocate(num_players, order);
-    } catch (const std::runtime_error& e) {
-      auto newbuf = stock_buffer_.Get();
-      if (newbuf) {
+      auto slice = queue_[offset]->Allocate(num_players, order);
+      auto done_callback = [this, original_done = slice.done_write]() {
+        original_done();
+        active_allocations_.fetch_sub(1, std::memory_order_release);
+      };
+      return StateBuffer::WritableSlice{slice.arr, done_callback};
+    } catch (const std::runtime_error&) {
+      if (!shutdown_.load(std::memory_order_acquire)) {
+        auto newbuf = std::make_unique<StateBuffer>(
+            batch_, max_num_players_, specs_, is_player_state_);
         std::swap(queue_[offset], newbuf);
-        return queue_[offset]->Allocate(num_players, order);
+        auto slice = queue_[offset]->Allocate(num_players, order);
+        auto done_callback = [this, original_done = slice.done_write]() {
+          original_done();
+          active_allocations_.fetch_sub(1, std::memory_order_release);
+        };
+        return StateBuffer::WritableSlice{slice.arr, done_callback};
       }
+      active_allocations_.fetch_sub(1, std::memory_order_release);
       throw;
     }
   }
 
-  StateBuffer* AllocateRaw(std::size_t num_players, int order = -1) {
-    std::size_t pos = alloc_count_.fetch_add(1);
-    std::size_t offset = (pos / batch_) % queue_size_;
-    return queue_[offset].get();
-  }
-
   std::vector<Array> Wait(std::size_t additional_done_count = 0) {
-    std::unique_ptr<StateBuffer> newbuf = stock_buffer_.Get();
-    std::size_t pos = done_ptr_.fetch_add(1);
-    std::size_t offset = pos % queue_size_;
-    auto arr = queue_[offset]->Wait(additional_done_count);
-    if (additional_done_count > 0) {
-      alloc_count_.fetch_add(additional_done_count);
+    if (shutdown_.load(std::memory_order_acquire)) {
+      throw std::runtime_error("Queue is shutting down");
     }
-    std::swap(queue_[offset], newbuf);
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::size_t pos = done_ptr_.fetch_add(1, std::memory_order_acq_rel);
+    std::size_t offset = pos % queue_size_;
+
+    auto arr = queue_[offset]->Wait(additional_done_count);
+    
+    if (additional_done_count > 0) {
+      alloc_count_.fetch_add(additional_done_count, std::memory_order_release);
+    }
+
+    if (!shutdown_.load(std::memory_order_acquire)) {
+      auto newbuf = std::make_unique<StateBuffer>(
+          batch_, max_num_players_, specs_, is_player_state_);
+      std::swap(queue_[offset], newbuf);
+    }
+
     return arr;
   }
 };

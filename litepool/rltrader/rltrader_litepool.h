@@ -165,16 +165,16 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
 
 
   void Step(const Action& action) override {
-      std::vector<double> buyActionLogits { action["action"_][0],
-                                            action["action"_][1],
-                                            action["action"_][2],
-                                            action["action"_][3],
+      std::vector<double> buyActionLogits { static_cast<float>(action["action"_][0]),
+                                            static_cast<float>(action["action"_][1]),
+                                            static_cast<float>(action["action"_][2]),
+                                            static_cast<float>(action["action"_][3]),
                                           };
 
-      std::vector<double> sellActionLogits { action["action"_][4],
-                                             action["action"_][5],
-                                             action["action"_][6],
-                                             action["action"_][7],
+      std::vector<double> sellActionLogits { static_cast<float>(action["action"_][4]),
+                                             static_cast<float>(action["action"_][5]),
+                                             static_cast<float>(action["action"_][6]),
+                                             static_cast<float>(action["action"_][7]),
                                            };
 
       auto buy_action = select_action(buyActionLogits);

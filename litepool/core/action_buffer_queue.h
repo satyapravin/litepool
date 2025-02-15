@@ -14,7 +14,8 @@
 #include <cstdint>
 #include <cerrno>
 #include <thread>
-#include <concurrentqueue/moodycamel/lightweightsemaphore.h>
+#include <condition_variable>
+#include <mutex>
 #include "litepool/core/array.h"
 
 class ActionBufferQueue {
@@ -26,56 +27,59 @@ public:
     };
 
 protected:
-    std::atomic<uint64_t> alloc_ptr_, done_ptr_;
     std::size_t queue_size_;
     std::vector<ActionSlice> queue_;
-    moodycamel::LightweightSemaphore sem_, sem_enqueue_, sem_dequeue_;
+    std::size_t head_{0};
+    std::size_t tail_{0};
+    std::size_t size_{0};
+    mutable std::mutex mutex_;
+    std::condition_variable not_empty_;
+    std::condition_variable not_full_;
 
 public:
     explicit ActionBufferQueue(std::size_t num_envs)
-        : alloc_ptr_(0),
-          done_ptr_(0),
-          queue_size_(num_envs * 2),
-          queue_(queue_size_),
-          sem_(0),
-          sem_enqueue_(1),
-          sem_dequeue_(1) {}
+        : queue_size_(num_envs * 2),
+          queue_(queue_size_) {}
 
-    void EnqueueBulk(const std::vector<ActionSlice>& action) {
-        while (!sem_enqueue_.wait()) {}
+    void EnqueueBulk(const std::vector<ActionSlice>& actions) {
+        std::unique_lock<std::mutex> lock(mutex_);
+        
+        // Wait until there's enough space
+        not_full_.wait(lock, [this, &actions]() {
+            return size_ + actions.size() <= queue_size_;
+        });
 
-        // Wait if queue is too full
-        while (true) {
-            uint64_t current_alloc = alloc_ptr_.load(std::memory_order_acquire);
-            uint64_t current_done = done_ptr_.load(std::memory_order_acquire);
-            if (current_alloc - current_done + action.size() <= queue_size_) {
-                break;
-            }
-            sem_enqueue_.signal();
-            std::this_thread::yield();
-            while (!sem_enqueue_.wait()) {}
+        // Add actions to queue
+        for (const auto& action : actions) {
+            queue_[tail_] = action;
+            tail_ = (tail_ + 1) % queue_size_;
+            size_++;
         }
 
-        uint64_t pos = alloc_ptr_.fetch_add(action.size());
-        for (std::size_t i = 0; i < action.size(); ++i) {
-            queue_[(pos + i) % queue_size_] = action[i];
-        }
-        sem_.signal(action.size());
-        sem_enqueue_.signal();
+        lock.unlock();
+        not_empty_.notify_all();
     }
 
     ActionSlice Dequeue() {
-        while (!sem_.wait()) {}
-        while (!sem_dequeue_.wait()) {}
+        std::unique_lock<std::mutex> lock(mutex_);
+        
+        // Wait until there's at least one item
+        not_empty_.wait(lock, [this]() {
+            return size_ > 0;
+        });
 
-        auto ptr = done_ptr_.fetch_add(1);
-        auto ret = queue_[ptr % queue_size_];
-        sem_dequeue_.signal();
-        return ret;
+        ActionSlice result = queue_[head_];
+        head_ = (head_ + 1) % queue_size_;
+        size_--;
+
+        lock.unlock();
+        not_full_.notify_one();
+        return result;
     }
 
-    std::size_t SizeApprox() {
-        return static_cast<std::size_t>(alloc_ptr_ - done_ptr_);
+    std::size_t SizeApprox() const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return size_;
     }
 };
 
