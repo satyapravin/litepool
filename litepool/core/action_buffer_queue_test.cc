@@ -21,8 +21,8 @@
 #include <random>
 #include <tuple>
 #include <utility>
-#include <cstdint>
-#include <threadpool/ThreadPool.h>
+
+#include "ThreadPool.h"
 #include "litepool/core/dict.h"
 #include "litepool/core/spec.h"
 

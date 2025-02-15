@@ -1,173 +1,155 @@
+/*
+ * Copyright 2021 Garena Online Private Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #ifndef LITEPOOL_CORE_STATE_BUFFER_QUEUE_H_
 #define LITEPOOL_CORE_STATE_BUFFER_QUEUE_H_
 
-#include <atomic>
-#include <chrono>
-#include <condition_variable>
-#include <mutex>
-#include <vector>
+#include <algorithm>
+#include <cstdint>
+#include <list>
+#include <memory>
 #include <thread>
+#include <utility>
+#include <vector>
 
 #include "litepool/core/array.h"
 #include "litepool/core/circular_buffer.h"
 #include "litepool/core/spec.h"
+#include "litepool/core/state_buffer.h"
+#include <concurrentqueue/moodycamel/lightweightsemaphore.h>
 
 class StateBufferQueue {
-public:
-    struct Slice {
-        std::vector<Array> arr;
-        std::function<void()> done_write;
-    };
+ protected:
+  std::size_t batch_;
+  std::size_t max_num_players_;
+  std::vector<bool> is_player_state_;
+  std::vector<ShapeSpec> specs_;
+  std::size_t queue_size_;
+  std::vector<std::unique_ptr<StateBuffer>> queue_;
+  std::atomic<uint64_t> alloc_count_, done_ptr_, alloc_tail_;
 
-protected:
-    const size_t batch_size_;
-    const size_t num_envs_;
-    const size_t max_num_players_;
-    std::vector<Array> arrays_;
-    std::vector<size_t> buffer_sizes_;
-    
-    mutable std::mutex mutex_;
-    std::condition_variable cv_;
-    std::vector<Array> buffer_;
-    size_t head_{0};
-    size_t tail_{0};
-    size_t capacity_;
-    size_t current_size_{0};
-    std::atomic<size_t> pending_writes_{0};
+  // Create stock statebuffers in a background thread
+  CircularBuffer<std::unique_ptr<StateBuffer>> stock_buffer_;
+  std::vector<std::thread> create_buffer_thread_;
+  std::atomic<bool> quit_;
 
-public:
-    StateBufferQueue(size_t batch_size,
-                    size_t num_envs,
-                    size_t max_num_players,
-                    const std::vector<ShapeSpec>& specs)
-        : batch_size_(batch_size)
-        , num_envs_(num_envs)
-        , max_num_players_(max_num_players)
-        , capacity_(batch_size * 2) {
-        
-        arrays_.reserve(specs.size());
-        buffer_sizes_.reserve(specs.size());
-        
-        for (const auto& spec : specs) {
-            std::vector<size_t> shape = spec.Shape();
-            if (!shape.empty()) {
-                if (shape[0] < 0) {
-                    shape[0] = batch_size_ * max_num_players_;
-                } else {
-                    shape[0] = batch_size_;
-                }
-            }
-            arrays_.emplace_back(ShapeSpec(spec.element_size, shape));
-            buffer_sizes_.push_back(shape.empty() ? 0 : shape[0]);
-        }
-        
-        buffer_ = std::vector<Array>(capacity_ * specs.size());
+ public:
+  StateBufferQueue(std::size_t batch_env, std::size_t num_envs,
+                   std::size_t max_num_players,
+                   const std::vector<ShapeSpec>& specs)
+      : batch_(batch_env),
+        max_num_players_(max_num_players),
+        is_player_state_(Transform(specs,
+                                   [](const ShapeSpec& s) {
+                                     return (!s.shape.empty() &&
+                                             s.shape[0] == -1);
+                                   })),
+        specs_(Transform(specs,
+                         [=](ShapeSpec s) {
+                           if (!s.shape.empty() && s.shape[0] == -1) {
+                             // If first dim is num_players
+                             s.shape[0] = batch_ * max_num_players_;
+                             return s;
+                           }
+                           return s.Batch(batch_);
+                         })),
+        // two times enough buffer for all the envs
+        queue_size_((num_envs / batch_env + 2) * 2),
+        queue_(queue_size_),  // circular buffer
+        alloc_count_(0),
+        done_ptr_(0),
+        stock_buffer_((num_envs / batch_env + 2) * 2),
+        quit_(false) {
+    // Only initialize first half of the buffer
+    // At the consumption of each block, the first consumping thread
+    // will allocate a new state buffer and append to the tail.
+    // alloc_tail_ = num_envs / batch_env + 2;
+    for (auto& q : queue_) {
+      q = std::make_unique<StateBuffer>(batch_, max_num_players_, specs_,
+                                        is_player_state_);
     }
-
-    // Single-argument version (from test case)
-    Slice Allocate(size_t num_players) {
-        return Allocate(num_players, -1);
+    std::size_t processor_count = std::thread::hardware_concurrency();
+    // hardcode here :(
+    std::size_t create_buffer_thread_num = std::max(1UL, processor_count / 64);
+    for (std::size_t i = 0; i < create_buffer_thread_num; ++i) {
+      create_buffer_thread_.emplace_back(std::thread([&]() {
+        while (true) {
+          stock_buffer_.Put(std::make_unique<StateBuffer>(
+              batch_, max_num_players_, specs_, is_player_state_));
+          if (quit_) {
+            break;
+          }
+        }
+      }));
     }
+  }
 
-    // Two-argument version
-    Slice Allocate(size_t num_players, int order) {
-        std::unique_lock<std::mutex> lock(mutex_);
-        if (current_size_ >= capacity_) {
-            throw std::runtime_error("Buffer full");
-        }
-        if (num_players > max_num_players_) {
-            throw std::runtime_error("Too many players");
-        }
-
-        size_t slot = tail_;
-        tail_ = (tail_ + 1) % capacity_;
-        current_size_++;
-        pending_writes_++;
-
-        std::vector<Array> slice_arrays;
-        slice_arrays.reserve(arrays_.size());
-
-        for (size_t i = 0; i < arrays_.size(); ++i) {
-            const Array& src = arrays_[i];
-            if (!src.Shape().empty()) {
-                size_t first_dim = src.Shape(0) == batch_size_ * max_num_players_ ? 
-                    num_players : 1;
-                Array sliced = src.Slice(0, first_dim);
-                buffer_[slot * arrays_.size() + i] = sliced;
-                slice_arrays.push_back(std::move(sliced));
-            } else {
-                buffer_[slot * arrays_.size() + i] = src;
-                slice_arrays.push_back(src);
-            }
-        }
-
-        auto done_write_fn = [this]() {
-            if (--pending_writes_ == 0) {
-                cv_.notify_one();
-            }
-        };
-
-        return Slice{std::move(slice_arrays), done_write_fn};
+  ~StateBufferQueue() {
+    // stop the thread
+    quit_ = true;
+    for (std::size_t i = 0; i < create_buffer_thread_.size(); ++i) {
+      stock_buffer_.Get();
     }
-
-    std::vector<Array> Wait(int additional_wait = 0) {
-        std::unique_lock<std::mutex> lock(mutex_);
-        
-        cv_.wait(lock, [this] { 
-            return pending_writes_ == 0 && current_size_ > 0; 
-        });
-
-        if (additional_wait > 0) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(additional_wait));
-        }
-
-        std::vector<Array> result;
-        result.reserve(arrays_.size());
-
-        size_t slot = head_;
-        head_ = (head_ + 1) % capacity_;
-        current_size_--;
-
-        for (size_t i = 0; i < arrays_.size(); ++i) {
-            result.push_back(buffer_[slot * arrays_.size() + i]);
-        }
-
-        return result;
+    for (auto& t : create_buffer_thread_) {
+      t.join();
     }
+  }
 
-    void Clear() {
-        std::lock_guard<std::mutex> lock(mutex_);
-        current_size_ = 0;
-        head_ = 0;
-        tail_ = 0;
-        pending_writes_ = 0;
-    }
+  /**
+   * Allocate slice of memory for the current env to write.
+   * This function is used from the producer side.
+   * It is safe to access from multiple threads.
+   */
+  StateBuffer::WritableSlice Allocate(std::size_t num_players, int order = -1) {
+    std::size_t pos = alloc_count_.fetch_add(1);
+    std::size_t offset = (pos / batch_) % queue_size_;
+    // if (pos % batch_ == 0) {
+    //   // At the time a new statebuffer is accessed, the first visitor
+    //   allocate
+    //   // a new state buffer and put it at the back of the queue.
+    //   std::size_t insert_pos = alloc_tail_.fetch_add(1);
+    //   std::size_t insert_offset = insert_pos % queue_size_;
+    //   queue_[insert_offset].reset(
+    //       new StateBuffer(batch_, max_num_players_, specs_,
+    //       is_player_state_));
+    // }
+    return queue_[offset]->Allocate(num_players, order);
+  }
 
-    void EnsureCapacity(size_t required_size) {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (capacity_ < required_size) {
-            ResizeBuffer(std::max(capacity_ * 2, required_size));
-        }
+  /**
+   * Wait for the state buffer at the head to be ready.
+   * This function can only be accessed from one thread.
+   *
+   * BIG CAVEATE:
+   * Wait should be accessed from only one thread.
+   * If Wait is accessed from multiple threads, it is only safe if the finish
+   * time of each state buffer is in the same order as the allocation time.
+   */
+  std::vector<Array> Wait(std::size_t additional_done_count = 0) {
+    std::unique_ptr<StateBuffer> newbuf = stock_buffer_.Get();
+    std::size_t pos = done_ptr_.fetch_add(1);
+    std::size_t offset = pos % queue_size_;
+    auto arr = queue_[offset]->Wait(additional_done_count);
+    if (additional_done_count > 0) {
+      // move pointer to the next block
+      alloc_count_.fetch_add(additional_done_count);
     }
-
-protected:
-    void ResizeBuffer(size_t new_capacity) {
-        std::vector<Array> new_buffer(new_capacity * arrays_.size());
-        
-        for (size_t i = 0; i < current_size_; ++i) {
-            size_t old_idx = (head_ + i) % capacity_;
-            size_t new_idx = i;
-            for (size_t j = 0; j < arrays_.size(); ++j) {
-                new_buffer[new_idx * arrays_.size() + j] = 
-                    buffer_[old_idx * arrays_.size() + j];
-            }
-        }
-        
-        buffer_ = std::move(new_buffer);
-        capacity_ = new_capacity;
-        head_ = 0;
-        tail_ = current_size_;
-    }
+    std::swap(queue_[offset], newbuf);
+    return arr;
+  }
 };
 
 #endif  // LITEPOOL_CORE_STATE_BUFFER_QUEUE_H_

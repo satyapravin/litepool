@@ -1,78 +1,87 @@
+/*
+ * Copyright 2021 Garena Online Private Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #ifndef LITEPOOL_CORE_ACTION_BUFFER_QUEUE_H_
 #define LITEPOOL_CORE_ACTION_BUFFER_QUEUE_H_
 
+#ifndef MOODYCAMEL_DELETE_FUNCTION
+#define MOODYCAMEL_DELETE_FUNCTION = delete
+#endif
+
 #include <atomic>
 #include <cassert>
-#include <condition_variable>
-#include <mutex>
-#include <thread>
 #include <utility>
 #include <vector>
+
 #include "litepool/core/array.h"
+#include <concurrentqueue/moodycamel/lightweightsemaphore.h>
 
+/**
+ * Lock-free action buffer queue.
+ */
 class ActionBufferQueue {
-public:
-    struct ActionSlice {
-        int env_id;
-        int order;
-        bool force_reset;
-    };
+ public:
+  struct ActionSlice {
+    int env_id;
+    int order;
+    bool force_reset;
+  };
 
-protected:
-    std::size_t queue_size_;
-    std::vector<ActionSlice> queue_;
-    std::size_t head_{0};
-    std::size_t tail_{0}; 
-    std::size_t size_{0};
-    mutable std::mutex mutex_;
-    std::condition_variable not_empty_;
-    std::condition_variable not_full_;
+ protected:
+  std::atomic<uint64_t> alloc_ptr_, done_ptr_;
+  std::size_t queue_size_;
+  std::vector<ActionSlice> queue_;
+  moodycamel::LightweightSemaphore sem_, sem_enqueue_, sem_dequeue_;
 
-public:
-    explicit ActionBufferQueue(std::size_t num_envs)
-        : queue_size_(num_envs * 2),
-          queue_(queue_size_) {}
+ public:
+  explicit ActionBufferQueue(std::size_t num_envs)
+      : alloc_ptr_(0),
+        done_ptr_(0),
+        queue_size_(num_envs * 2),
+        queue_(queue_size_),
+        sem_(0),
+        sem_enqueue_(1),
+        sem_dequeue_(1) {}
 
-    void EnqueueBulk(const std::vector<ActionSlice>& actions) {
-        std::unique_lock<std::mutex> lock(mutex_);
-        
-        // Wait until there's enough space
-        not_full_.wait(lock, [this, &actions]() {
-            return size_ + actions.size() <= queue_size_;
-        });
-
-        // Add actions to queue
-        for (const auto& action : actions) {
-            queue_[tail_] = action;
-            tail_ = (tail_ + 1) % queue_size_;
-            size_++;
-        }
-
-        lock.unlock();
-        not_empty_.notify_all();
+  void EnqueueBulk(const std::vector<ActionSlice>& action) {
+    // ensure only one enqueue_bulk happens at any time
+    while (!sem_enqueue_.wait()) {
     }
-
-    ActionSlice Dequeue() {
-        std::unique_lock<std::mutex> lock(mutex_);
-        
-        // Wait until there's at least one item
-        not_empty_.wait(lock, [this]() {
-            return size_ > 0;
-        });
-
-        ActionSlice result = queue_[head_];
-        head_ = (head_ + 1) % queue_size_;
-        size_--;
-
-        lock.unlock();
-        not_full_.notify_one();
-        return result;
+    uint64_t pos = alloc_ptr_.fetch_add(action.size());
+    for (std::size_t i = 0; i < action.size(); ++i) {
+      queue_[(pos + i) % queue_size_] = action[i];
     }
+    sem_.signal(action.size());
+    sem_enqueue_.signal(1);
+  }
 
-    std::size_t SizeApprox() const {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return size_;
+  ActionSlice Dequeue() {
+    while (!sem_.wait()) {
     }
+    while (!sem_dequeue_.wait()) {
+    }
+    auto ptr = done_ptr_.fetch_add(1);
+    auto ret = queue_[ptr % queue_size_];
+    sem_dequeue_.signal(1);
+    return ret;
+  }
+
+  std::size_t SizeApprox() {
+    return static_cast<std::size_t>(alloc_ptr_ - done_ptr_);
+  }
 };
 
-#endif // LITEPOOL_CORE_ACTION_BUFFER_QUEUE_H_
+#endif  // LITEPOOL_CORE_ACTION_BUFFER_QUEUE_H_

@@ -1,4 +1,22 @@
-#pragma once
+/*
+ * Copyright 2021 Garena Online Private Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef LITEPOOL_CORE_SPEC_H_
+#define LITEPOOL_CORE_SPEC_H_
+
 #include <glog/logging.h>
 
 #include <cstddef>
@@ -90,3 +108,5 @@ class Spec<Container<D>> : public ShapeSpec {
       : ShapeSpec(sizeof(Container<D>), std::move(shape)),
         inner_spec(std::move(inner_spec)) {}
 };
+
+#endif  // LITEPOOL_CORE_SPEC_H_

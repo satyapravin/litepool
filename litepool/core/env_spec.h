@@ -1,20 +1,39 @@
-#pragma once
+/*
+ * Copyright 2021 Garena Online Private Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef LITEPOOL_CORE_ENV_SPEC_H_
+#define LITEPOOL_CORE_ENV_SPEC_H_
+
 #include <limits>
 #include <string>
 
+#include "litepool/core/array.h"
 #include "litepool/core/dict.h"
 
 auto common_config =
     MakeDict("num_envs"_.Bind(1), "batch_size"_.Bind(0), "num_threads"_.Bind(0),
              "max_num_players"_.Bind(1), "thread_affinity_offset"_.Bind(-1),
-             "base_path"_.Bind(std::string("envpool")), "seed"_.Bind(42),
+             "base_path"_.Bind(std::string("litepool")), "seed"_.Bind(42),
              "gym_reset_return_info"_.Bind(false),
              "max_episode_steps"_.Bind(std::numeric_limits<int>::max()));
-// Note: this action order is hardcoded in async_envpool Send function
+// Note: this action order is hardcoded in async_litepool Send function
 // and env ParseAction function for performance
 auto common_action_spec = MakeDict("env_id"_.Bind(Spec<int>({})),
                                    "players.env_id"_.Bind(Spec<int>({-1})));
-// Note: this state order is hardcoded in async_envpool Recv function
+// Note: this state order is hardcoded in async_litepool Recv function
 auto common_state_spec =
     MakeDict("info:env_id"_.Bind(Spec<int>({})),
              "info:players.env_id"_.Bind(Spec<int>({-1})),
@@ -64,3 +83,5 @@ class EnvSpec {
     }
   }
 };
+
+#endif  // LITEPOOL_CORE_ENV_SPEC_H_

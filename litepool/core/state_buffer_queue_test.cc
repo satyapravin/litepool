@@ -16,10 +16,10 @@
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
-#include <thread>
+
 #include <random>
 
-#include <threadpool/ThreadPool.h>
+#include "ThreadPool.h"
 
 TEST(StateBufferQueueTest, Basic) {
   std::vector<ShapeSpec> specs{ShapeSpec(1, {10, 2, 4}),
@@ -113,8 +113,7 @@ TEST(StateBufferQueueTest, NumPlayers) {
     EXPECT_EQ(slice.arr[1].Shape(0), 1);
     size += num_players;
   }
-  EXPECT_LE(size, batch * max_num_players);
-  std::vector<Array> out = queue.Wait();
+  std::vector<Array> out = queue.Wait(batch * max_num_players - size);
   EXPECT_EQ(out[0].Shape(0), size);
   EXPECT_EQ(out[1].Shape(0), batch);
 }
