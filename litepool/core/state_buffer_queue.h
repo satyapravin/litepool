@@ -1,6 +1,7 @@
 #ifndef LITEPOOL_CORE_STATE_BUFFER_QUEUE_H_
 #define LITEPOOL_CORE_STATE_BUFFER_QUEUE_H_
 
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
@@ -11,13 +12,19 @@
 #include "litepool/core/spec.h"
 
 class StateBufferQueue {
+public:
+    struct Slice {
+        std::vector<Array> arr;
+        std::function<void()> done_write;
+    };
+
 protected:
     const size_t batch_size_;
     const size_t num_envs_;
     const size_t max_num_players_;
     std::vector<Array> arrays_;
     std::vector<size_t> buffer_sizes_;
-
+    
     mutable std::mutex mutex_;
     std::condition_variable cv_;
     std::vector<Array> buffer_;
@@ -25,6 +32,7 @@ protected:
     size_t tail_{0};
     size_t capacity_;
     size_t current_size_{0};
+    std::atomic<size_t> pending_writes_{0};
 
 public:
     StateBufferQueue(size_t batch_size,
@@ -35,91 +43,75 @@ public:
         , num_envs_(num_envs)
         , max_num_players_(max_num_players)
         , capacity_(batch_size * 2) {
-
-        // Initialize arrays with proper dimensions
+        
         arrays_.reserve(specs.size());
         buffer_sizes_.reserve(specs.size());
-
+        
         for (const auto& spec : specs) {
             std::vector<size_t> shape = spec.Shape();
-            // Adjust first dimension for batch size
             if (!shape.empty()) {
-                shape[0] = batch_size_;
+                if (shape[0] < 0) {
+                    shape[0] = batch_size_ * max_num_players_;
+                } else {
+                    shape[0] = batch_size_;
+                }
             }
             arrays_.emplace_back(ShapeSpec(spec.element_size, shape));
             buffer_sizes_.push_back(shape.empty() ? 0 : shape[0]);
         }
-
+        
         buffer_ = std::vector<Array>(capacity_ * specs.size());
     }
 
-    void Allocate(size_t slot, int batch_size) {
-        std::lock_guard<std::mutex> lock(mutex_);
-
-        if (slot >= capacity_) {
-            throw std::runtime_error("Slot index out of bounds: " + std::to_string(slot));
-        }
-        if (batch_size <= 0) {
-            throw std::runtime_error("Batch size must be positive: " + std::to_string(batch_size));
-        }
-        if (static_cast<size_t>(batch_size) > batch_size_) {
-            throw std::runtime_error("Batch size exceeds maximum: " +
-                std::to_string(batch_size) + " > " + std::to_string(batch_size_));
-        }
-
-        // Allocate arrays for this slot
-        for (size_t i = 0; i < arrays_.size(); ++i) {
-            const Array& src = arrays_[i];
-            if (!src.Shape().empty() && src.Shape(0) >= static_cast<size_t>(batch_size)) {
-                buffer_[slot * arrays_.size() + i] = src.Slice(0, batch_size);
-            } else {
-                // Handle empty or undersized arrays
-                std::vector<size_t> shape = src.Shape();
-                if (!shape.empty()) {
-                    shape[0] = batch_size;
-                }
-                buffer_[slot * arrays_.size() + i] = Array(ShapeSpec(src.element_size, shape));
-            }
-        }
-        cv_.notify_one();
-    }
-
-    void Clear() {
-        std::lock_guard<std::mutex> lock(mutex_);
-        current_size_ = 0;
-        head_ = 0;
-        tail_ = 0;
-    }
-
-    void EnsureCapacity(size_t required_size) {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (capacity_ < required_size) {
-            ResizeBuffer(std::max(capacity_ * 2, required_size));
-        }
-    }
-
-    size_t AllocateSlot() {
-        std::lock_guard<std::mutex> lock(mutex_);
+    Slice Allocate(size_t num_players, int order = -1) {
+        std::unique_lock<std::mutex> lock(mutex_);
         if (current_size_ >= capacity_) {
-            ResizeBuffer(capacity_ * 2);
+            throw std::runtime_error("Buffer full");
         }
+        if (num_players > max_num_players_) {
+            throw std::runtime_error("Too many players");
+        }
+
         size_t slot = tail_;
         tail_ = (tail_ + 1) % capacity_;
         current_size_++;
-        return slot;
+        pending_writes_++;
+
+        std::vector<Array> slice_arrays;
+        slice_arrays.reserve(arrays_.size());
+
+        for (size_t i = 0; i < arrays_.size(); ++i) {
+            const Array& src = arrays_[i];
+            if (!src.Shape().empty()) {
+                size_t first_dim = src.Shape(0) == batch_size_ * max_num_players_ ? 
+                    num_players : 1;
+                Array sliced = src.Slice(0, first_dim);
+                buffer_[slot * arrays_.size() + i] = sliced;
+                slice_arrays.push_back(std::move(sliced));
+            } else {
+                buffer_[slot * arrays_.size() + i] = src;
+                slice_arrays.push_back(src);
+            }
+        }
+
+        auto done_write_fn = [this, slot] {
+            if (--pending_writes_ == 0) {
+                cv_.notify_one();
+            }
+        };
+
+        return Slice{std::move(slice_arrays), done_write_fn};
     }
 
-    std::vector<Array> Wait(int timeout_ms = -1) {
+    std::vector<Array> Wait(int additional_wait = 0) {
         std::unique_lock<std::mutex> lock(mutex_);
+        
+        cv_.wait(lock, [this] { 
+            return pending_writes_ == 0 && current_size_ > 0; 
+        });
 
-        if (timeout_ms < 0) {
-            cv_.wait(lock, [this] { return current_size_ > 0; });
-        } else {
-            if (!cv_.wait_for(lock,
-                std::chrono::milliseconds(timeout_ms),
-                [this] { return current_size_ > 0; })) {
-                return {};
-            }
+        if (additional_wait > 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(additional_wait));
         }
 
         std::vector<Array> result;
@@ -136,36 +128,19 @@ public:
         return result;
     }
 
-    void Set(size_t slot, const std::vector<Array>& state) {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (slot >= capacity_) {
-            throw std::runtime_error("Invalid slot index");
-        }
-
-        if (state.size() != arrays_.size()) {
-            throw std::runtime_error("State size mismatch");
-        }
-
-        for (size_t i = 0; i < state.size(); ++i) {
-            buffer_[slot * arrays_.size() + i] = state[i];
-        }
-        cv_.notify_one();
-    }
-
 protected:
     void ResizeBuffer(size_t new_capacity) {
         std::vector<Array> new_buffer(new_capacity * arrays_.size());
-
-        // Copy existing data
+        
         for (size_t i = 0; i < current_size_; ++i) {
             size_t old_idx = (head_ + i) % capacity_;
             size_t new_idx = i;
             for (size_t j = 0; j < arrays_.size(); ++j) {
-                new_buffer[new_idx * arrays_.size() + j] =
+                new_buffer[new_idx * arrays_.size() + j] = 
                     buffer_[old_idx * arrays_.size() + j];
             }
         }
-
+        
         buffer_ = std::move(new_buffer);
         capacity_ = new_capacity;
         head_ = 0;

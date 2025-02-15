@@ -107,3 +107,4 @@ class Spec<Container<D>> : public ShapeSpec {
 };
 
 #endif  // LITEPOOL_CORE_SPEC_H_
+
