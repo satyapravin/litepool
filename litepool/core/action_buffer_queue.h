@@ -1,21 +1,13 @@
 #ifndef LITEPOOL_CORE_ACTION_BUFFER_QUEUE_H_
 #define LITEPOOL_CORE_ACTION_BUFFER_QUEUE_H_
 
-#ifndef MOODYCAMEL_DELETE_FUNCTION
-#define MOODYCAMEL_DELETE_FUNCTION = delete
-#endif
-
-#define _POSIX_C_SOURCE 200809L
-#include <ctime>
 #include <atomic>
 #include <cassert>
-#include <utility>
-#include <vector>
-#include <cstdint>
-#include <cerrno>
-#include <thread>
 #include <condition_variable>
 #include <mutex>
+#include <thread>
+#include <utility>
+#include <vector>
 #include "litepool/core/array.h"
 
 class ActionBufferQueue {
@@ -30,7 +22,7 @@ protected:
     std::size_t queue_size_;
     std::vector<ActionSlice> queue_;
     std::size_t head_{0};
-    std::size_t tail_{0};
+    std::size_t tail_{0}; 
     std::size_t size_{0};
     mutable std::mutex mutex_;
     std::condition_variable not_empty_;
@@ -83,4 +75,4 @@ public:
     }
 };
 
-#endif
+#endif // LITEPOOL_CORE_ACTION_BUFFER_QUEUE_H_

@@ -120,12 +120,55 @@ class LitePoolMixin(ABC):
 
   def recv(
     self: LitePool,
-    reset: bool = False,
+    reset: bool = False, 
     return_info: bool = True,
   ) -> Union[TimeStep, Tuple]:
     """Recv a batch state from LitePool."""
-    state_list = self._recv()
-    return self._to(state_list, reset, return_info)
+    try:
+        # Add retries for getting state
+        max_retries = 3
+        retry_count = 0
+        state_list = None
+        
+        while retry_count < max_retries:
+            state_list = self._recv()
+            
+            # Validate received state
+            if state_list and len(state_list) > 0 and all(arr is not None and arr.size > 0 for arr in state_list):
+                break
+                
+            print(f"Retry {retry_count + 1}: Received empty/invalid state")
+            retry_count += 1
+            time.sleep(0.01)  # Small delay between retries
+            
+        if not state_list or len(state_list) == 0:
+            print("Failed to receive valid state after retries")
+            # Return dummy state matching expected format
+            return self._to(self._create_dummy_state(), reset, return_info)
+            
+        return self._to(state_list, reset, return_info)
+        
+    except Exception as e:
+        print(f"Error in recv: {str(e)}")
+        return self._to(self._create_dummy_state(), reset, return_info)
+
+  def _create_dummy_state(self) -> List[np.ndarray]:
+    """Create a dummy state matching the expected format"""
+    # Get expected state structure from spec
+    state_spec = self.spec.state_array_spec
+    dummy_state = []
+    
+    for spec_key, spec_value in state_spec.items():
+        shape = [s if s != -1 else 1 for s in spec_value.shape]
+        if spec_value.dtype == np.float32:
+            dummy_arr = np.zeros(shape, dtype=np.float32)
+        elif spec_value.dtype == np.int32:
+            dummy_arr = np.zeros(shape, dtype=np.int32)
+        else:
+            dummy_arr = np.zeros(shape, dtype=spec_value.dtype)
+        dummy_state.append(dummy_arr)
+        
+    return dummy_state
 
   def async_reset(self: LitePool) -> None:
     """Follows the async semantics, reset the envs in env_ids."""

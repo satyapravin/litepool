@@ -40,31 +40,43 @@ TEST(RlTraderLitePoolTest, SplitZeroAction) {
 
   litepool.Reset(all_env_ids);
   auto state_vec = litepool.Recv();
-  // construct action
 
-  std::vector<Array> raw_action({Array(Spec<int>({4})),
-                                   Array(Spec<int>({4, 1})),
-                                   Array(Spec<int>({4, 6}))});
+  std::vector<Array> raw_action;
+  raw_action.reserve(3);
+
+  // Create arrays with proper dimensions
+  raw_action.push_back(Array(Spec<int>({num_envs})));         // env_id
+  raw_action.push_back(Array(Spec<int>({num_envs, 1})));      // players.env_id
+  raw_action.push_back(Array(Spec<float>({num_envs, 10})));   // action
+
+  // Initialize players.env_id array
+  for (int i = 0; i < num_envs; ++i) {
+    raw_action[1](i, 0) = i;
+  }
 
   RlTraderAction action(raw_action);
 
-  for (int i = 0; i < 4; ++i) {
+  for (int i = 0; i < num_envs; ++i) {
+    // Set env_id
     action["env_id"_][i] = i;
-    action["action"_][i][0] = 5;
-    action["action"_][i][1] = 5;
-    action["action"_][i][2] = 80;
-    action["action"_][i][3] = 80;
-    action["action"_][i][4] = 2;
-    action["action"_][i][5] = 3;
+    
+    // Set action values using operator()
+    action["action"_](i, 0) = 5.0f;
+    action["action"_](i, 1) = 5.0f;
+    action["action"_](i, 2) = 80.0f;
+    action["action"_](i, 3) = 80.0f;
+    action["action"_](i, 4) = 2.0f;
+    action["action"_](i, 5) = 3.0f;
+    action["action"_](i, 6) = 80.0f;
+    action["action"_](i, 7) = 80.0f;
+    action["action"_](i, 8) = 2.0f;
+    action["action"_](i, 9) = 3.0f;
   }
 
-  litepool.Send(action);
-
-
+  litepool.Send(std::move(action));
   RlTraderState state(litepool.Recv());
 
-  //EXPECT_EQ(state["info:players.env_id"_].Shape(0), 8);
-  for (int i = 0; i < 4; ++i) {
+  for (int i = 0; i < num_envs; ++i) {
     EXPECT_EQ(static_cast<int>(state["info:env_id"_][i]), i);
     auto obs = state["obs"_](i);
     EXPECT_EQ(obs.size, 196);
@@ -79,46 +91,52 @@ void Runner(int num_envs, int batch, int seed, int total_iter, int num_threads) 
   config["seed"_] = seed;
   config["max_num_players"_] = 1;
 
-  std::vector<int> length;
-
-  length.reserve(num_envs);
-  for (int i = 0; i < num_envs; ++i) {
-    length.push_back(seed + i);
-  }
   rltrader::RlTraderEnvSpec spec(config);
   rltrader::RlTraderLitePool litepool(spec);
+
   TArray all_env_ids(Spec<int>({num_envs}));
   for (int i = 0; i < num_envs; ++i) {
-      all_env_ids[i] = i;
+    all_env_ids[i] = i;
   }
   litepool.Reset(all_env_ids);
 
+  std::vector<Array> raw_action;
+  raw_action.reserve(3);
+
   auto start = std::chrono::system_clock::now();
   for (int ii = 0; ii < total_iter; ++ii) {
-    // recv
     RlTraderState state(litepool.Recv());
-    // check state
-    auto env_id = state["info:env_id"_];
-    auto obs = state["obs"_];
-    auto reward = state["reward"_];
-    auto done = state["done"_];
 
-    std::vector<Array> raw_action({Array(Spec<int>({num_envs})),
-                                    Array(Spec<int>({num_envs, 1})),
-                                    Array(Spec<int>({num_envs, 6}))});
+    raw_action.clear();
+    raw_action.push_back(Array(Spec<int>({num_envs})));         // env_id
+    raw_action.push_back(Array(Spec<int>({num_envs, 1})));      // players.env_id
+    raw_action.push_back(Array(Spec<float>({num_envs, 10})));   // action
+
+    // Initialize players.env_id array
+    for (int i = 0; i < num_envs; ++i) {
+      raw_action[1](i, 0) = i;
+    }
+
     RlTraderAction action(raw_action);
 
     for (int i = 0; i < num_envs; ++i) {
       action["env_id"_][i] = i;
-      action["action"_][i][0] = 5;
-      action["action"_][i][1] = 5;
-      action["action"_][i][2] = 80;
-      action["action"_][i][3] = 80;
-      action["action"_][i][4] = 3;
-      action["action"_][i][5] = 2;
+      
+      action["action"_](i, 0) = 5.0f;
+      action["action"_](i, 1) = 5.0f;
+      action["action"_](i, 2) = 80.0f;
+      action["action"_](i, 3) = 80.0f;
+      action["action"_](i, 4) = 2.0f;
+      action["action"_](i, 5) = 3.0f;
+      action["action"_](i, 6) = 80.0f;
+      action["action"_](i, 7) = 80.0f;
+      action["action"_](i, 8) = 2.0f;
+      action["action"_](i, 9) = 3.0f;
     }
-    litepool.Send(action);
+
+    litepool.Send(std::move(action));
   }
+
   std::chrono::duration<double> dur = std::chrono::system_clock::now() - start;
   double t = dur.count();
   double fps = (total_iter * batch) / t;

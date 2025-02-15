@@ -36,6 +36,10 @@ protected:
     std::condition_variable initialization_cv_;
     std::atomic<size_t> initialized_envs_{0};
     std::chrono::duration<double> dur_send_{}, dur_recv_{};
+    
+    // Add action storage
+    std::mutex action_mutex_;
+    std::vector<std::shared_ptr<std::vector<Array>>> action_storage_;
 
 public:
     using Spec = typename Env::Spec;
@@ -59,12 +63,10 @@ public:
         , envs_(num_envs_)
         , env_mutexes_(num_envs_) {
 
-        // Initialize number of threads
         if (num_threads_ == 0) {
             num_threads_ = std::min<std::size_t>(batch_, std::thread::hardware_concurrency());
         }
 
-        // Initialize environments sequentially with proper synchronization
         for (std::size_t i = 0; i < num_envs_; ++i) {
             std::lock_guard<std::mutex> lock(env_mutexes_[i]);
             try {
@@ -76,7 +78,6 @@ public:
             }
         }
 
-        // Wait for all environments to be initialized
         {
             std::unique_lock<std::mutex> lock(initialization_mutex_);
             initialization_cv_.wait(lock, [this] {
@@ -84,7 +85,6 @@ public:
             });
         }
 
-        // Start worker threads
         for (std::size_t i = 0; i < num_threads_; ++i) {
             workers_.emplace_back([this] {
                 while (!stop_) {
@@ -98,15 +98,25 @@ public:
                             continue;
                         }
 
-                        std::unique_lock<std::mutex> lock(env_mutexes_[env_id]);
-                        if (!envs_[env_id]) {
-                            LOG(ERROR) << "Environment " << env_id << " not initialized";
-                            continue;
+                        {
+                            std::unique_lock<std::mutex> lock(env_mutexes_[env_id]);
+                            if (!envs_[env_id]) {
+                                LOG(ERROR) << "Environment " << env_id << " not initialized";
+                                continue;
+                            }
+
+                            bool reset = raw_action.force_reset || envs_[env_id]->IsDone();
+                            envs_[env_id]->EnvStep(state_buffer_queue_.get(),
+                                                 raw_action.order, reset);
                         }
 
-                        bool reset = raw_action.force_reset || envs_[env_id]->IsDone();
-                        envs_[env_id]->EnvStep(state_buffer_queue_.get(),
-                                             raw_action.order, reset);
+                        // Clean up completed actions
+                        if (raw_action.order != -1) {
+                            std::lock_guard<std::mutex> lock(action_mutex_);
+                            if (!action_storage_.empty()) {
+                                action_storage_.pop_back();
+                            }
+                        }
                     } catch (const std::exception& e) {
                         if (!stop_) {
                             LOG(ERROR) << "Worker thread error: " << e.what();
@@ -116,7 +126,6 @@ public:
             });
         }
 
-        // Set thread affinity if requested
         if (spec.config["thread_affinity_offset"_] >= 0) {
             SetThreadAffinity(spec.config["thread_affinity_offset"_]);
         }
@@ -124,8 +133,6 @@ public:
 
     ~AsyncLitePool() override {
         stop_ = true;
-
-        // Signal all workers to stop
         std::vector<ActionSlice> empty_actions(workers_.size());
         action_buffer_queue_->EnqueueBulk(empty_actions);
 
@@ -134,6 +141,10 @@ public:
                 worker.join();
             }
         }
+
+        // Clear action storage
+        std::lock_guard<std::mutex> lock(action_mutex_);
+        action_storage_.clear();
     }
 
 protected:
@@ -156,7 +167,13 @@ protected:
         std::vector<ActionSlice> actions;
         actions.reserve(shared_offset);
 
-        auto action_batch = std::make_shared<std::vector<Array>>(std::forward<V>(action));
+        // Store action data with proper synchronization
+        std::shared_ptr<std::vector<Array>> action_batch;
+        {
+            std::lock_guard<std::mutex> lock(action_mutex_);
+            action_batch = std::make_shared<std::vector<Array>>(std::forward<V>(action));
+            action_storage_.push_back(action_batch);
+        }
 
         for (int i = 0; i < shared_offset; ++i) {
             int eid = env_id[i];
@@ -198,42 +215,66 @@ public:
         SendImpl(std::move(action));
     }
 
-    std::vector<Array> Recv() override {
-        int additional_wait = 0;
-        if (is_sync_ && stepping_env_num_ < batch_) {
-            additional_wait = batch_ - stepping_env_num_;
+// In async_litepool.h
+
+void Reset(const Array& env_ids) override {
+    TArray<int> tenv_ids(env_ids);
+    int shared_offset = tenv_ids.Shape(0);
+    std::vector<ActionSlice> actions;
+    actions.reserve(shared_offset);
+
+    // Initialize environment states first
+    for (int i = 0; i < shared_offset; ++i) {
+        int eid = tenv_ids[i];
+        if (eid < 0 || static_cast<size_t>(eid) >= num_envs_) {
+            throw std::runtime_error("Invalid environment ID in reset: " + std::to_string(eid));
         }
-        auto ret = state_buffer_queue_->Wait(additional_wait);
-        if (is_sync_) {
-            stepping_env_num_ -= ret[0].Shape(0);
+
+        // Initialize the environment synchronously
+        {
+            std::lock_guard<std::mutex> lock(env_mutexes_[eid]);
+            if (!envs_[eid]) {
+                throw std::runtime_error("Environment not initialized: " + std::to_string(eid));
+            }
+            // Initialize the state buffer directly
+            envs_[eid]->EnvStep(state_buffer_queue_.get(), i, true);
         }
+
+        actions.emplace_back(ActionSlice{
+            .env_id = eid,
+            .order = is_sync_ ? i : -1,
+            .force_reset = true,
+        });
+    }
+
+    if (is_sync_) {
+        stepping_env_num_ += shared_offset;
+    }
+    
+    // Queue the reset actions for subsequent steps
+    action_buffer_queue_->EnqueueBulk(actions);
+}
+
+std::vector<Array> Recv() override {
+    int additional_wait = 0;
+    if (is_sync_ && stepping_env_num_ < batch_) {
+        additional_wait = batch_ - stepping_env_num_;
+    }
+
+    // Get the result from state buffer queue with timeout
+    auto ret = state_buffer_queue_->Wait(additional_wait);
+    
+    if (ret.empty()) {
+        LOG(WARNING) << "Received empty state vector";
         return ret;
     }
 
-    void Reset(const Array& env_ids) override {
-        TArray<int> tenv_ids(env_ids);
-        int shared_offset = tenv_ids.Shape(0);
-        std::vector<ActionSlice> actions;
-        actions.reserve(shared_offset);
-
-        for (int i = 0; i < shared_offset; ++i) {
-            int eid = tenv_ids[i];
-            if (eid < 0 || static_cast<size_t>(eid) >= num_envs_) {
-                throw std::runtime_error("Invalid environment ID in reset: " + std::to_string(eid));
-            }
-
-            actions.emplace_back(ActionSlice{
-                .env_id = eid,
-                .order = is_sync_ ? i : -1,
-                .force_reset = true,
-            });
-        }
-
+    if (!ret[0].Shape().empty()) {
         if (is_sync_) {
-            stepping_env_num_ += shared_offset;
+            stepping_env_num_ -= ret[0].Shape(0);
         }
-        action_buffer_queue_->EnqueueBulk(actions);
     }
-};
-
+    
+    return ret;
+}};
 #endif  // LITEPOOL_CORE_ASYNC_LITEPOOL_H_
