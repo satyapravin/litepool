@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <stdexcept>
 #include <vector>
 #include <iostream>
@@ -16,7 +17,7 @@ public:
             throw std::runtime_error("Invalid column size");
 	}
         currentRow = (currentRow + 1) % NUM_ROWS;
-        std::ranges::copy(row, buffer[currentRow].begin());
+        std::copy(row.begin(), row.end(), buffer[currentRow].begin());
     }
 
     [[nodiscard]] u_int get_lagged_row(u_int lag) const {

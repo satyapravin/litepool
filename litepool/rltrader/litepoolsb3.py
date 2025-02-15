@@ -95,14 +95,15 @@ class VecAdapter(VecEnvWrapper):
     self.upnl = []
     self.steps = 0
     self.header = True
+    self.action_env_ids = np.arange(self.venv.num_envs, dtype=np.int32)
 
   def step_async(self, actions: np.ndarray) -> None:
       self.actions = actions 
-      self.venv.send(self.actions)
+      self.venv.send(self.actions, self.action_env_ids)
 
   def reset(self) -> VecEnvObs:
       self.steps = 0
-      return self.venv.reset()[0]
+      return self.venv.reset(self.action_env_ids)[0]
 
   def seed(self, seed: Optional[int] = None) -> None:
      if seed is not None:
@@ -110,8 +111,7 @@ class VecAdapter(VecEnvWrapper):
 
   def step_wait(self) -> VecEnvStepReturn:
       obs, rewards, terms, truncs, info_dict = self.venv.recv()
-
-     
+      print(rewards)
       if (np.isnan(obs).any() or np.isinf(obs).any()):
           print("NaN in OBS...................")
 
@@ -128,7 +128,7 @@ class VecAdapter(VecEnvWrapper):
               if isinstance(info_dict[key], np.ndarray)
           })
 
-          if infos[i]["env_id"] == 0:
+          if True:
               self.mid_prices.append(infos[i]['mid_price'])
               self.balances.append(infos[i]['balance'])
               self.upnl.append(infos[i]['unrealized_pnl'])
@@ -142,7 +142,7 @@ class VecAdapter(VecEnvWrapper):
               infos[i]["terminal_observation"] = obs[i]
               obs[i] = self.venv.reset(np.array([i]))[0]
 
-          if self.steps % 1800 == 0 or dones[i]:
+          if self.steps % 1 == 0 or dones[i]:
               if infos[i]["env_id"] == 0:
                   d = {"mid": self.mid_prices, "balance": self.balances, "upnl" : self.upnl, 
                        "leverage": self.leverages, "trades": self.trades, "fees": self.fees,
@@ -175,8 +175,8 @@ import os
 if os.path.exists('temp.csv'):
     os.remove('temp.csv')
 env = litepool.make("RlTrader-v0", env_type="gymnasium", 
-                          num_envs=64, batch_size=64,
-                          num_threads=64,
+                          num_envs=2, batch_size=2,
+                          num_threads=2,
                           is_prod=False,
                           is_inverse_instr=True,
                           api_key="",

@@ -1,5 +1,5 @@
 #include "env_adaptor.h"
-
+#include <algorithm>
 #include <iostream>
 
 using namespace RLTrader;
@@ -22,10 +22,13 @@ bool EnvAdaptor::next() {
         if(this->exchange.next_read(read_slot, book)) {
             this->strategy.next();
             computeState(book);
-            std::ranges::copy(book.bid_prices, bid_prices.begin());
-            std::ranges::copy(book.ask_prices, ask_prices.begin());
-            std::ranges::copy(book.bid_sizes, bid_sizes.begin());
-            std::ranges::copy(book.ask_sizes, ask_sizes.begin());
+	    #include <algorithm>  // Required for std::copy
+
+           
+            std::copy(book.bid_prices.begin(), book.bid_prices.end(), bid_prices.begin());
+            std::copy(book.ask_prices.begin(), book.ask_prices.end(), ask_prices.begin());
+            std::copy(book.bid_sizes.begin(),  book.bid_sizes.end(),  bid_sizes.begin());
+            std::copy(book.ask_sizes.begin(),  book.ask_sizes.end(),  ask_sizes.begin());
             this->exchange.done_read(read_slot);
         } else {
             return false;
@@ -35,7 +38,7 @@ bool EnvAdaptor::next() {
     return true;
 }
 
-std::vector<double>& EnvAdaptor::getState() {
+std::vector<double> EnvAdaptor::getState() {
     return state;
 }
 
@@ -58,7 +61,7 @@ void EnvAdaptor::reset() {
 }
 
 
-std::unordered_map<std::string, double>& EnvAdaptor::getInfo() {
+std::unordered_map<std::string, double> EnvAdaptor::getInfo() {
    return info;
 }
 

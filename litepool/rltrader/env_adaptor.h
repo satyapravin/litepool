@@ -14,8 +14,8 @@ public:
     void quote(int buy_spread, int sell_spread, int buy_percent, int sell_percent) override;
     void reset() override;
     bool next() override;
-    std::unordered_map<std::string, double>& getInfo() override;
-    std::vector<double>& getState() override;
+    std::unordered_map<std::string, double> getInfo() override;
+    std::vector<double> getState() override;
 private:;
     void computeState(OrderBook& book);
     void computeInfo(OrderBook& book);

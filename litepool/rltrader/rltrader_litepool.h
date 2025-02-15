@@ -47,7 +47,7 @@ class RlTraderEnvFns {
                     "min_amount"_.Bind<float>(10.0),
                     "maker_fee"_.Bind<float>(-0.0001),
                     "taker_fee"_.Bind<float>(0.0005),
-                    "foldername"_.Bind(std::string("")),
+                    "foldername"_.Bind(std::string("./train_files/")),
                     "balance"_.Bind(1.0),
                     "start"_.Bind<int>(0),
                     "max"_.Bind<int>(72000));
@@ -136,7 +136,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     if (this->is_prod) {
       exch_raw_ptr = new RLTrader::DeribitExchange(symbol, api_key, api_secret);
     } else {
-      int idx = env_id % 45;
+      int idx = env_id % 64;
       std::string filename = foldername + std::to_string(idx + 1) + ".csv";
       std::cout << filename << std::endl;
       exch_raw_ptr = new RLTrader::SimExchange(filename, 250, start_read, max_read);
@@ -181,7 +181,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
       auto sell_action = select_action(sellActionLogits);
       auto buy_spread = spreads[buy_action];
       auto sell_spread = spreads[sell_action];
-      int base_vol = 5;
+      int base_vol = 1;
       int buy_vol = base_vol * static_cast<int>(action["action"_][8]);
       int sell_vol = base_vol * static_cast<int>(action["action"_][9]);
       adaptor_ptr->quote(buy_spread, sell_spread, buy_vol, sell_vol);
@@ -193,7 +193,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
 
   void WriteState() {
     auto data = adaptor_ptr->getState();
-    State state = Allocate(1);
+    State state = Allocate();
 
     if (!isDone) {
       assert(data.size() == 98*2);
@@ -215,10 +215,10 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     auto avg_sell_price = static_cast<float>(info["average_sell_price"]);
     auto pnl = info["realized_pnl"] - previous_rpnl; 
     auto upnl = info["unrealized_pnl"]- previous_upnl;
-    auto leverage = info["leverage"];
-    state["reward"_] = (previous_fees - info["fees"]) + pnl + upnl -0.001 * std::max(0., std::abs(leverage) - 1);
+    state["reward"_] = (previous_fees - info["fees"]) + pnl + upnl;
     state["reward"_] += 0.001 * (avg_sell_price - avg_buy_price) / (avg_buy_price + avg_sell_price + 1); 
 
+    std::cout << "Env ID:" << env_id_ << "   balance:" << info["balance"] << std::endl;
     if (isDone) return;
     previous_rpnl = info["realized_pnl"];
     previous_upnl = info["unrealized_pnl"];

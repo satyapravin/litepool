@@ -36,7 +36,7 @@ bool SimExchange::initialize() {
 void SimExchange::toBook(const std::unordered_map<std::string, double>& lob, OrderBook& book)  {
 	int ii = 0;
 	for(const auto & bid_price_label : bid_price_labels) {
-		if (lob.contains(bid_price_label)) {
+		if (lob.find(bid_price_label) != lob.end()) {
 			book.bid_prices[ii] = lob.at(SimExchange::bid_price_labels[ii]);
 			book.ask_prices[ii] = lob.at(SimExchange::ask_price_labels[ii]);
 			book.bid_sizes[ii]= lob.at(SimExchange::bid_size_labels[ii]);

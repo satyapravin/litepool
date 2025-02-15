@@ -1,5 +1,5 @@
 #pragma once
-
+#include <cstdint>
 #include <array>
 #include <boost/beast/http/impl/field.ipp>
 

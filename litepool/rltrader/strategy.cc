@@ -21,8 +21,8 @@ void Strategy::reset() {
 	double initQty = 0;
 	double avgPrice = 0;
 	this->exchange.fetchPosition(initQty, avgPrice);
-        std::cout << "initial quantity=" << initQty << std::endl;
-        std::cout << "initial price=" << avgPrice << std::endl;
+        //std::cout << "initial quantity=" << initQty << std::endl;
+        //std::cout << "initial price=" << avgPrice << std::endl;
 	this->position.reset(initQty, avgPrice);
 	this->order_id = 0;
 }
@@ -41,9 +41,9 @@ void Strategy::quote(int buy_spread, int sell_spread, int buy_percent, int sell_
         buy_spread = std::max(0, buy_spread + skew);
         sell_spread = std::max(0, sell_spread - skew);
 
-        if (buy_volume > 0 && buy_spread >= 0)
+        if (buy_volume > 0 && buy_spread >= 0 && buy_spread < 20)
         	this->sendGrid(1, buy_spread, buy_volume, OrderSide::BUY, bid_prices);
-        if (sell_volume > 0 && sell_spread >= 0)
+        if (sell_volume > 0 && sell_spread >= 0 && sell_spread < 20)
         	this->sendGrid(1, sell_spread, sell_volume, OrderSide::SELL, ask_prices);
 }
 
