@@ -132,7 +132,6 @@ class LitePoolMixin(ABC):
         
         while retry_count < max_retries:
             state_list = self._recv()
-            
             # Validate received state
             if state_list and len(state_list) > 0 and all(arr is not None and arr.size > 0 for arr in state_list):
                 break

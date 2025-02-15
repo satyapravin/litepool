@@ -23,7 +23,7 @@
 #include <thread>
 #include <utility>
 #include <vector>
-
+#include <iostream>
 #include <threadpool/ThreadPool.h>
 #include "litepool/core/action_buffer_queue.h"
 #include "litepool/core/array.h"
@@ -167,6 +167,7 @@ class AsyncLitePool : public LitePool<typename Env::Spec> {
     }
     auto start = std::chrono::system_clock::now();
     auto ret = state_buffer_queue_->Wait(additional_wait);
+
     dur_recv_ += std::chrono::system_clock::now() - start;
     if (is_sync_) {
       stepping_env_num_ -= ret[0].Shape(0);

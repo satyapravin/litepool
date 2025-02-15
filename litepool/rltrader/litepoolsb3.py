@@ -111,7 +111,8 @@ class VecAdapter(VecEnvWrapper):
 
   def step_wait(self) -> VecEnvStepReturn:
       obs, rewards, terms, truncs, info_dict = self.venv.recv()
-      print(rewards)
+      print("OBS", obs)
+      print("INfo", info_dict)
       if (np.isnan(obs).any() or np.isinf(obs).any()):
           print("NaN in OBS...................")
 
@@ -165,7 +166,7 @@ class VecAdapter(VecEnvWrapper):
                   self.sells = [] 
                   self.header = False
                   self.header = dones[i]
-                  print("id ", i,  " steps ", self.steps, 'balance=',infos[i]['balance'] - infos[i]['fees'], "  unreal=", infos[i]['unrealized_pnl'], 
+          print("id ", infos[i]["env_id"],  " steps ", self.steps, 'balance=',infos[i]['balance'] - infos[i]['fees'], "  unreal=", infos[i]['unrealized_pnl'], 
                     " real=", infos[i]['realized_pnl'], '    drawdown=', infos[i]['drawdown'], '     fees=', infos[i]['fees'], 
                     ' leverage=', infos[i]['leverage'])
       self.steps += 1

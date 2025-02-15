@@ -55,18 +55,18 @@ class RlTraderEnvFns {
 
   template <typename Config>
   static decltype(auto) StateSpec(const Config& conf) {
-    return MakeDict("obs"_.Bind(Spec<float>({98*2})),
-                    "info:mid_price"_.Bind(Spec<float>({})),
-                    "info:balance"_.Bind(Spec<float>({})),
-                    "info:unrealized_pnl"_.Bind(Spec<float>({})),
-                    "info:realized_pnl"_.Bind(Spec<float>({})),
-                    "info:leverage"_.Bind(Spec<float>({})),
-                    "info:trade_count"_.Bind(Spec<float>({})),
-                    "info:inventory_drawdown"_.Bind(Spec<float>({})), // NOLINT(*-static-accessed-through-instance)
-                    "info:drawdown"_.Bind(Spec<float>({})),
-                    "info:fees"_.Bind((Spec<float>({}))),
-                    "info:buy_amount"_.Bind((Spec<float>({}))),
-                    "info:sell_amount"_.Bind((Spec<float>({}))));
+    return MakeDict("obs"_.Bind(Spec<float>({196})),
+                    "info:mid_price"_.Bind(Spec<float>(-1)),
+                    "info:balance"_.Bind(Spec<float>({1})),
+                    "info:unrealized_pnl"_.Bind(Spec<float>({1})),
+                    "info:realized_pnl"_.Bind(Spec<float>({1})),
+                    "info:leverage"_.Bind(Spec<float>({1})),
+                    "info:trade_count"_.Bind(Spec<float>({1})),
+                    "info:inventory_drawdown"_.Bind(Spec<float>({1})),
+                    "info:drawdown"_.Bind(Spec<float>({1})),
+                    "info:fees"_.Bind((Spec<float>({1}))),
+                    "info:buy_amount"_.Bind((Spec<float>({1}))),
+                    "info:sell_amount"_.Bind((Spec<float>({1}))));
   }
 
   template <typename Config>
@@ -200,16 +200,16 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     }
 
     auto info = adaptor_ptr->getInfo();
-    state["info:mid_price"_] = static_cast<float>(info["mid_price"]);
-    state["info:balance"_] = static_cast<float>(info["balance"]);
-    state["info:unrealized_pnl"_] = static_cast<float>(info["unrealized_pnl"]);
-    state["info:realized_pnl"_] = static_cast<float>(info["realized_pnl"]);
-    state["info:leverage"_] = static_cast<float>(info["leverage"]);
-    state["info:trade_count"_] = static_cast<float>(info["trade_count"]);
-    state["info:drawdown"_] = static_cast<float>(info["drawdown"]);
-    state["info:fees"_] = static_cast<float>(info["fees"]);
-    state["info:buy_amount"_] = static_cast<float>(info["buy_amount"]);
-    state["info:sell_amount"_] = static_cast<float>(info["sell_amount"]);
+    state["info:mid_price"_](0) = static_cast<float>(info["mid_price"]);
+    state["info:balance"_](0) = static_cast<float>(info["balance"]);
+    state["info:unrealized_pnl"_](0) = static_cast<float>(info["unrealized_pnl"]);
+    state["info:realized_pnl"_](0) = static_cast<float>(info["realized_pnl"]);
+    state["info:leverage"_](0) = static_cast<float>(info["leverage"]);
+    state["info:trade_count"_](0) = static_cast<float>(info["trade_count"]);
+    state["info:drawdown"_](0) = static_cast<float>(info["drawdown"]);
+    state["info:fees"_](0) = static_cast<float>(info["fees"]);
+    state["info:buy_amount"_](0) = static_cast<float>(info["buy_amount"]);
+    state["info:sell_amount"_](0) = static_cast<float>(info["sell_amount"]);
 
     auto avg_buy_price = static_cast<float>(info["average_buy_price"]);
     auto avg_sell_price = static_cast<float>(info["average_sell_price"]);
@@ -218,7 +218,6 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     state["reward"_] = (previous_fees - info["fees"]) + pnl + upnl;
     state["reward"_] += 0.001 * (avg_sell_price - avg_buy_price) / (avg_buy_price + avg_sell_price + 1); 
 
-    std::cout << "Env ID:" << env_id_ << "   balance:" << info["balance"] << std::endl;
     if (isDone) return;
     previous_rpnl = info["realized_pnl"];
     previous_upnl = info["unrealized_pnl"];

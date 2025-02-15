@@ -58,6 +58,7 @@ void EnvAdaptor::reset() {
     trade_builder = std::move(trade_ptr);
     this->strategy.reset();
     this->state.assign(98*2, 0);
+    this->info.clear();
 }
 
 
