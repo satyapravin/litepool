@@ -49,48 +49,17 @@ public:
         alloc_count_.store(0, std::memory_order_release);
     }
 
-    WritableSlice Allocate(std::size_t num_players, int order = -1) {
-        if (num_players > max_num_players_) {
-            throw std::runtime_error("Number of players exceeds maximum");
+    void Allocate(size_t slot, int batch_size) {
+        CHECK_LT(slot, 0xffffffffffff) << "Slot index out of bounds";
+        CHECK_GT(batch_size, 0) << "Batch size must be positive";
+
+        // Ensure array has sufficient size before slicing
+        if (array_.Shape(0) < batch_size) {
+            array_ = Array(ShapeSpec(array_.element_size, {batch_size}));
         }
 
-        std::size_t alloc_count = alloc_count_.fetch_add(1, std::memory_order_acq_rel);
-        if (alloc_count >= batch_) {
-            alloc_count_.fetch_sub(1, std::memory_order_release);
-            throw std::runtime_error("StateBuffer allocation failed - buffer full");
-        }
-
-        std::lock_guard<std::mutex> lock(buffer_mutex_);
-        uint64_t increment = static_cast<uint64_t>(num_players) << 32 | 1;
-        uint64_t offsets = offsets_.fetch_add(increment, std::memory_order_acq_rel);
-        uint32_t player_offset = offsets >> 32;
-        uint32_t shared_offset = offsets & 0xFFFFFFFF;
-
-        if (shared_offset >= batch_ || player_offset + num_players > batch_ * max_num_players_) {
-            throw std::runtime_error("Buffer overflow detected");
-        }
-
-        if (order != -1 && max_num_players_ == 1) {
-            player_offset = shared_offset = order;
-        }
-
-        std::vector<Array> state;
-        state.reserve(arrays_.size());
-
-        for (std::size_t i = 0; i < arrays_.size(); ++i) {
-            if (is_player_state_[i]) {
-                state.emplace_back(arrays_[i].Slice(player_offset, player_offset + num_players));
-            } else {
-                state.emplace_back(arrays_[i][shared_offset]);
-            }
-        }
-
-        return WritableSlice{
-            .arr = std::move(state),
-            .done_write = [this]() { Done(); }
-        };
+        buffer_[slot] = array_.Slice(0, batch_size);
     }
-
     void Done(std::size_t num = 1) {
         std::size_t prev_done = done_count_.fetch_add(num, std::memory_order_acq_rel);
         if (prev_done + num >= batch_) {
@@ -142,6 +111,7 @@ public:
             static_cast<uint32_t>(offs & 0xFFFFFFFF)
         };
     }
+
 };
 
 #endif  // LITEPOOL_CORE_STATE_BUFFER_H_

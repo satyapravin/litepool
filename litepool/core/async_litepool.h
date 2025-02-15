@@ -45,7 +45,7 @@ public:
     using Spec = typename Env::Spec;
     using Action = typename Env::Action;
     using State = typename Env::State;
-    using ActionSlice = typename ActionBufferQueue::ActionSlice;
+    using ActionSlice = ActionBufferQueue::ActionSlice;
 
     explicit AsyncLitePool(const Spec& spec)
         : LitePool<Spec>(spec)
@@ -71,7 +71,7 @@ public:
             std::lock_guard<std::mutex> lock(env_mutexes_[i]);
             try {
                 envs_[i] = std::make_unique<Env>(spec, i);
-                initialized_envs_++;
+                ++initialized_envs_;
             } catch (const std::exception& e) {
                 LOG(ERROR) << "Failed to initialize environment " << i << ": " << e.what();
                 throw;
@@ -164,6 +164,14 @@ protected:
     void SendImpl(V&& action) {
         int* env_id = static_cast<int*>(action[0].Data());
         int shared_offset = action[0].Shape(0);
+
+        // Validate array dimensions
+        for (const auto& arr : action) {
+            if (arr.Shape(0) < shared_offset) {
+                throw std::runtime_error("Action array dimension mismatch");
+            }
+        }
+
         std::vector<ActionSlice> actions;
         actions.reserve(shared_offset);
 
@@ -202,11 +210,7 @@ protected:
         action_buffer_queue_->EnqueueBulk(actions);
     }
 
-public:
-    void Send(const Action& action) {
-        SendImpl(action.template AllValues<Array>());
-    }
-
+protected:
     void Send(const std::vector<Array>& action) override {
         SendImpl(action);
     }
@@ -214,47 +218,56 @@ public:
     void Send(std::vector<Array>&& action) override {
         SendImpl(std::move(action));
     }
+public:
+    void Send(const Action& action) override {
+        SendImpl(action.template AllValues<Array>());
+    }
 
 // In async_litepool.h
 
-void Reset(const Array& env_ids) override {
-    TArray<int> tenv_ids(env_ids);
-    int shared_offset = tenv_ids.Shape(0);
-    std::vector<ActionSlice> actions;
-    actions.reserve(shared_offset);
+    void Reset(const Array& env_ids) override {
+        TArray<int> tenv_ids(env_ids);
+        size_t shared_offset = tenv_ids.Shape(0);
 
-    // Initialize environment states first
-    for (int i = 0; i < shared_offset; ++i) {
-        int eid = tenv_ids[i];
-        if (eid < 0 || static_cast<size_t>(eid) >= num_envs_) {
-            throw std::runtime_error("Invalid environment ID in reset: " + std::to_string(eid));
-        }
+        // First clear any existing state
+        state_buffer_queue_->Clear();
 
-        // Initialize the environment synchronously
-        {
-            std::lock_guard<std::mutex> lock(env_mutexes_[eid]);
-            if (!envs_[eid]) {
-                throw std::runtime_error("Environment not initialized: " + std::to_string(eid));
+        std::vector<ActionSlice> actions;
+        actions.reserve(shared_offset);
+
+        // Pre-allocate state buffer slots
+        state_buffer_queue_->EnsureCapacity(shared_offset);
+
+        // Initialize environment states
+        for (int i = 0; i < shared_offset; ++i) {
+            int eid = tenv_ids[i];
+            if (eid < 0 || static_cast<size_t>(eid) >= num_envs_) {
+                throw std::runtime_error("Invalid environment ID in reset: " + std::to_string(eid));
             }
-            // Initialize the state buffer directly
-            envs_[eid]->EnvStep(state_buffer_queue_.get(), i, true);
+
+            {
+                std::lock_guard<std::mutex> lock(env_mutexes_[eid]);
+                if (!envs_[eid]) {
+                    throw std::runtime_error("Environment not initialized: " + std::to_string(eid));
+                }
+                // Allocate new state buffer before initializing
+                size_t slot = state_buffer_queue_->AllocateSlot();
+                envs_[eid]->EnvStep(state_buffer_queue_.get(), slot, true);
+            }
+
+            actions.emplace_back(ActionSlice{
+                .env_id = eid,
+                .order = is_sync_ ? i : -1,
+                .force_reset = true,
+            });
         }
 
-        actions.emplace_back(ActionSlice{
-            .env_id = eid,
-            .order = is_sync_ ? i : -1,
-            .force_reset = true,
-        });
-    }
+        if (is_sync_) {
+            stepping_env_num_ += shared_offset;
+        }
 
-    if (is_sync_) {
-        stepping_env_num_ += shared_offset;
+        action_buffer_queue_->EnqueueBulk(actions);
     }
-    
-    // Queue the reset actions for subsequent steps
-    action_buffer_queue_->EnqueueBulk(actions);
-}
-
 std::vector<Array> Recv() override {
     int additional_wait = 0;
     if (is_sync_ && stepping_env_num_ < batch_) {
