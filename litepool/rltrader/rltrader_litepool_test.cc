@@ -145,6 +145,6 @@ void Runner(int num_envs, int batch, int seed, int total_iter, int num_threads) 
 
 TEST(RlTraderLitePoolTest, SinglePlayer) {
   Runner(1, 1, 20, 100, 1);
-  Runner(3, 1, 22, 1000, 3);
-  Runner(12, 3, 21, 1000, 9);
+  Runner(3, 3, 22, 1000, 3);
+  Runner(12, 12, 21, 1000, 122);
 }

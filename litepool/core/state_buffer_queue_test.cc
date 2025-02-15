@@ -19,7 +19,7 @@
 
 #include <random>
 
-#include "ThreadPool.h"
+#include <threadpool/ThreadPool.h>
 
 TEST(StateBufferQueueTest, Basic) {
   std::vector<ShapeSpec> specs{ShapeSpec(1, {10, 2, 4}),
@@ -97,25 +97,30 @@ TEST(StateBufferQueueTest, SinglePlayerSync) {
 }
 
 TEST(StateBufferQueueTest, NumPlayers) {
-  std::vector<ShapeSpec> specs{ShapeSpec(1, {-1, 2, 4}),
-                               ShapeSpec(4, {1, 2, 2})};
-  std::size_t batch = 32;
-  std::size_t num_envs = 500;
-  std::size_t max_num_players = 10;
-  StateBufferQueue queue(batch, num_envs, max_num_players, specs);
-  std::srand(std::time(nullptr));
-  std::size_t size = 0;
-  for (std::size_t i = 0; i < batch; ++i) {
-    std::size_t num_players = 1 + std::rand() % max_num_players;
-    auto slice = queue.Allocate(num_players);
-    slice.done_write();
-    EXPECT_EQ(slice.arr[0].Shape(0), num_players);
-    EXPECT_EQ(slice.arr[1].Shape(0), 1);
-    size += num_players;
-  }
-  std::vector<Array> out = queue.Wait(batch * max_num_players - size);
-  EXPECT_EQ(out[0].Shape(0), size);
-  EXPECT_EQ(out[1].Shape(0), batch);
+    std::vector<ShapeSpec> specs{ShapeSpec(1, {-1, 2, 4}),
+                                 ShapeSpec(4, {1, 2, 2})};
+    std::size_t batch = 32;
+    std::size_t num_envs = 500;
+    std::size_t max_num_players = 10;
+    StateBufferQueue queue(batch, num_envs, max_num_players, specs);
+    std::srand(std::time(nullptr));
+    std::size_t size = 0;
+
+    for (std::size_t i = 0; i < batch; ++i) {
+        std::size_t num_players = 1 + std::rand() % max_num_players;
+        auto slice = queue.Allocate(num_players);
+        slice.done_write();
+        EXPECT_EQ(slice.arr[0].Shape(0), num_players);
+        EXPECT_EQ(slice.arr[1].Shape(0), 1);
+        size += num_players;
+    }
+
+    // Ensure additional_done_count is valid
+    std::size_t additional_done_count = (batch * max_num_players > size) ? (batch * max_num_players - size) : 0;
+    std::vector<Array> out = queue.Wait(additional_done_count);
+
+    EXPECT_EQ(out[0].Shape(0), size);
+    EXPECT_EQ(out[1].Shape(0), batch);
 }
 
 TEST(StateBufferQueueTest, MultipleTimes) {

@@ -135,25 +135,35 @@ class StateBuffer {
    * distributed out, and all user has called done.
    */
   std::vector<Array> Wait(std::size_t additional_done_count = 0) {
-    if (additional_done_count > 0) {
-      Done(additional_done_count);
+    // Validate additional_done_count
+    if (additional_done_count > batch_) {
+        throw std::invalid_argument("additional_done_count exceeds batch size");
     }
+
+    if (additional_done_count > 0) {
+        Done(additional_done_count);
+    }
+
     while (!sem_.wait()) {
     }
-    // when things are all done, compact the buffer.
+
+    // Compact the buffer
     uint64_t offsets = offsets_;
     uint32_t player_offset = (offsets >> 32);
     uint32_t shared_offset = offsets;
+
+    // Ensure shared_offset is valid
     DCHECK_EQ((std::size_t)shared_offset, batch_ - additional_done_count);
+
     std::vector<Array> ret;
     ret.reserve(arrays_.size());
     for (std::size_t i = 0; i < arrays_.size(); ++i) {
-      const Array& a = arrays_[i];
-      if (is_player_state_[i]) {
-        ret.emplace_back(a.Truncate(player_offset));
-      } else {
-        ret.emplace_back(a.Truncate(shared_offset));
-      }
+        const Array& a = arrays_[i];
+        if (is_player_state_[i]) {
+            ret.emplace_back(a.Truncate(player_offset));
+        } else {
+            ret.emplace_back(a.Truncate(shared_offset));
+        }
     }
     return ret;
   }

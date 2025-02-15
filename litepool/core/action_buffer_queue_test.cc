@@ -22,7 +22,7 @@
 #include <tuple>
 #include <utility>
 
-#include "ThreadPool.h"
+#include <threadpool/ThreadPool.h>
 #include "litepool/core/dict.h"
 #include "litepool/core/spec.h"
 

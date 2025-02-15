@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-#include "ThreadPool.h"
+#include <threadpool/ThreadPool.h>
 #include "litepool/core/action_buffer_queue.h"
 #include "litepool/core/array.h"
 #include "litepool/core/litepool.h"

@@ -193,7 +193,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
 
   void WriteState() {
     auto data = adaptor_ptr->getState();
-    State state = Allocate();
+    State state = Allocate(1);
 
     if (!isDone) {
       assert(data.size() == 98*2);

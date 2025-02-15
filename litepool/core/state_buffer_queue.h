@@ -58,7 +58,7 @@ class StateBufferQueue {
                                              s.shape[0] == -1);
                                    })),
         specs_(Transform(specs,
-                         [=](ShapeSpec s) {
+                         [this](ShapeSpec s) {
                            if (!s.shape.empty() && s.shape[0] == -1) {
                              // If first dim is num_players
                              s.shape[0] = batch_ * max_num_players_;

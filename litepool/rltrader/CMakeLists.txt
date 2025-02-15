@@ -80,5 +80,7 @@ target_link_libraries(rltrader_litepool PUBLIC OpenSSL::SSL OpenSSL::Crypto Boos
                                         PRIVATE glog -lstdc++fs nlohmann_json::nlohmann_json)
 target_link_libraries(rltradertest PUBLIC OpenSSL::SSL OpenSSL::Crypto Boost::system Threads::Threads
                                    PRIVATE GTest::GTest GTest::Main gflags gmock glog -lstdc++fs nlohmann_json::nlohmann_json)
+target_link_libraries(test_sim PUBLIC OpenSSL::SSL OpenSSL::Crypto Boost::system Threads::Threads
+                                   PRIVATE GTest::GTest GTest::Main gflags gmock glog -lstdc++fs nlohmann_json::nlohmann_json)
 include(GoogleTest)
 gtest_discover_tests(rltradertest)
