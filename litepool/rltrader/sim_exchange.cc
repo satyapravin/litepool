@@ -124,7 +124,7 @@ void SimExchange::market(std::string order_id, OrderSide side, const double &pri
 	order.price = price;
 	order.side = side;
 	order.state = OrderState::NEW;
-	this->addToBuffer(order);
+        this->addToBuffer(order);
 }
 
 

@@ -85,14 +85,6 @@ class VecAdapter(VecEnvWrapper):
   def __init__(self, venv: LitePool):
     venv.num_envs = venv.spec.config.num_envs
     super().__init__(venv=venv)
-    self.mid_prices = []
-    self.balances = []
-    self.leverages = []
-    self.trades = []
-    self.fees = []
-    self.buys = []
-    self.sells = []
-    self.upnl = []
     self.steps = 0
     self.header = True
     self.action_env_ids = np.arange(self.venv.num_envs, dtype=np.int32)
@@ -111,8 +103,6 @@ class VecAdapter(VecEnvWrapper):
 
   def step_wait(self) -> VecEnvStepReturn:
       obs, rewards, terms, truncs, info_dict = self.venv.recv()
-      print("OBS", obs)
-      print("INfo", info_dict)
       if (np.isnan(obs).any() or np.isinf(obs).any()):
           print("NaN in OBS...................")
 
@@ -129,46 +119,16 @@ class VecAdapter(VecEnvWrapper):
               if isinstance(info_dict[key], np.ndarray)
           })
 
-          if True:
-              self.mid_prices.append(infos[i]['mid_price'])
-              self.balances.append(infos[i]['balance'])
-              self.upnl.append(infos[i]['unrealized_pnl'])
-              self.leverages.append(infos[i]['leverage'])
-              self.trades.append(infos[i]['trade_count'])
-              self.fees.append(infos[i]['fees'])
-              self.buys.append(infos[i]['buy_amount'])
-              self.sells.append(infos[i]['sell_amount']) 
-           
+
+          if self.steps % 500  == 0 or dones[i]:
+              print("id:{0}, steps:{1}, fees:{2:.8f}, balance:{3:.6f}, unreal:{4:.8f}, real:{5:.8f}, drawdown:{6:.8f}, leverage:{7:.4f}".format(
+                    infos[i]["env_id"],  self.steps, infos[i]['fees'], infos[i]['balance'] - infos[i]['fees'], infos[i]['unrealized_pnl'], 
+                    infos[i]['realized_pnl'], infos[i]['drawdown'], infos[i]['leverage']))
+          
           if dones[i]:
               infos[i]["terminal_observation"] = obs[i]
               obs[i] = self.venv.reset(np.array([i]))[0]
 
-          if self.steps % 1 == 0 or dones[i]:
-              if infos[i]["env_id"] == 0:
-                  d = {"mid": self.mid_prices, "balance": self.balances, "upnl" : self.upnl, 
-                       "leverage": self.leverages, "trades": self.trades, "fees": self.fees,
-                       "buy_amount": self.buys, "sell_amount": self.sells } 
-                  df = pd.DataFrame(d)
-
-                  if self.header:
-                       df.to_csv("temp.csv", header=self.header, index=False) 
-                       self.header=False
-                  else:
-                       df.to_csv("temp.csv", mode='a', header=False, index=False)
-
-                  self.mid_prices = []
-                  self.balances = []
-                  self.upnl = []
-                  self.leverages = []
-                  self.trades = []
-                  self.fees = []
-                  self.buys = []
-                  self.sells = [] 
-                  self.header = False
-                  self.header = dones[i]
-          print("id ", infos[i]["env_id"],  " steps ", self.steps, 'balance=',infos[i]['balance'] - infos[i]['fees'], "  unreal=", infos[i]['unrealized_pnl'], 
-                    " real=", infos[i]['realized_pnl'], '    drawdown=', infos[i]['drawdown'], '     fees=', infos[i]['fees'], 
-                    ' leverage=', infos[i]['leverage'])
       self.steps += 1
       return obs, rewards, dones, infos
 
@@ -176,8 +136,8 @@ import os
 if os.path.exists('temp.csv'):
     os.remove('temp.csv')
 env = litepool.make("RlTrader-v0", env_type="gymnasium", 
-                          num_envs=2, batch_size=2,
-                          num_threads=2,
+                          num_envs=32, batch_size=32,
+                          num_threads=32,
                           is_prod=False,
                           is_inverse_instr=True,
                           api_key="",
@@ -185,12 +145,12 @@ env = litepool.make("RlTrader-v0", env_type="gymnasium",
                           symbol="BTC-PERPETUAL",
                           tick_size=0.5,
                           min_amount=10,
-                          maker_fee=-0.0000001,
+                          maker_fee=-0.0001,
                           taker_fee=0.0005,
                           foldername="./train_files/", 
                           balance=0.01,
                           start=100000,
-                          max=720001)
+                          max=36001)
 
 env.spec.id = 'RlTrader-v0'
 
@@ -234,6 +194,6 @@ else:
                 verbose=1,
                 device=device)
 
-model.learn(700000 * 10, callback=ResetHiddenStateCallback())
+model.learn(700000 * 100, callback=ResetHiddenStateCallback())
 model.save("sac_rltrader")
 model.save_replay_buffer("replay_buffer.pkl")

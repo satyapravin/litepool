@@ -5,7 +5,6 @@ import numpy as np
 import torch as th
 import torch.nn as nn
 from packaging import version
-from sb3_contrib import RecurrentPPO
 from stable_baselines3 import SAC, PPO
 from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.common.env_util import make_vec_env
@@ -151,7 +150,7 @@ env = litepool.make("RlTrader-v0", env_type="gymnasium",
                           min_amount=10,
                           maker_fee=-0.0001,
                           taker_fee=0.0005,
-                          foldername="./testfiles/",
+                          foldername="./test_files/",
                           balance=0.01,
                           start=1,
                           max=72000001)

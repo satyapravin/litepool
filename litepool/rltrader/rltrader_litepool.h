@@ -43,10 +43,10 @@ class RlTraderEnvFns {
                     "api_secret"_.Bind(std::string("")),
                     "is_inverse_instr"_.Bind<bool>(true),
                     "symbol"_.Bind((std::string(""))),
-                    "tick_size"_.Bind<float>(0.5),
-                    "min_amount"_.Bind<float>(10.0),
-                    "maker_fee"_.Bind<float>(-0.0001),
-                    "taker_fee"_.Bind<float>(0.0005),
+                    "tick_size"_.Bind<double>(0.5),
+                    "min_amount"_.Bind<double>(10.0),
+                    "maker_fee"_.Bind<double>(-0.0001),
+                    "taker_fee"_.Bind<double>(0.0005),
                     "foldername"_.Bind(std::string("./train_files/")),
                     "balance"_.Bind(1.0),
                     "start"_.Bind<int>(0),
@@ -55,24 +55,24 @@ class RlTraderEnvFns {
 
   template <typename Config>
   static decltype(auto) StateSpec(const Config& conf) {
-    return MakeDict("obs"_.Bind(Spec<float>({196})),
-                    "info:mid_price"_.Bind(Spec<float>(-1)),
-                    "info:balance"_.Bind(Spec<float>(-1)),
-                    "info:unrealized_pnl"_.Bind(Spec<float>(-1)),
-                    "info:realized_pnl"_.Bind(Spec<float>(-1)),
-                    "info:leverage"_.Bind(Spec<float>(-1)),
-                    "info:trade_count"_.Bind(Spec<float>(-1)),
-                    "info:inventory_drawdown"_.Bind(Spec<float>(-1)),
-                    "info:drawdown"_.Bind(Spec<float>(-1)),
-                    "info:fees"_.Bind((Spec<float>(-1))),
-                    "info:buy_amount"_.Bind((Spec<float>(-1))),
-                    "info:sell_amount"_.Bind((Spec<float>(-1))));
+    return MakeDict("obs"_.Bind(Spec<double>({196})),
+                    "info:mid_price"_.Bind(Spec<double>({-1})),
+                    "info:balance"_.Bind(Spec<double>({-1})),
+                    "info:unrealized_pnl"_.Bind(Spec<double>({-1})),
+                    "info:realized_pnl"_.Bind(Spec<double>({-1})),
+                    "info:leverage"_.Bind(Spec<double>({-1})),
+                    "info:trade_count"_.Bind(Spec<double>({-1})),
+                    "info:inventory_drawdown"_.Bind(Spec<double>({-1})),
+                    "info:drawdown"_.Bind(Spec<double>({-1})),
+                    "info:fees"_.Bind((Spec<double>({-1}))),
+                    "info:buy_amount"_.Bind((Spec<double>({-1}))),
+                    "info:sell_amount"_.Bind((Spec<double>({-1}))));
   }
 
   template <typename Config>
   static decltype(auto) ActionSpec(const Config& conf) {
-    return MakeDict("action"_.Bind(Spec<float>({10}, {{-1., -1., -1., -1., -1., -1., -1., -1., 1, 1},
-                                                      { 1.,  1.,  1.,  1.,  1.,  1.,  1.,  1., 3, 3}})));
+    return MakeDict("action"_.Bind(Spec<double>({4}, {{-1., -1., -1., -1},
+                                                      { 1.,  1.,  1.,  1.}})));
   }
 };
 
@@ -81,7 +81,7 @@ using RlTraderEnvSpec = EnvSpec<RlTraderEnvFns>;
 
 class RlTraderEnv : public Env<RlTraderEnvSpec> {
  protected:
-  int spreads[4] = {0, 3, 8, 16};
+  int spreads[4] = {0, 5};
   int state_{0};
   bool isDone = true;
   bool is_prod = false;
@@ -98,6 +98,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   int start_read = 0;
   int max_read = 0;
   long long steps = 0;
+  double previous_diff = 0;
   double previous_rpnl = 0;
   double previous_upnl = 0;
   double previous_fees = 0;
@@ -150,6 +151,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
 
   void Reset() override {
     steps = 0;
+    previous_diff = 0;
     previous_rpnl = 0;
     previous_upnl = 0;
     previous_fees = 0;
@@ -165,64 +167,61 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
 
 
   void Step(const Action& action) override {
-      std::vector<double> buyActionLogits { static_cast<float>(action["action"_][0]),
-                                            static_cast<float>(action["action"_][1]),
-                                            static_cast<float>(action["action"_][2]),
-                                            static_cast<float>(action["action"_][3]),
+      std::vector<double> buyActionLogits { static_cast<double>(action["action"_][0]),
+                                            static_cast<double>(action["action"_][1]),
                                           };
 
-      std::vector<double> sellActionLogits { static_cast<float>(action["action"_][4]),
-                                             static_cast<float>(action["action"_][5]),
-                                             static_cast<float>(action["action"_][6]),
-                                             static_cast<float>(action["action"_][7]),
+      std::vector<double> sellActionLogits { static_cast<double>(action["action"_][2]),
+                                             static_cast<double>(action["action"_][3]),
                                            };
 
       auto buy_action = select_action(buyActionLogits);
       auto sell_action = select_action(sellActionLogits);
       auto buy_spread = spreads[buy_action];
       auto sell_spread = spreads[sell_action];
-      int base_vol = 1;
-      int buy_vol = base_vol * static_cast<int>(action["action"_][8]);
-      int sell_vol = base_vol * static_cast<int>(action["action"_][9]);
-      adaptor_ptr->quote(buy_spread, sell_spread, buy_vol, sell_vol);
-      auto info = adaptor_ptr->getInfo();
+      int base_vol = 10;
+      adaptor_ptr->quote(buy_spread, sell_spread, base_vol, base_vol);
       isDone = !adaptor_ptr->next();
       ++steps;
       WriteState();
   }
 
   void WriteState() {
-    auto data = adaptor_ptr->getState();
+    std::array<double, 196> data;
+    adaptor_ptr->getState(data);
     State state = Allocate(1);
 
     if (!isDone) {
       assert(data.size() == 98*2);
     }
+    
+    std::unordered_map<std::string, double> info;
+    adaptor_ptr->getInfo(info);
+    state["info:mid_price"_] = static_cast<double>(info["mid_price"]);
+    state["info:balance"_] = static_cast<double>(info["balance"]);
+    state["info:unrealized_pnl"_] = static_cast<double>(info["unrealized_pnl"]);
+    state["info:realized_pnl"_] = static_cast<double>(info["realized_pnl"]);
+    state["info:leverage"_] = static_cast<double>(info["leverage"]);
+    state["info:trade_count"_] = static_cast<double>(info["trade_count"]);
+    state["info:drawdown"_] = static_cast<double>(info["drawdown"]);
+    state["info:fees"_] = static_cast<double>(info["fees"]);
+    state["info:buy_amount"_] = static_cast<double>(info["buy_amount"]);
+    state["info:sell_amount"_] = static_cast<double>(info["sell_amount"]);
 
-    auto info = adaptor_ptr->getInfo();
-    state["info:mid_price"_](0) = static_cast<float>(info["mid_price"]);
-    state["info:balance"_](0) = static_cast<float>(info["balance"]);
-    state["info:unrealized_pnl"_](0) = static_cast<float>(info["unrealized_pnl"]);
-    state["info:realized_pnl"_](0) = static_cast<float>(info["realized_pnl"]);
-    state["info:leverage"_](0) = static_cast<float>(info["leverage"]);
-    state["info:trade_count"_](0) = static_cast<float>(info["trade_count"]);
-    state["info:drawdown"_](0) = static_cast<float>(info["drawdown"]);
-    state["info:fees"_](0) = static_cast<float>(info["fees"]);
-    state["info:buy_amount"_](0) = static_cast<float>(info["buy_amount"]);
-    state["info:sell_amount"_](0) = static_cast<float>(info["sell_amount"]);
+    auto avg_buy_price = static_cast<double>(info["average_buy_price"]);
+    auto avg_sell_price = static_cast<double>(info["average_sell_price"]);
 
-    auto avg_buy_price = static_cast<float>(info["average_buy_price"]);
-    auto avg_sell_price = static_cast<float>(info["average_sell_price"]);
     auto pnl = info["realized_pnl"] - previous_rpnl; 
     auto upnl = info["unrealized_pnl"]- previous_upnl;
     state["reward"_] = (previous_fees - info["fees"]) + pnl + upnl;
-    state["reward"_] += 0.001 * (avg_sell_price - avg_buy_price) / (avg_buy_price + avg_sell_price + 1); 
-
-    if (isDone) return;
+    auto diff =  (avg_sell_price - avg_buy_price) / (avg_buy_price + avg_sell_price + 1); 
+    state["reward"_] += diff - previous_diff;
+    previous_diff = diff; 
     previous_rpnl = info["realized_pnl"];
     previous_upnl = info["unrealized_pnl"];
     previous_fees = info["fees"];
     state["obs"_].Assign(data.begin(), data.size());
+    if (isDone) return;
   }
 
   bool IsDone() override { return isDone; }

@@ -31,16 +31,16 @@ auto common_config =
              "max_episode_steps"_.Bind(std::numeric_limits<int>::max()));
 // Note: this action order is hardcoded in async_litepool Send function
 // and env ParseAction function for performance
-auto common_action_spec = MakeDict("env_id"_.Bind(Spec<int>({})),
+auto common_action_spec = MakeDict("env_id"_.Bind(Spec<int>({-1})),
                                    "players.env_id"_.Bind(Spec<int>({-1})));
 // Note: this state order is hardcoded in async_litepool Recv function
 auto common_state_spec =
-    MakeDict("info:env_id"_.Bind(Spec<int>({})),
+    MakeDict("info:env_id"_.Bind(Spec<int>({-1})),
              "info:players.env_id"_.Bind(Spec<int>({-1})),
-             "elapsed_step"_.Bind(Spec<int>({})), "done"_.Bind(Spec<bool>({})),
+             "elapsed_step"_.Bind(Spec<int>({-1})), "done"_.Bind(Spec<bool>({-1})),
              "reward"_.Bind(Spec<float>({-1})),
              "discount"_.Bind(Spec<float>({-1}, std::tuple{0.0, 1.0})),
-             "step_type"_.Bind(Spec<int>({})), "trunc"_.Bind(Spec<bool>({})));
+             "step_type"_.Bind(Spec<int>({-1})), "trunc"_.Bind(Spec<bool>({-1})));
 
 /**
  * EnvSpec funciton, it constructs the env spec when a Config is passed.

@@ -47,7 +47,7 @@ TEST(RlTraderLitePoolTest, SplitZeroAction) {
   // Create arrays with proper dimensions
   raw_action.push_back(Array(Spec<int>({num_envs})));         // env_id
   raw_action.push_back(Array(Spec<int>({num_envs, 1})));      // players.env_id
-  raw_action.push_back(Array(Spec<float>({num_envs, 10})));   // action
+  raw_action.push_back(Array(Spec<double>({num_envs, 10})));   // action
 
   // Initialize players.env_id array
   for (int i = 0; i < num_envs; ++i) {
@@ -110,7 +110,7 @@ void Runner(int num_envs, int batch, int seed, int total_iter, int num_threads) 
     raw_action.clear();
     raw_action.push_back(Array(Spec<int>({num_envs})));         // env_id
     raw_action.push_back(Array(Spec<int>({num_envs, 1})));      // players.env_id
-    raw_action.push_back(Array(Spec<float>({num_envs, 10})));   // action
+    raw_action.push_back(Array(Spec<double>({num_envs, 10})));   // action
 
     // Initialize players.env_id array
     for (int i = 0; i < num_envs; ++i) {
