@@ -82,11 +82,11 @@ void EnvAdaptor::computeInfo(OrderBook &book) {
     info["leverage"] = posInfo.leverage;
     info["trade_count"] = static_cast<double>(tradeInfo.buy_trades + tradeInfo.sell_trades);
     info["drawdown"] = drawdown;
-    info["buy_amount"] = tradeInfo.buy_amount;
-    info["sell_amount"] = tradeInfo.sell_amount;
-    info["average_buy_price"] = tradeInfo.average_buy_price;
-    info["average_sell_price"] = tradeInfo.average_sell_price;
     info["fees"] = posInfo.fees;
+    info["avg_buy_price"] = tradeInfo.average_buy_price;
+    info["avg_sell_price"] = tradeInfo.average_sell_price;
+    info["avg_price"] = posInfo.averagePrice;
+    info["curr_price"] = (bid_price + ask_price) * 0.5;
 }
 
 

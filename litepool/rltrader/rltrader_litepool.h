@@ -19,6 +19,7 @@
 #include <vector>
 #include <algorithm>
 #include <iostream>
+#include <tuple>
 #include "litepool/core/async_litepool.h"
 #include "litepool/core/env.h"
 #include "env_adaptor.h"
@@ -71,8 +72,8 @@ class RlTraderEnvFns {
 
   template <typename Config>
   static decltype(auto) ActionSpec(const Config& conf) {
-    return MakeDict("action"_.Bind(Spec<double>({4}, {{-1., -1., -1., -1},
-                                                      { 1.,  1.,  1.,  1.}})));
+    std::tuple<int, int> bounds = {0, 15};
+    return MakeDict("action"_.Bind(Spec<int>({-1}, bounds)));
   }
 };
 
@@ -81,7 +82,7 @@ using RlTraderEnvSpec = EnvSpec<RlTraderEnvFns>;
 
 class RlTraderEnv : public Env<RlTraderEnvSpec> {
  protected:
-  int spreads[4] = {0, 5};
+  int spreads[4] = {0, 2, 4, 10};
   int state_{0};
   bool isDone = true;
   bool is_prod = false;
@@ -98,7 +99,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
   int start_read = 0;
   int max_read = 0;
   long long steps = 0;
-  double previous_diff = 0;
+  double previous_buy_sell_diff = 0;
   double previous_rpnl = 0;
   double previous_upnl = 0;
   double previous_fees = 0;
@@ -151,7 +152,7 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
 
   void Reset() override {
     steps = 0;
-    previous_diff = 0;
+    previous_buy_sell_diff = 0;
     previous_rpnl = 0;
     previous_upnl = 0;
     previous_fees = 0;
@@ -160,26 +161,13 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     WriteState();
   }
 
-  static u_int select_action(const std::vector<double>& logits) {
-      auto maxLogitIt = std::max_element(logits.begin(), logits.end());
-      return std::distance(logits.begin(), maxLogitIt);
-  }
-
-
-  void Step(const Action& action) override {
-      std::vector<double> buyActionLogits { static_cast<double>(action["action"_][0]),
-                                            static_cast<double>(action["action"_][1]),
-                                          };
-
-      std::vector<double> sellActionLogits { static_cast<double>(action["action"_][2]),
-                                             static_cast<double>(action["action"_][3]),
-                                           };
-
-      auto buy_action = select_action(buyActionLogits);
-      auto sell_action = select_action(sellActionLogits);
+  void Step(const Action& action_dict) override {
+      auto action = static_cast<int>(action_dict["action"_][0]);
+      int buy_action = static_cast<int>(action / 4);
+      auto sell_action = action % 4;
       auto buy_spread = spreads[buy_action];
       auto sell_spread = spreads[sell_action];
-      int base_vol = 10;
+      int base_vol = 2;
       adaptor_ptr->quote(buy_spread, sell_spread, base_vol, base_vol);
       isDone = !adaptor_ptr->next();
       ++steps;
@@ -197,26 +185,30 @@ class RlTraderEnv : public Env<RlTraderEnvSpec> {
     
     std::unordered_map<std::string, double> info;
     adaptor_ptr->getInfo(info);
-    state["info:mid_price"_] = static_cast<double>(info["mid_price"]);
-    state["info:balance"_] = static_cast<double>(info["balance"]);
-    state["info:unrealized_pnl"_] = static_cast<double>(info["unrealized_pnl"]);
-    state["info:realized_pnl"_] = static_cast<double>(info["realized_pnl"]);
-    state["info:leverage"_] = static_cast<double>(info["leverage"]);
-    state["info:trade_count"_] = static_cast<double>(info["trade_count"]);
-    state["info:drawdown"_] = static_cast<double>(info["drawdown"]);
-    state["info:fees"_] = static_cast<double>(info["fees"]);
-    state["info:buy_amount"_] = static_cast<double>(info["buy_amount"]);
-    state["info:sell_amount"_] = static_cast<double>(info["sell_amount"]);
+    state["info:mid_price"_] = info["mid_price"];
+    state["info:balance"_] = info["balance"];
+    state["info:unrealized_pnl"_] = info["unrealized_pnl"];
+    state["info:realized_pnl"_] = info["realized_pnl"];
+    state["info:leverage"_] = info["leverage"];
+    state["info:trade_count"_] = info["trade_count"];
+    state["info:drawdown"_] = info["drawdown"];
+    state["info:fees"_] = info["fees"];
 
-    auto avg_buy_price = static_cast<double>(info["average_buy_price"]);
-    auto avg_sell_price = static_cast<double>(info["average_sell_price"]);
 
     auto pnl = info["realized_pnl"] - previous_rpnl; 
     auto upnl = info["unrealized_pnl"]- previous_upnl;
-    state["reward"_] = (previous_fees - info["fees"]) + pnl + upnl;
-    auto diff =  (avg_sell_price - avg_buy_price) / (avg_buy_price + avg_sell_price + 1); 
-    state["reward"_] += diff - previous_diff;
-    previous_diff = diff; 
+    state["reward"_] = (previous_fees - info["fees"]); + pnl + upnl;
+
+    auto buy_sell_diff = 0.0;
+
+    if (info["leverage"] > 0) {
+	buy_sell_diff = (info["curr_price"] - info["avg_buy_price"]) / info["curr_price"];
+    } else if (info["leverage"] < 0) {
+	buy_sell_diff = (info["avg_sell_price"] - info["curr_price"]) / info["curr_price"];
+    } else { buy_sell_diff = 0; }
+
+    state["reward"_] += buy_sell_diff - previous_buy_sell_diff;
+    previous_buy_sell_diff = buy_sell_diff;
     previous_rpnl = info["realized_pnl"];
     previous_upnl = info["unrealized_pnl"];
     previous_fees = info["fees"];
